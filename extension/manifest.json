@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Blokee Sync",
+  "version": "1.3.5",
+  "description": "Mirror blokee.mattle.online (and other Blokus tabs) into the Blokee coach app.",
+  "permissions": ["tabs", "scripting"],
+  "host_permissions": ["*://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

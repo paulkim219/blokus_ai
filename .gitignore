@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Live CPU eval artifacts
+scripts/live-cpu-results.jsonl
+playwright/.auth/
+
+# Self-play batch results
+selfplay-results/
+
+# Tuning artifacts (feature logs, CEM generation logs). Promoted configs are copied into
+# src/ai/algoVersions.ts, so nothing here needs to be tracked.
+tuning/
+
+# ML training artifacts (regenerate via npm run export:* / ml/train_*.py; shipped weights stay in ml/*.json)
+ml/data/
+ml/.venv/
+ml/__pycache__/
+ml/checkpoints/
+
+# Local scratch logs
+tmp/
+
+# Research site build output
+site/dist/
+
+# Editor / agent local config (not part of the product)
+.cursor/
+.claude/

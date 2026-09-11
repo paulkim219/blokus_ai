@@ -1,0 +1,308 @@
+[
+  {
+    "challenger": "hanni-1",
+    "opponent": "greedy",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 10.34,
+    "ci": [
+      9.05,
+      11.75
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 63.7,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v1-vs-greedy.",
+    "label": "v1-vs-greedy",
+    "finishedAt": "2026-08-23T08:07:00.000Z"
+  },
+  {
+    "challenger": "hanni-2-lite",
+    "opponent": "greedy",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 15.49,
+    "ci": [
+      14.3,
+      16.68
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 84,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v2-lite-vs-greedy.",
+    "label": "v2-lite-vs-greedy",
+    "finishedAt": "2026-08-23T10:21:34.647Z"
+  },
+  {
+    "challenger": "hanni-3-1-nano",
+    "opponent": "greedy",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 10.75,
+    "ci": [
+      9.64,
+      11.94
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 69.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-nano-vs-greedy.",
+    "label": "v3.1-nano-vs-greedy",
+    "finishedAt": "2026-08-23T10:22:33.812Z"
+  },
+  {
+    "challenger": "hanni-3-1-lite",
+    "opponent": "greedy",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 14.9,
+    "ci": [
+      13.62,
+      16.24
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 80,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-lite-vs-greedy.",
+    "label": "v3.1-lite-vs-greedy",
+    "finishedAt": "2026-08-23T10:23:48.492Z"
+  },
+  {
+    "challenger": "hanni-3-1-lite",
+    "opponent": "hanni-3-1-nano",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 3.8,
+    "ci": [
+      2.93,
+      4.74
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 45.8,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-lite-vs-v3.1-nano.",
+    "label": "v3.1-lite-vs-v3.1-nano",
+    "finishedAt": "2026-08-23T10:27:29.927Z"
+  },
+  {
+    "challenger": "hanni-3-1",
+    "opponent": "hanni-3-1-lite",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 2.19,
+    "ci": [
+      1.39,
+      3.03
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 33.8,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-vs-v3.1-lite.",
+    "label": "v3.1-vs-v3.1-lite",
+    "finishedAt": "2026-08-23T10:33:17.106Z"
+  },
+  {
+    "challenger": "hanni-3-1-nano",
+    "opponent": "hanni-2-lite",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": -3.29,
+    "ci": [
+      -4.26,
+      -2.33
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 20.8,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-nano-vs-v2-lite.",
+    "label": "v3.1-nano-vs-v2-lite",
+    "finishedAt": "2026-08-23T10:51:33.467Z"
+  },
+  {
+    "challenger": "hanni-3-1",
+    "opponent": "hanni-2-lite",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 3.95,
+    "ci": [
+      2.69,
+      5.29
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 52.3,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-vs-v2-lite.",
+    "label": "v3.1-vs-v2-lite",
+    "finishedAt": "2026-08-23T11:11:09.387Z"
+  },
+  {
+    "challenger": "hanni-3-2",
+    "opponent": "hanni-2-lite",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 3.11,
+    "ci": [
+      2.13,
+      4.12
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 45.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.2-vs-v2-lite.",
+    "label": "v3.2-vs-v2-lite",
+    "finishedAt": "2026-08-23T11:31:23.660Z"
+  },
+  {
+    "challenger": "hanni-3-2",
+    "opponent": "hanni-3-1",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 0.8,
+    "ci": [
+      0.09,
+      1.53
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 31.3,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.2-vs-v3.1.",
+    "label": "v3.2-vs-v3.1",
+    "finishedAt": "2026-08-23T11:41:45.871Z"
+  },
+  {
+    "challenger": "hanni-3-1-pro",
+    "opponent": "hanni-3-1",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 0.49,
+    "ci": [
+      -0.22,
+      1.24
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 31,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-pro-vs-v3.1.",
+    "label": "v3.1-pro-vs-v3.1",
+    "finishedAt": "2026-08-23T11:54:24.141Z"
+  },
+  {
+    "challenger": "hanni-3-1-nano",
+    "opponent": "hanni-1",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 2.79,
+    "ci": [
+      1.7,
+      3.9
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 41,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-nano-vs-v1.",
+    "label": "v3.1-nano-vs-v1",
+    "finishedAt": "2026-08-23T12:11:24.413Z"
+  },
+  {
+    "challenger": "hanni-3-1-pro-max",
+    "opponent": "hanni-3-1-pro",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 0.4,
+    "ci": [
+      -0.36,
+      1.16
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 30.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-pro-max-vs-v3.1-pro.",
+    "label": "v3.1-pro-max-vs-v3.1-pro",
+    "finishedAt": "2026-08-23T12:35:05.910Z"
+  },
+  {
+    "challenger": "hanni-2-pro",
+    "opponent": "hanni-1",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 13.57,
+    "ci": [
+      12.02,
+      15.14
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 63.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v2-pro-vs-v1.",
+    "label": "v2-pro-vs-v1",
+    "finishedAt": "2026-08-23T13:04:35.491Z"
+  },
+  {
+    "challenger": "hanni-3-1-pro-max",
+    "opponent": "hanni-2-pro",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 2.13,
+    "ci": [
+      1.15,
+      3.11
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 42.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.1-pro-max-vs-v2-pro.",
+    "label": "v3.1-pro-max-vs-v2-pro",
+    "finishedAt": "2026-08-23T13:53:36.287Z"
+  },
+  {
+    "challenger": "hanni-3-2-pro",
+    "opponent": "hanni-2-pro",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 2.16,
+    "ci": [
+      1.19,
+      3.13
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 42.5,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.2-pro-vs-v2-pro.",
+    "label": "v3.2-pro-vs-v2-pro",
+    "finishedAt": "2026-08-23T14:39:07.853Z"
+  },
+  {
+    "challenger": "hanni-3-2-pro-max",
+    "opponent": "hanni-2-pro",
+    "status": "measured",
+    "prominence": "primary",
+    "protocol": "post-2026-08-17",
+    "advantage": 3.59,
+    "ci": [
+      2.62,
+      4.59
+    ],
+    "games": 400,
+    "seeds": 100,
+    "firstPlace": 45.8,
+    "note": "100-seed seat-rotated match, base 300 iterations. Label v3.2-pro-max-vs-v2-pro.",
+    "label": "v3.2-pro-max-vs-v2-pro",
+    "finishedAt": "2026-08-23T15:29:05.025Z"
+  }
+]
