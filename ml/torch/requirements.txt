@@ -1,0 +1,4 @@
+# Versions the v6 results were measured with (macOS arm64, MPS). On an NVIDIA machine install the
+# CUDA build of torch first (selector at https://pytorch.org/get-started/locally/), then this file.
+torch==2.14.1
+numpy==2.5.4

@@ -158,6 +158,28 @@ ml/.venv/bin/python ml/probe_spatial.py --data ml/data/planes
 TensorFlow lives in an isolated venv (`ml/.venv`) on purpose: the system install crashes on import
 because its protobuf 6.x is incompatible with TF 2.20's C++ static initialisers.
 
+## Native engine and self-play learning (v6)
+
+`engine-rs/` is a Rust port of the bitboard engine. It makes the same decisions as the TS engine
+bit for bit and runs about 5.7× faster, which makes large self-play corpora practical. See
+`engine-rs/README.md` for usage, `research_paper/v6_native_and_learning_results.md` for results,
+and `docs/E4_RUNBOOK.md` to run the expert-iteration experiment (E4) on another machine.
+
+```bash
+npm run native:build && npm run native:test                    # build; check parity fixtures
+npm run match -- --native --challenger v4.2-ultra --champion v4.1-ultra --seeds 200
+
+# 20k self-play games with full root visit distributions, then the PyTorch (MPS) trainers.
+engine-rs/target/release/blokee-selfplay --config engine-rs/configs/v4.1-ultra.json \
+  --games 20000 --budget 300 --threads 11 --seed-base 61000000 --out ml/data/selfplay-v41u-300
+ml/.venv-torch/bin/python ml/torch/train.py --arm resnet --train-games 18500 --steps 8000
+zsh ml/torch/sweep_e1e2.sh                                       # the E1/E2 bracket
+
+# Serve a checkpoint as a root prior for native matches (configs with a `native.prior` block).
+ml/.venv-torch/bin/python ml/torch/serve.py --checkpoint ml/torch/results/resnet-g18500-s0.pt \
+  --socket /tmp/blokee-prior.sock
+```
+
 ## Development
 
 ```bash

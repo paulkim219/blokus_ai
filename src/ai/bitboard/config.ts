@@ -417,6 +417,18 @@ export interface SearchParams {
    * on candidates that never needed it. 0 reproduces the report as implemented.
    */
   funnelReserve: number;
+  /**
+   * Re-apply a node's cached settle (seats marked out, seat to move) every time the descent passes
+   * through it, not only when the node is first initialised.
+   *
+   * `enterNode` settles seats with no legal move out of the position and caches the result on the
+   * node, but `iterate` only replays that cache while the node is still uninitialised. On every
+   * later visit the descent applies the selected move with `position.turn` as it came out of the
+   * parent's `apply` — so where a seat was settled out, the move generated for `node.turn` is
+   * played under the colour of the seat that cannot move. Measured on `v4.1-ultra` self-play this
+   * is 1.8–6.2% of all tree descents. `false` reproduces every measured version byte-for-byte.
+   */
+  replaySettle?: boolean;
 }
 
 export interface EndgameParams {

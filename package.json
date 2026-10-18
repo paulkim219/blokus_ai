@@ -144,7 +144,11 @@
     "test:v5-oracle-change-point": "PYTHONPATH=ml ml/.venv/bin/python ml/test_v5_change_point.py",
     "train:v5-oracle-change-point": "PYTHONPATH=ml ml/.venv/bin/python ml/train_v5_change_point.py",
     "diagnose:v5-oracle-change-point": "PYTHONPATH=ml ml/.venv/bin/python ml/diagnose_v5_change_point.py",
-    "probe:v5-oracle-randomized-switch": "PYTHONPATH=ml ml/.venv/bin/python ml/probe_v5_randomized_switch.py"
+    "probe:v5-oracle-randomized-switch": "PYTHONPATH=ml ml/.venv/bin/python ml/probe_v5_randomized_switch.py",
+    "native:build": "cargo build --release --manifest-path engine-rs/Cargo.toml",
+    "native:test": "cargo test --release --manifest-path engine-rs/Cargo.toml",
+    "native:goldens": "tsx scripts/dumpGoldens.ts && tsx scripts/exportResolvedConfigs.ts",
+    "match:native": "tsx scripts/tournament.ts --native"
   },
   "dependencies": {
     "react": "^19.2.8",

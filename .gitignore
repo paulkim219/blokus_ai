@@ -37,7 +37,9 @@ tuning/
 # ML training artifacts (regenerate via npm run export:* / ml/train_*.py; shipped weights stay in ml/*.json)
 ml/data/
 ml/.venv/
+ml/.venv-torch/
 ml/__pycache__/
+__pycache__/
 ml/checkpoints/
 
 # Local scratch logs

@@ -926,6 +926,8 @@ export class V12Search {
           leaf = node;
           break;
         }
+      } else if (this.params.search.replaySettle) {
+        this.enterNode(node, position);
       }
 
       const index = this.select(node);

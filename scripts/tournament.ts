@@ -78,6 +78,7 @@ async function main(): Promise<void> {
   // identical game. Even MCTS benefits: seeds alone barely move the first few plies.
   const openingRandomPlies = Number(arg('opening-random-plies', '8'));
   const openingTopK = Number(arg('opening-top-k', '3'));
+  const native = process.argv.includes('--native') || process.env.BLOKEE_NATIVE === '1';
 
   const assignments: GameAssignment[] = [];
   for (let i = 0; i < seeds; i += 1) {
@@ -118,14 +119,14 @@ async function main(): Promise<void> {
         : ` (${POLICY_TIME_MS[challengerPolicy]} / ${POLICY_TIME_MS[championPolicy]} ms/move)`),
     `Seeds: ${seeds} × 4 seats = ${assignments.length} games`,
     `Opening sampling: first ${openingRandomPlies} plies from the top ${openingTopK}`,
-    `Workers: ${workers}`,
+    `Workers: ${workers}${native ? ' (native Rust engine)' : ''}`,
     `Label: ${label}`,
     '',
   ].join('\n');
   writeFileSync(summaryPath, header);
   console.log(header);
 
-  const pool = new GamePool(workers);
+  const pool = new GamePool(workers, { native });
   const startedAt = Date.now();
   const gamesBySeed = new Map<number, RotationGame[]>();
 

@@ -1,10 +1,18 @@
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import type { Readable, Writable } from 'node:stream';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 import { cpus } from 'node:os';
 import type { PolicyId } from '../../src/ai/selfplay.ts';
-import type { AlgoConfig, AlgoVersionId } from '../../src/ai/algoVersions.ts';
+import {
+  bitboardParamsFor,
+  getAlgo,
+  registerAlgoConfig,
+  type AlgoConfig,
+  type AlgoVersionId,
+} from '../../src/ai/algoVersions.ts';
+import type { BitboardParams } from '../../src/ai/bitboard/config.ts';
 import type { FeatureVector } from '../../src/ai/heuristics.ts';
 import type { OracleProbeOptions, OracleProbeResult } from '../../src/ai/oracle/probe.ts';
 import type { OracleTrajectoryResult } from '../../src/ai/oracle/trajectory.ts';
@@ -46,6 +54,11 @@ export interface GameAssignment {
   oracleTrajectory?: boolean | 'contextual';
   /** Return per-game response-layer activation and timing counters. */
   oracleDiagnostics?: boolean;
+  /**
+   * Native workers only: every seat version resolved to its parameters by this process, so the
+   * Rust engine never has to know how a version id maps to a config. Filled in by `GamePool`.
+   */
+  nativeParams?: Record<string, BitboardParams>;
 }
 
 /** One training row: the position as seen by the side to move, before it moved. */
@@ -79,6 +92,40 @@ export interface GameOutcome {
   error?: string;
 }
 
+/** Built by `cargo build --release` in `engine-rs/`. */
+export const NATIVE_WORKER = join(process.cwd(), 'engine-rs', 'target', 'release', 'blokee-worker');
+
+export interface GamePoolOptions {
+  /**
+   * Play games in the Rust engine instead of the TS one. Defaults to `BLOKEE_NATIVE=1`, so every
+   * script built on this pool (tournament, matrix, tune) can switch without its own flag. The
+   * native engine reproduces the TS engine move-for-move (`engine-rs/tests/parity.rs`) and rejects
+   * any config it cannot play identically.
+   */
+  native?: boolean;
+}
+
+/**
+ * Attach resolved parameters for every seat version. Throws for a version the native engine cannot
+ * play at all, rather than letting a worker report the failure game by game.
+ */
+function withNativeParams(assignment: GameAssignment): GameAssignment {
+  for (const config of assignment.configs ?? []) {
+    registerAlgoConfig(config);
+  }
+  const nativeParams: Record<string, BitboardParams> = {};
+  for (const version of Object.values(assignment.seatVersions)) {
+    const config = getAlgo(version);
+    if (config.engine !== 'bitboard') {
+      throw new Error(
+        `${version} runs on the '${config.engine ?? 'legacy'}' engine; native workers play bitboard configs only`,
+      );
+    }
+    nativeParams[version] = bitboardParamsFor(config);
+  }
+  return { ...assignment, configs: undefined, nativeParams };
+}
+
 export function defaultWorkerCount(): number {
   return Math.max(1, Math.min(8, cpus().length - 2));
 }
@@ -94,16 +141,25 @@ interface Worker {
 export class GamePool {
   private readonly workers: Worker[] = [];
   private readonly pending = new Map<string, (outcome: GameOutcome) => void>();
+  readonly native: boolean;
 
-  constructor(size: number = defaultWorkerCount()) {
+  constructor(size: number = defaultWorkerCount(), options: GamePoolOptions = {}) {
+    this.native = options.native ?? process.env.BLOKEE_NATIVE === '1';
+    if (this.native && !existsSync(NATIVE_WORKER)) {
+      throw new Error(
+        `native worker not built: run \`cargo build --release\` in engine-rs/ (expected ${NATIVE_WORKER})`,
+      );
+    }
     const script = join(process.cwd(), 'scripts', 'tournamentWorker.ts');
     // Use Node's loader instead of the tsx CLI. The CLI creates an IPC socket for its optional
     // process-control layer, which restricted runners reject; the loader executes the same
     // TypeScript without a wrapper or socket, so closing this child still closes the real worker.
     for (let i = 0; i < size; i += 1) {
-      const child: WorkerProcess = spawn(process.execPath, ['--import', 'tsx', script], {
-        stdio: ['pipe', 'pipe', 'inherit'],
-      });
+      const child: WorkerProcess = this.native
+        ? spawn(NATIVE_WORKER, [], { stdio: ['pipe', 'pipe', 'inherit'] })
+        : spawn(process.execPath, ['--import', 'tsx', script], {
+            stdio: ['pipe', 'pipe', 'inherit'],
+          });
       const worker: Worker = { child, busy: false };
       createInterface({ input: child.stdout }).on('line', (line) => {
         if (!line.startsWith('{')) {
@@ -127,7 +183,7 @@ export class GamePool {
     assignments: GameAssignment[],
     onResult?: (outcome: GameOutcome, done: number, total: number) => void,
   ): Promise<GameOutcome[]> {
-    const queue = [...assignments];
+    const queue = this.native ? assignments.map(withNativeParams) : [...assignments];
     const outcomes: GameOutcome[] = [];
     let done = 0;
 

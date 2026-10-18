@@ -373,6 +373,45 @@ export const V4_VERSIONS: Record<AlgoVersionId, AlgoConfig> = {
    * and not an architectural advance. It buys strength at the ordinary price.
    */
   'v4.1-ultra': v41ComputeArm('v4.1-ultra', 16, 'doubles v4.1-pro-max'),
+  /**
+   * `v4.1-ultra` with the stale-settle descent fixed (`search.replaySettle`, see config.ts). An
+   * experiment id, not a release: it changes what the tree simulates in 2–6% of descents and has to
+   * be measured against `v4.1-ultra` before it means anything.
+   */
+  'v4.1-ultra-settlefix': (() => {
+    const source = v41ComputeArm('v4.1-ultra-settlefix', 16, 'doubles v4.1-pro-max');
+    return {
+      ...source,
+      summary: 'v4.1-ultra with search.replaySettle: revisited nodes re-apply their cached settle.',
+      bitboard: {
+        ...(source.bitboard ?? {}),
+        search: { ...((source.bitboard ?? {}).search ?? {}), replaySettle: true },
+      },
+    } as AlgoConfig;
+  })(),
+  /**
+   * RELEASE: `v4.1-ultra-settlefix` promoted under a release name. Identical config: v4.1-ultra
+   * (scale 16) with `search.replaySettle`.
+   *
+   * `MEASURED` against `v4.1-ultra` on two disjoint 200-seed blocks (800 games each, native engine,
+   * base 300): +0.29 [0.17, 0.43] (seeds 71,234,567–71,234,766) and +0.27 [0.14, 0.42]
+   * (71,334,567–71,334,766). See `research_paper/v6_native_and_learning_results.md`.
+   *
+   * A bug fix, not a tuned parameter: same iteration budget, same per-iteration cost. The
+   * experiment id stays registered because both measurements are logged under it.
+   */
+  'v4.2-ultra': (() => {
+    const source = v41ComputeArm('v4.2-ultra', 16, 'doubles v4.1-pro-max');
+    return {
+      ...source,
+      summary:
+        'v4.1-ultra with the stale-settle descent fixed (search.replaySettle). +0.28 over v4.1-ultra across two 200-seed blocks.',
+      bitboard: {
+        ...(source.bitboard ?? {}),
+        search: { ...((source.bitboard ?? {}).search ?? {}), replaySettle: true },
+      },
+    } as AlgoConfig;
+  })(),
 
   'v4.2-pro-s56': v41ComputeArm('v4.2-pro-s56', 5.59, 'spends the surplus to v3.1-pro wall-clock parity'),
   'v4.2-pro-s69': v41ComputeArm('v4.2-pro-s69', 6.89, 'overspends to roughly 1.5x v4.1-pro'),

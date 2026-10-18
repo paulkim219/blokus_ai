@@ -2193,6 +2193,30 @@ switching block; until then no gated architecture's change-point result can be b
 Registered commands: `npm run test:v5-oracle-change-point`,
 `npm run train:v5-oracle-change-point`, `npm run diagnose:v5-oracle-change-point`.
 
+## v6 — native engine, scaled self-play, learned priors (2026-10-18)
+
+Full write-up: `research_paper/v6_native_and_learning_results.md` (gates fixed beforehand in
+`v6_native_and_learning_preregistered.md`).
+
+- **Native engine.** `engine-rs/` is a Rust port of the bitboard play path. It makes bit-identical
+  decisions to the TS engine and is 5.5–5.9× faster per iteration. Harness scripts use it with
+  `--native` or `BLOKEE_NATIVE=1`.
+- **Settle bug.** `V12Search.iterate` skipped replaying a node's cached seat-settle on revisits, so
+  1.8–6.2% of descents applied moves for the wrong seat. `search.replaySettle: true` fixes it, and
+  `v4.1-ultra-settlefix` beats `v4.1-ultra` by +0.29 [0.17, 0.43] and +0.27 [0.14, 0.42] on two
+  disjoint 200-seed blocks. Every other version is unchanged byte for byte.
+  **PROMOTED as `v4.2-ultra`** (identical config; the experiment id stays registered for its logs).
+- **Data is not what capped v4.** On 20,000 native `v4.1-ultra` games (1.45M positions, full root
+  visit distributions), the v4-class 3×3 conv improved by 0.006 nats from 1k to 18.5k games. A
+  1.56M-parameter global-pooling ResNet reached KL 0.338 and 48% top-1, against 0.488 and 37%.
+- **Attention lost at matched GPU time.** The patch and cell transformers scored KL 0.464 and
+  0.545. They saw 2.7–5.3× fewer samples in the same wall clock, so the result is about matched
+  compute, not about their asymptote.
+- **A better root prior is still worth about +0.2.** The ResNet blended into `v4.1-ultra`'s root
+  prior: +0.18 [−0.56, 0.95] at 0.25, +0.24 [−0.53, 1.03] at 0.5. Both are null at the +0.50 gate.
+  The root channel, not prediction quality, is the limit. The open bets are the net as a value
+  (n-step hybrid) and expert iteration (`ml/torch/expert_iteration.sh`).
+
 # Running things
 
 ```bash

@@ -1,0 +1,98 @@
+{
+ "arm": "resnet",
+ "trainGames": 18500,
+ "trainPositions": 1341928,
+ "parameters": 1557146,
+ "steps": 8000,
+ "bestStep": 8000,
+ "test": {
+  "policyKL": 0.3375094297816516,
+  "top1": 0.4807270254397082,
+  "top5": 0.8779017650149918,
+  "valueMSE": 37.0070301940918,
+  "valueR2": 0.3967304171111874,
+  "ownershipAcc": 0.728391875,
+  "positions": 40000,
+  "policyPositions": 32351
+ },
+ "positionsPerSecond": 1351.8773022150524,
+ "history": [
+  {
+   "step": 2000,
+   "train": {
+    "policy": 2.8049705028533936,
+    "value": 0.09939268231391907,
+    "ownership": 0.6214967966079712
+   },
+   "val": {
+    "policyKL": 0.4111858804091086,
+    "top1": 0.42633177378314047,
+    "top5": 0.8271361733563162,
+    "valueMSE": 47.162271223958335,
+    "valueR2": 0.3138259817610146,
+    "ownershipAcc": 0.711898,
+    "positions": 15000,
+    "policyPositions": 12183
+   },
+   "seconds": 1273
+  },
+  {
+   "step": 4000,
+   "train": {
+    "policy": 2.8068959712982178,
+    "value": 0.09163275361061096,
+    "ownership": 0.6184989213943481
+   },
+   "val": {
+    "policyKL": 0.3788786904326333,
+    "top1": 0.4457030288106378,
+    "top5": 0.8551259952392678,
+    "valueMSE": 57.509575032552085,
+    "valueR2": 0.16328083522711478,
+    "ownershipAcc": 0.721642,
+    "positions": 15000,
+    "policyPositions": 12183
+   },
+   "seconds": 3478
+  },
+  {
+   "step": 6000,
+   "train": {
+    "policy": 2.7787983417510986,
+    "value": 0.09639008343219757,
+    "ownership": 0.592014729976654
+   },
+   "val": {
+    "policyKL": 0.3510617595347906,
+    "top1": 0.47147664778790116,
+    "top5": 0.8741689239103669,
+    "valueMSE": 42.064897981770834,
+    "valueR2": 0.3879887603822203,
+    "ownershipAcc": 0.7267595,
+    "positions": 15000,
+    "policyPositions": 12183
+   },
+   "seconds": 4555
+  },
+  {
+   "step": 8000,
+   "train": {
+    "policy": 2.6664481163024902,
+    "value": 0.09033095091581345,
+    "ownership": 0.5858806371688843
+   },
+   "val": {
+    "policyKL": 0.33964289114372115,
+    "top1": 0.48042354099975376,
+    "top5": 0.8782730033653452,
+    "valueMSE": 41.32340621744792,
+    "valueR2": 0.3987768833926767,
+    "ownershipAcc": 0.7291006666666666,
+    "positions": 15000,
+    "policyPositions": 12183
+   },
+   "seconds": 5824
+  }
+ ],
+ "seconds": 5860
+}

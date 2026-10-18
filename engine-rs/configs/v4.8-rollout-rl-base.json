@@ -1,0 +1,232 @@
+{
+ "fractionalTerritoryTies": true,
+ "aggressionScale": 1,
+ "phases": {
+  "opening": {
+   "squares": 0.7073943491787182,
+   "corners": 3.236208243006147,
+   "territory": 0.07869436657222152,
+   "waste": 0.019340335125757536,
+   "centre": 2.0751516480799825,
+   "frontier": 0.19140497965605197,
+   "oppTerritory": 0.123209337202243,
+   "oppCorners": 0.2637393827654344,
+   "oppSquares": 0.08957550081323215,
+   "mobility": 0.17633374795435142,
+   "uniqueCorners": 0.00014916084411385755,
+   "cornerExponent": 0.5392766252710198
+  },
+  "midgame": {
+   "squares": 2.14009336506333,
+   "corners": 1.63555702411341,
+   "territory": 0.4618259311789069,
+   "waste": 0.44027256604352194,
+   "centre": 0.30558293224891686,
+   "frontier": 0.19148373778170136,
+   "oppTerritory": 0.4493517939204217,
+   "oppCorners": 0.33240981667469927,
+   "oppSquares": 0.06939506768930884,
+   "mobility": -0.40598936157341664,
+   "uniqueCorners": 0.12977957695067222,
+   "cornerExponent": 0.41430604449335706
+  },
+  "endgame": {
+   "squares": 2.439759753226241,
+   "corners": 1.485841278511595,
+   "territory": 0.5151829972226134,
+   "waste": 0.835242401245712,
+   "centre": 0.09068757113632515,
+   "frontier": 0,
+   "oppTerritory": 0.22893918622663953,
+   "oppCorners": 0.18730612025648047,
+   "oppSquares": 0.04775752466192881,
+   "mobility": 0.05354090731220601,
+   "uniqueCorners": 0.12195186120727289,
+   "cornerExponent": 0.4697523606526842
+  }
+ },
+ "lambda": {
+  "opening": {
+   "next": 0.2662788703416361,
+   "prev": 0.2034751255979761,
+   "diag": 0.09263200847574488,
+   "leaderBoost": 0.25942335808900846
+  },
+  "midgame": {
+   "next": 0.8107331953257476,
+   "prev": 0.41391178353978364,
+   "diag": 0.3275790711723966,
+   "leaderBoost": 0.234598573207065
+  },
+  "endgame": {
+   "next": 0.4298727832569056,
+   "prev": 0.41399781997360585,
+   "diag": 0.1774918522212113,
+   "leaderBoost": 0.1792541306555348
+  }
+ },
+ "ordering": {
+  "opening": {
+   "pieceSize": 1.6,
+   "split": 0.15,
+   "newCorners": 1.2,
+   "denyCorners": 0.4,
+   "centrePull": 0.55
+  },
+  "midgame": {
+   "pieceSize": 0.9,
+   "split": 0.65,
+   "newCorners": 0.9,
+   "denyCorners": 1.1,
+   "centrePull": 0.15
+  },
+  "endgame": {
+   "pieceSize": 1.3,
+   "split": 0.35,
+   "newCorners": 0.5,
+   "denyCorners": 0.5,
+   "centrePull": 0
+  }
+ },
+ "seats": [
+  {
+   "centre": 1.15,
+   "corners": 1.05,
+   "territory": 1,
+   "waste": 0.9,
+   "aggression": 0.8
+  },
+  {
+   "centre": 1.05,
+   "corners": 1,
+   "territory": 1.02,
+   "waste": 0.97,
+   "aggression": 0.95
+  },
+  {
+   "centre": 1,
+   "corners": 1,
+   "territory": 1.05,
+   "waste": 1.03,
+   "aggression": 1.1
+  },
+  {
+   "centre": 0.9,
+   "corners": 0.98,
+   "territory": 1.1,
+   "waste": 1.15,
+   "aggression": 1.25
+  }
+ ],
+ "search": {
+  "rootPolicy": "puct",
+  "implicitMaxnWeight": 0,
+  "raveEquivalence": 0,
+  "varianceTuned": false,
+  "varianceTunedRootOnly": false,
+  "rootAudit": "none",
+  "rootAuditTopK": 4,
+  "rootAuditRollouts": 0,
+  "rootAuditBlend": 0.35,
+  "rootGrouping": "none",
+  "cPuct": 1.6,
+  "fpuReduction": 0,
+  "priorTemp": 6,
+  "wideningInit": 8,
+  "wideningGrowth": 0.8,
+  "wideningAllNodes": true,
+  "playoutEps": 0.6,
+  "playoutEpsByPhase": {
+   "opening": 0.6,
+   "midgame": 0.6,
+   "endgame": 0.6
+  },
+  "playoutCutoff": 84,
+  "playoutMoveCap": 12,
+  "playoutCorners": 1,
+  "playoutPolicy": "linear",
+  "playoutCornerWeight": 0,
+  "playoutEdgeWeight": 0,
+  "playoutTemp": 0,
+  "playoutMastWeight": 0,
+  "playoutMastGranularity": "piece",
+  "playoutMastLifetime": "root",
+  "sigmoidScale": 12,
+  "evalScale": 28,
+  "rankBlend": 0.35,
+  "netScale": 12,
+  "netBlend": 0,
+  "netOutputKind": "scores",
+  "netValueSampling": "mean",
+  "netSampleScale": 1,
+  "netTailPrefix": 0,
+  "netTailMaxStd": 0,
+  "netRolloutProbability": 0,
+  "netPrior": false,
+  "netPriorPhase": "all",
+  "netPriorBlend": 1,
+  "netPriorTemp": 4,
+  "rootPriorPseudoVisits": 0,
+  "opponentAggregation": "max",
+  "leafMaterialBlend": 0,
+  "objectiveShift": true,
+  "historyWeight": 0.6,
+  "opponentPolicy": "auto",
+  "paranoidLead": 8,
+  "transpositions": true,
+  "treeReuse": false,
+  "rootEnsembleTrees": 1,
+  "rootPieceFeasibilityWeight": 0,
+  "rootPieceDiversity": false,
+  "virtualLoss": 0,
+  "iterationScale": 2.33,
+  "rootShortlist": 40,
+  "nodeShortlist": 24,
+  "splitAtInterior": false,
+  "interiorSplitBudget": 0,
+  "funnelReserve": 0,
+  "iterationShape": [
+   0.3307,
+   0.441,
+   0.588,
+   0.735,
+   0.8452,
+   1.6301,
+   1.7509,
+   1.8112,
+   1.8112,
+   1.7509,
+   1.6301,
+   1.5094,
+   1.3886,
+   1.2679,
+   1.1471,
+   0.5355,
+   0.4725,
+   0.4095,
+   0.3465,
+   0.315,
+   0.2835
+  ],
+  "openingHeuristicMaxOwnMove": 3
+ },
+ "endgame": {
+  "maxRegionCells": 44,
+  "maxOwnMoves": 80,
+  "nodeBudget": 30000,
+  "memoLimit": 40000,
+  "nearSealed": true,
+  "gateRemainingSquares": 160
+ },
+ "time": {
+  "probeFraction": 0.2,
+  "minIterations": 64,
+  "spreadFactor": 1.5,
+  "earlyExit": true
+ },
+ "detection": {
+  "openingMoves": 5,
+  "midgameMoves": 15,
+  "contestedFloor": 0.08
+ }
+}

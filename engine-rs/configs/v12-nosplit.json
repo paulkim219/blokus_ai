@@ -1,0 +1,204 @@
+{
+ "fractionalTerritoryTies": false,
+ "aggressionScale": 1,
+ "phases": {
+  "opening": {
+   "squares": 0.6,
+   "corners": 3,
+   "territory": 0.3,
+   "waste": 0,
+   "centre": 2.2,
+   "frontier": 0.15,
+   "oppTerritory": 0.1,
+   "oppCorners": 0.3,
+   "oppSquares": 0,
+   "mobility": 0,
+   "uniqueCorners": 0,
+   "cornerExponent": 0.5
+  },
+  "midgame": {
+   "squares": 1.4,
+   "corners": 2,
+   "territory": 0.55,
+   "waste": 0.35,
+   "centre": 0.5,
+   "frontier": 0.25,
+   "oppTerritory": 0.45,
+   "oppCorners": 0.9,
+   "oppSquares": 0,
+   "mobility": 0,
+   "uniqueCorners": 0,
+   "cornerExponent": 0.5
+  },
+  "endgame": {
+   "squares": 2.6,
+   "corners": 1,
+   "territory": 0.45,
+   "waste": 0.9,
+   "centre": 0,
+   "frontier": 0.05,
+   "oppTerritory": 0.15,
+   "oppCorners": 0.2,
+   "oppSquares": 0,
+   "mobility": 0,
+   "uniqueCorners": 0,
+   "cornerExponent": 0.5
+  }
+ },
+ "lambda": {
+  "opening": {
+   "next": 0.3,
+   "prev": 0.2,
+   "diag": 0.1,
+   "leaderBoost": 0.1
+  },
+  "midgame": {
+   "next": 0.85,
+   "prev": 0.65,
+   "diag": 0.35,
+   "leaderBoost": 0.35
+  },
+  "endgame": {
+   "next": 0.4,
+   "prev": 0.3,
+   "diag": 0.15,
+   "leaderBoost": 0.2
+  }
+ },
+ "ordering": {
+  "opening": {
+   "pieceSize": 1.6,
+   "split": 0,
+   "newCorners": 1.2,
+   "denyCorners": 0.4,
+   "centrePull": 0.55
+  },
+  "midgame": {
+   "pieceSize": 0.9,
+   "split": 0,
+   "newCorners": 0.9,
+   "denyCorners": 1.1,
+   "centrePull": 0.15
+  },
+  "endgame": {
+   "pieceSize": 1.3,
+   "split": 0,
+   "newCorners": 0.5,
+   "denyCorners": 0.5,
+   "centrePull": 0
+  }
+ },
+ "seats": [
+  {
+   "centre": 1.15,
+   "corners": 1.05,
+   "territory": 1,
+   "waste": 0.9,
+   "aggression": 0.8
+  },
+  {
+   "centre": 1.05,
+   "corners": 1,
+   "territory": 1.02,
+   "waste": 0.97,
+   "aggression": 0.95
+  },
+  {
+   "centre": 1,
+   "corners": 1,
+   "territory": 1.05,
+   "waste": 1.03,
+   "aggression": 1.1
+  },
+  {
+   "centre": 0.9,
+   "corners": 0.98,
+   "territory": 1.1,
+   "waste": 1.15,
+   "aggression": 1.25
+  }
+ ],
+ "search": {
+  "rootPolicy": "puct",
+  "implicitMaxnWeight": 0,
+  "raveEquivalence": 0,
+  "varianceTuned": false,
+  "varianceTunedRootOnly": false,
+  "rootAudit": "none",
+  "rootAuditTopK": 4,
+  "rootAuditRollouts": 0,
+  "rootAuditBlend": 0.35,
+  "rootGrouping": "none",
+  "cPuct": 1.6,
+  "fpuReduction": 0,
+  "priorTemp": 6,
+  "wideningInit": 8,
+  "wideningGrowth": 0.8,
+  "wideningAllNodes": true,
+  "playoutEps": 0.15,
+  "playoutEpsByPhase": null,
+  "playoutCutoff": 12,
+  "playoutMoveCap": 12,
+  "playoutCorners": 1,
+  "playoutPolicy": "legacy",
+  "playoutCornerWeight": 0,
+  "playoutEdgeWeight": 0,
+  "playoutTemp": 0,
+  "playoutMastWeight": 0,
+  "playoutMastGranularity": "piece",
+  "playoutMastLifetime": "root",
+  "sigmoidScale": 12,
+  "evalScale": 28,
+  "rankBlend": 0.35,
+  "netScale": 12,
+  "netBlend": 0,
+  "netOutputKind": "scores",
+  "netValueSampling": "mean",
+  "netSampleScale": 1,
+  "netTailPrefix": 0,
+  "netTailMaxStd": 0,
+  "netRolloutProbability": 0,
+  "netPrior": false,
+  "netPriorPhase": "all",
+  "netPriorBlend": 1,
+  "netPriorTemp": 4,
+  "rootPriorPseudoVisits": 0,
+  "opponentAggregation": "max",
+  "leafMaterialBlend": 0,
+  "objectiveShift": true,
+  "historyWeight": 0.6,
+  "opponentPolicy": "auto",
+  "paranoidLead": 8,
+  "transpositions": true,
+  "treeReuse": false,
+  "rootEnsembleTrees": 1,
+  "rootPieceFeasibilityWeight": 0,
+  "rootPieceDiversity": false,
+  "virtualLoss": 0,
+  "iterationScale": 1,
+  "rootShortlist": 40,
+  "nodeShortlist": 24,
+  "splitAtInterior": false,
+  "interiorSplitBudget": 0,
+  "funnelReserve": 0
+ },
+ "endgame": {
+  "maxRegionCells": 44,
+  "maxOwnMoves": 80,
+  "nodeBudget": 30000,
+  "memoLimit": 40000,
+  "nearSealed": true,
+  "gateRemainingSquares": 160
+ },
+ "time": {
+  "probeFraction": 0.2,
+  "minIterations": 64,
+  "spreadFactor": 1.5,
+  "earlyExit": true
+ },
+ "detection": {
+  "openingMoves": 5,
+  "midgameMoves": 15,
+  "contestedFloor": 0.08
+ }
+}
