@@ -1,0 +1,9 @@
+Pooled 1 logs → 800 complete seeds (3200 games), seeds 74200000–74200799
+
+v4.2-ultra vs v4.2-ultra — 3200 games over 800 seeds
+Advantage (score − mean of the three v4.2-ultra seats): 0.00 [95% CI -0.00, 0.00] → not significant
+First place: 28.9% (par 25%), sole wins 21.5%
+Mean score: -10.75 (opponents -10.75), squares placed 77.89 / 89
+Per-seat advantage: blue 0.01  yellow -2.32  purple 0.30  green 2.01
+
+Minimum detectable effect at this sample size (80% power): ~0.47

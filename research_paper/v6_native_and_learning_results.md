@@ -163,9 +163,24 @@ confirmation (+0.41). The +0.83 screen was the high draw.
 Expert iteration did move the root prior, which E3a's better offline prior had not. The result is
 about +0.4 against `v4.2-ultra`, with a lower bound well above 0.
 
-The yellow seat is negative again, at −1.97, so it has now lost in all three blocks. A seat-specific
-cost of the served prior is the first thing to rule out before E3b. A seat-handling bug in the
-feature encoding is one possible cause.
+The yellow seat is negative again, at −1.97, so it has now lost in all three blocks. **This is turn
+order, not the prior.** A `v4.2-ultra` mirror on the same 800 seeds (`ml/seat/results/`) puts each
+seat's own effect at:
+
+| Seat (turn order) | Mirror advantage | Mirror win share | E4 minus mirror, advantage | E4 minus mirror, win share |
+|---|---|---:|---|---|
+| blue (1st) | +0.01 | 27.4% | **+1.12 [0.32, 1.94]** | **+5.4 pp [1.3, 9.5]** |
+| green (2nd) | +2.01 | 33.5% | −0.19 [−0.95, 0.56] | +0.3 pp |
+| purple (3rd) | +0.30 | 24.5% | +0.28 [−0.39, 0.96] | +1.3 pp |
+| yellow (4th) | −2.32 | 14.7% | +0.35 [−0.24, 0.96] | +0.5 pp |
+
+Two findings come out of this:
+- **E4 is neutral in yellow**, not harmful. Its gain is concentrated in blue.
+- **Turn order is a large effect here.** This is the first measurement of the first-mover question
+  that v4 report §5 left open. The best seat is second, not first, and the last seat wins less than
+  half as often as the second.
+
+Both comparisons are paired by seed, and neither was preregistered.
 
 Artefacts are in `ml/torch/results/e4/`: `log.txt`, `final.txt`, `confirm.txt`, `confirm2.txt`, and every
 generation's offline metrics (`ei-gen*.json`). The games and checkpoints stay on the PC under
