@@ -113,3 +113,18 @@ every descent; `false` (every existing version) is byte-identical.
   74,100,000 with the same verdict. If no generation is accepted, the reading is that the root
   prior channel does not respond to self-improvement at this scale, and the next experiment is
   E3b.
+- **2026-10-18, E4 read; powered confirmation fixed before it runs.**
+  - The E4 final measured +0.83 [0.30, 1.37], and its confirmation measured +0.41 [−0.11, 0.94].
+    Under the rule above, E4 is **not confirmed**, and that verdict stands whatever happens below.
+  - Why a second confirmation: at 200 seeds the minimum detectable effect (80% power) is about
+    0.95, so neither 200-seed block could reliably detect the +0.50 effect the gate requires.
+  - The test: the same served `ei-gen6` (`final.json`, blend 0.5, temperature 1) against plain
+    `v4.2-ultra`, budget 300, on **800 seeds from 74,200,000** (74,200,000–74,200,799). This block
+    is disjoint from every earlier block, and the expected minimum detectable effect is about 0.48.
+    It is read on its own; it is not pooled with the earlier blocks.
+  - **Pass** if the mean is ≥ +0.50 and the CI lower bound is above 0. A pass makes `ei-gen6` as
+    a served prior a promotion candidate, recorded as "passed screen, failed the underpowered
+    confirmation, passed the powered one".
+  - If the mean is above 0 but the gate is not met, the reading is that expert iteration helps
+    below the bar this programme set, and E3b is next.
+  - If the mean is at or below 0, the +0.83 screen was noise.
