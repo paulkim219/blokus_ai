@@ -17,6 +17,7 @@ engine bit for bit; scores come from the TS statistic (`scripts/aggregateMatches
 | E3a root prior, blend 0.5 | +0.24 [−0.53, 1.03], 100 seeds | same | **null** |
 | E4 expert iteration, final | +0.83 [0.30, 1.37], 200 seeds | mean ≥ +0.50, CI lower > 0 | **pass — candidate** |
 | E4 expert iteration, confirmation | +0.41 [−0.11, 0.94], 200 fresh seeds | same verdict | **fail — not confirmed** |
+| E4 powered confirmation (addendum) | +0.39 [0.14, 0.65], 800 fresh seeds | mean ≥ +0.50, CI lower > 0 | **real but below the bar** |
 
 ## E0 — the native engine
 
@@ -146,7 +147,27 @@ Readings, separated from the verdict:
 - **The gates trend downward after gen 4,** but every gate CI spans 0. This is consistent with,
   though not evidence for, the loop plateauing at 2,000 games per generation.
 
-Artefacts are in `ml/torch/results/e4/`: `log.txt`, `final.txt`, `confirm.txt`, and every
+**Powered confirmation (addendum, fixed and pushed before it ran).** The addendum fixed the test
+before it ran:
+- the same served `ei-gen6` against plain `v4.2-ultra`;
+- 800 fresh seeds, 74,200,000–74,200,799;
+- an expected minimum detectable effect of 0.47.
+
+It measured **+0.39 [0.14, 0.65]**, with first place 30.6% against a par of 25%. The mean is above
+0 but below +0.50, which is the outcome the addendum labelled "expert iteration helps below the bar
+this programme set, and E3b is next". E4 is therefore not promoted.
+
+This 800-seed block is the best estimate of the effect, and it agrees with the 200-seed
+confirmation (+0.41). The +0.83 screen was the high draw.
+
+Expert iteration did move the root prior, which E3a's better offline prior had not. The result is
+about +0.4 against `v4.2-ultra`, with a lower bound well above 0.
+
+The yellow seat is negative again, at −1.97, so it has now lost in all three blocks. A seat-specific
+cost of the served prior is the first thing to rule out before E3b. A seat-handling bug in the
+feature encoding is one possible cause.
+
+Artefacts are in `ml/torch/results/e4/`: `log.txt`, `final.txt`, `confirm.txt`, `confirm2.txt`, and every
 generation's offline metrics (`ei-gen*.json`). The games and checkpoints stay on the PC under
 `ml/data/expert-iteration/` (621 MB).
 
