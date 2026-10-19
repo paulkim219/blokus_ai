@@ -15,6 +15,8 @@ engine bit for bit; scores come from the TS statistic (`scripts/aggregateMatches
 | E2 architecture | `resnet` KL 0.338; `vit-patch` 0.464; `vit-cell` 0.545 | lowest KL | **`resnet` selected** |
 | E3a root prior, blend 0.25 | +0.18 [−0.56, 0.95], 100 seeds | mean ≥ +0.50, CI lower > 0 | **null** |
 | E3a root prior, blend 0.5 | +0.24 [−0.53, 1.03], 100 seeds | same | **null** |
+| E4 expert iteration, final | +0.83 [0.30, 1.37], 200 seeds | mean ≥ +0.50, CI lower > 0 | **pass — candidate** |
+| E4 expert iteration, confirmation | +0.41 [−0.11, 0.94], 200 fresh seeds | same verdict | **fail — not confirmed** |
 
 ## E0 — the native engine
 
@@ -84,6 +86,69 @@ at 4,800 iterations per move the root's visit distribution is decided by the rol
 prior only reorders the first few hundred visits. The network is called once per searched move (the
 server averaged 35 calls/s across 10 match threads), and the matches took no longer than prior-free
 ones.
+
+## E4 — expert iteration (2026-10-18): screen passes, confirmation does not
+
+Run as preregistered in the addendum, with every default in `docs/E4_RUNBOOK.md`. It started from
+`resnet-g18500-s0.pt` with `v4.2-ultra` as the search: 8 generations × 2,000 self-play games at
+base 300, 4,000 steps per generation, a replay window of 3, the 20k corpus as base data, and blend
+0.5 at temperature 1.
+
+**Machine.** WSL2 Ubuntu 26.04, x86-64, 16 threads (15 used), RTX 4080 with CUDA (torch
+2.14.1+cu130), rustc 1.99.1.
+- All 8 parity tests pass on x86-64.
+- The base corpus was regenerated here with the runbook's command (step 3b, 182 min). It has
+  1,450,853 positions, against 1,450,867 on the Mac, so these games are not bit-identical to the
+  Mac's. This is the cross-platform caveat in the runbook; no "identical replay" claim crosses
+  machines.
+- Each generation took about 26 minutes (the Mac estimate was about 45). E4 ran 17:53–21:40.
+
+| Gen | Gate (50 seeds) | Kept | Test KL* | Top-1* |
+|---:|---|---|---:|---:|
+| 0 → ei-gen1 | +0.11 [−0.72, 0.96] | yes | 0.252 | 60.1% |
+| 1 → ei-gen2 | +0.55 [−0.64, 1.80] | yes | 0.246 | 59.0% |
+| 2 → ei-gen3 | +0.54 [−0.60, 1.81] | yes | 0.240 | 61.6% |
+| 3 → ei-gen4 | +0.18 [−0.82, 1.31] | yes | 0.228 | 61.0% |
+| 4 → ei-gen5 | +0.32 [−0.64, 1.30] | yes | 0.225 | 63.2% |
+| 5 → ei-gen6 | +0.19 [−0.85, 1.24] | yes | 0.226 | 62.0% |
+| 6 → ei-gen7 | −0.09 [−0.89, 0.72] | no | 0.230 | 61.4% |
+| 7 → ei-gen8 | −0.94 [−1.89, 0.10] | no | 0.227 | 62.0% |
+
+\* On each generation's own held-out self-play games. These are not comparable to E1/E2's test
+split, and only loosely comparable across generations, because the targets move with the network.
+
+No gate was individually significant. As fixed in advance, the gates only set the path: six
+generations were kept, and the last two were rejected, so the final network is `ei-gen6`.
+
+**Result.** `ei-gen6` was served as the root prior of `v4.2-ultra` against plain `v4.2-ultra`.
+
+| Block | Seeds | Advantage | First place | Verdict |
+|---|---|---|---:|---|
+| Final (screen) | 74,000,000–74,000,199 | **+0.83 [0.30, 1.37]** | 30.9% | pass |
+| Confirmation | 74,100,000–74,100,199 | **+0.41 [−0.11, 0.94]** | 28.2% | fail |
+| Pooled, *not preregistered* | both, 400 seeds | +0.62 [0.25, 1.00] | 29.6% | descriptive only |
+
+Under the preregistered rule E4 does **not** pass, because the confirmation block must reach the
+same verdict. It is not the preregistered null either: that reading required that no generation be
+accepted, and six were.
+
+Readings, separated from the verdict:
+- **The screen estimate shrank on fresh seeds**, from +0.83 to +0.41. That is what a
+  winner's-curse screen looks like, and it is why the confirmation rule exists.
+- **The test cannot resolve its own threshold.** At 200 seeds the minimum detectable effect is
+  about 0.95. That is nearly twice the +0.50 gate, so a true effect of about +0.5 would fail a
+  200-seed block more often than not.
+- **The effect is probably real but smaller than the gate.** The pooled 400 seeds put the effect at
+  roughly +0.6, with a lower bound of +0.25. E3a's +0.24 is in the same range, but it was measured
+  against `v4.1-ultra`, not `v4.2-ultra`, so the two numbers are not directly comparable.
+- **The yellow seat loses in both blocks**, at −1.83 and −1.82, while the other three seats gain
+  between +0.5 and +2.0. This is worth explaining before the next run.
+- **The gates trend downward after gen 4,** but every gate CI spans 0. This is consistent with,
+  though not evidence for, the loop plateauing at 2,000 games per generation.
+
+Artefacts are in `ml/torch/results/e4/`: `log.txt`, `final.txt`, `confirm.txt`, and every
+generation's offline metrics (`ei-gen*.json`). The games and checkpoints stay on the PC under
+`ml/data/expert-iteration/` (621 MB).
 
 ## What this says about the next step
 

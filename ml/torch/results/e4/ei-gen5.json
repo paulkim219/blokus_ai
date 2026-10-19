@@ -1,0 +1,60 @@
+{
+ "arm": "resnet",
+ "trainGames": 1850,
+ "trainPositions": 2022456,
+ "parameters": 1557146,
+ "steps": 4000,
+ "bestStep": 4000,
+ "test": {
+  "policyKL": 0.224951683687752,
+  "top1": 0.6315611242803928,
+  "top5": 0.9341347781916695,
+  "valueMSE": 37.52434815023939,
+  "valueR2": 0.3733032020284378,
+  "ownershipAcc": 0.7311765919405859,
+  "positions": 7271,
+  "policyPositions": 5906
+ },
+ "positionsPerSecond": 19208.52978791252,
+ "history": [
+  {
+   "step": 2000,
+   "train": {
+    "policy": 2.6687703132629395,
+    "value": 0.0996074229478836,
+    "ownership": 0.6178488731384277
+   },
+   "val": {
+    "policyKL": 0.23258903616532714,
+    "top1": 0.6049761417859577,
+    "top5": 0.9403544648943422,
+    "valueMSE": 50.01912561387766,
+    "valueR2": 0.3986788731097194,
+    "ownershipAcc": 0.7272297111416781,
+    "positions": 3635,
+    "policyPositions": 2934
+   },
+   "seconds": 127
+  },
+  {
+   "step": 4000,
+   "train": {
+    "policy": 2.6787915229797363,
+    "value": 0.10497256368398666,
+    "ownership": 0.5931008458137512
+   },
+   "val": {
+    "policyKL": 0.2300438380355159,
+    "top1": 0.6203135650988412,
+    "top5": 0.9406952965235174,
+    "valueMSE": 49.769163964440764,
+    "valueR2": 0.4016838680766256,
+    "ownershipAcc": 0.7280495185694635,
+    "positions": 3635,
+    "policyPositions": 2934
+   },
+   "seconds": 253
+  }
+ ],
+ "seconds": 254
+}
