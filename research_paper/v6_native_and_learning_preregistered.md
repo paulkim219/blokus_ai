@@ -195,3 +195,24 @@ every descent; `false` (every existing version) is byte-identical.
     - A positive mean below the bar reads as "helps, below the bar", as in E4.
   - **E7 (expert iteration with the E6 search)** runs only if an E6 arm advances, and gets its
     own dated entry before it starts.
+- **2026-11-12, X1 moved from Pentobi level 9 to level 6, fixed before any level-6 game.**
+  - The validity gate passed (20/20 replays, legal-move sets equal at all 1,612 plies, scores
+    equal to Pentobi's minus 89; Pentobi 31.0, tag `v31.0`).
+  - **Level 9 was stopped at Paul's request during the timing pilot**, after 18 of its 40 games
+    (4 complete seeds). X1a and X1b at level 9 were not started. What the pilot showed is
+    descriptive only, as fixed above: `v4.2-ultra` −25.10 [−32.50, −17.71] over 16 games, no first
+    places, at 81 ms/move against Pentobi's 9,940 ms/move (GPU training running, 3 parallel games).
+  - Why: Pentobi's level sets a simulation count. For Classic the base counts for levels 5–9 are
+    667, 5,028, 69,809, 349,044 and 1,745,221 per move, scaled by `0.7·exp(0.1·i)` for a seat's
+    i-th move (and by 0.2, 0.2, 0.3 on moves 0–2). `v4.2-ultra` runs 4,800 iterations per searched
+    move. Level 9 is therefore a 400–1,100× simulation handicap, and level 6 is the closest level:
+    5,028 base, about twice Blokee's count averaged over a game once the scaling is applied.
+  - **X1-L6a:** 1 × `v4.2-ultra` vs 3 × Pentobi level 6, seat-rotated, 100 seeds
+    79,000,000–79,000,099, budget 300. **X1-L6b:** 1 × Pentobi level 6 vs 3 × `v4.2-ultra`, same
+    seeds. These seeds were reserved for X1a/X1b and have not been played.
+  - Everything else is as in the X1 entry above: engine settings, opening book on, bridge,
+    statistic, and the ladder (level 5: 40 seeds from 79,100,000; level 7: 40 seeds from
+    79,200,000). The level-9 pilot and the 12-hour fallback rule no longer apply.
+  - **"`v4.2-ultra` beats Pentobi level 6"** = X1-L6a advantage CI lower bound above 0 and
+    first-place share above 25%, with X1-L6b's Pentobi advantage CI not lying wholly above 0.
+    ms/move is reported for both engines; this is close to equal simulations, not equal time.
