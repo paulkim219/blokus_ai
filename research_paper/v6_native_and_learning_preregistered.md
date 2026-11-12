@@ -128,3 +128,70 @@ every descent; `false` (every existing version) is byte-identical.
   - If the mean is above 0 but the gate is not met, the reading is that expert iteration helps
     below the bar this programme set, and E3b is next.
   - If the mean is at or below 0, the +0.83 screen was noise.
+- **2026-11-12, E3b replaced by E6; X1, E5 and E6 fixed before any of them runs.** Written on the
+  Mac (M4 Pro) at `66fe52c`. The E4 games and `ei-gen6.pt` are on the PC, so everything below uses
+  the 20k base corpus (`ml/data/selfplay-v41u-300`) unless a later dated entry says otherwise.
+  - **Why E3b is not run.** E3b truncates the rollout and substitutes the network for the tail.
+    That is the v4.7 tail-replacement design (−4.46 to −16.17), and it needs a network call on
+    every iteration. E6 keeps every rollout and adds the network as a second evaluator.
+  - **Exploratory measurement that motivated E6 (not preregistered, descriptive only).** On base
+    games 19,000–19,999 (58,726 searched positions), linear R² for the mover's final
+    `score − mean(others)`: search `root_value` 0.413, `resnet-g18500-s0` value head 0.448, both
+    0.471. The net adds +0.057 [0.049, 0.067] over the search value (bootstrap by game). This is
+    outcome prediction, not sibling ranking (see E14b), so it is not a strength claim.
+  - **X1 — external benchmark against Pentobi.**
+    - Engine: `pentobi-gtp`, game `classic`, one thread, `--noresign`, otherwise default settings
+      (its opening book stays on if it has one for Classic). The release tag and
+      `pentobi-gtp --version` are recorded with the results. Pentobi's seed is the game seed.
+    - Bridge: `blokee-pentobi`. Blokee seats sample their first plies as the match harness does
+      (first 8 plies from the top 3); Pentobi seats play what Pentobi returns.
+    - **Validity gate, before any match is read:** 20 complete `v4.2-ultra` self-play games
+      replayed into Pentobi with illegal moves rejected. Every move accepted, no pass
+      disagreement, and the same final rank order. If the gate fails, X1 has no result.
+    - Timing pilot: 10 seeds from 79,900,000, `v4.2-ultra` in one seat against three Pentobi
+      level 9 seats. It sizes the run and gives ms/move; its scores are not pooled.
+    - **X1a:** 1 × `v4.2-ultra` vs 3 × Pentobi level 9, seat-rotated, 100 seeds
+      79,000,000–79,000,099, budget 300. **X1b:** 1 × Pentobi level 9 vs 3 × `v4.2-ultra`, same
+      seeds. **Ladder:** as X1a at level 5 (40 seeds from 79,100,000) and level 7 (40 seeds from
+      79,200,000). If the pilot shows 400 games would take more than 12 hours, X1a and X1b drop to
+      40 seeds each and that is stated with the result.
+    - Statistic: `scripts/aggregateMatches.ts` on Blokee's own scoring.
+    - **"`v4.2-ultra` beats Pentobi level 9"** = X1a advantage CI lower bound above 0 and
+      first-place share above 25%, with X1b's Pentobi advantage CI not lying wholly above 0.
+      Levels fix simulation counts, so this is not an equal-time claim; ms/move is reported for both.
+    - Later candidates play the X1a block as a secondary, ungated measurement.
+  - **E5 — model v2 (offline; no strength claim).**
+    - Arm `resnet2-b8w96`: the E2 trunk plus an absolute-seat one-hot in the global input, and
+      heads for policy, soft policy (target^(1/4)), the four margins, a 4 × 3 utility block
+      (`E[sigmoid((s − best other)/12)]`, rank fraction, P(first) with ties split), the mover's
+      search `root_value`, and ownership.
+    - Data and split as E1: train on base games 0–18,499, validate on 18,500–18,999, test on
+      19,000–19,999. 15,000 steps at batch 512, EMA of the weights, checkpoint by validation loss.
+    - Reported on test: policy KL, top-1, top-5, margin R², Brier score of each utility head, and
+      the increment over `root_value` as above. E5 passes on to E6 whatever it measures; the
+      larger arms (`b12w128`, `b16w160`) and the 36k-game run wait for the PC or the E4 data.
+  - **E6 — the network inside the rollout search.**
+    - One batched call per searched move: the root and each root child (at most 41 positions).
+    - *Root prior:* blend 0.5, temperature 1 (as E3a/E4).
+    - *Depth-1 policy:* each root child's own prior is blended 0.5 at temperature 1 with the
+      net's, and its children are re-sorted by the blended prior.
+    - *Root-child value:* `Q = (W + n_v·u) / (N + n_v)` in selection only, where
+      `u = (1−β)·margin head + β·rank head` for the root seat, re-centred so the root children's
+      mean `u` equals the root's current rollout mean. The move played is still chosen by real
+      visits.
+    - Identity gates: no `native.net` block is byte-identical to today (parity tests, 0.00
+      mirror); `native.net` with depth-1 blend 0 and `n_v` 0 plays the same games as the equivalent
+      `native.prior` config.
+    - **Screen:** 400 seeds 76,000,000–76,000,399, budget 300, each arm against plain
+      `v4.2-ultra`: P0 (root prior only), P1 (+ depth-1 policy), V64 and V512 (+ root-child value),
+      PV (depth-1 policy + the better `n_v`).
+    - **An arm advances** only if its seed-paired difference against P0 has a 95% CI lower bound
+      above 0. Among advancing arms the one with the highest mean against `v4.2-ultra` is the
+      candidate. If none advances, E6 is null: the new channels add nothing over a root prior.
+    - **Confirmation and gate:** the candidate against plain `v4.2-ultra` on 800 seeds
+      77,000,000–77,000,799. **Pass** if the mean is ≥ +0.50 with the CI lower bound above 0.
+      Per-seat effects against a same-seed mirror (`ml/seat/seat_report.py`), network evaluations
+      per move and ms/move are reported and not gated.
+    - A positive mean below the bar reads as "helps, below the bar", as in E4.
+  - **E7 (expert iteration with the E6 search)** runs only if an E6 arm advances, and gets its
+    own dated entry before it starts.
