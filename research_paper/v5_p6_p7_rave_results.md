@@ -191,6 +191,27 @@ seeds pooled +0.65 [+0.19, +1.14]; the two fresh 84M blocks +0.67 [+0.15, +1.18]
 estimate is positive and the arm is 10–12% cheaper per move, so a small gain (of order +0.5) is
 plausible but is not established under the rule. Settling it would need a new dated entry with a
 larger fresh-seed confirmation (at the confirmation's own estimate, about 800–1,000 seeds).
+
+**P3B gains margin but takes first place less often** (descriptive, not preregistered; noted after
+the run, during the P9/P10 work). Paired first-place share, arm − base, percentage points, same
+seeds, 95% percentile bootstrap by seed (a seat that ties for first counts as first; recomputed with
+`python3 engine-rs/scripts/p910_report.py --paired <arm> <base>`):
+
+| Block | Seeds | First place base → P3B | Paired Δ first place, pp [95% CI] | Paired Δ advantage [95% CI] |
+|---|---:|---:|---:|---:|
+| `tmp/p13/screen` (83,000,000) | 100 | 17.50% → 14.75% | −2.75 [−7.00, +1.50] | +0.44 [−0.92, +1.87] |
+| `tmp/p67/screen` (84,000,000) | 400 | 17.25% → 15.75% | −1.50 [−3.81, +0.75] | +0.86 [+0.13, +1.58] |
+| `tmp/p67/confirm` (84,400,000) | 400 | 17.56% → 14.06% | −3.50 [−5.81, −1.31] | +0.48 [−0.27, +1.23] |
+| pooled | 900 | | **−2.53 [−4.03, −1.03]** | +0.65 [+0.19, +1.14] |
+
+Splitting ties instead (a seat tied for first counts 1/k) gives −2.80 [−4.14, −1.45] pooled. Every
+block points the same way: the rank reward with the quality bonus raises the average margin and
+lowers the share of games won. A reading (inferred, not measured): the rank part of the reward counts
+beating any one opponent as much as beating the leader, and the quality bonus pays for margin over
+the mean opponent, so the search trades the chance of first place for safer second and third places.
+The pool includes the screen that selected the arm, so it is not a decision; it is a reason to report
+the paired first-place difference beside the advantage for every arm from now on (done in
+`p910_report.py`).
 <!-- /P67:CONFIRM -->
 
 ## Verdict
