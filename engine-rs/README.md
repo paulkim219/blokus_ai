@@ -172,3 +172,41 @@ mirror and byte-identical self-play; `research_paper/v5_p4_p5_candidate_generati
 - More than 64 root candidates elsewhere: `blokee-selfplay` keeps the 64 most-visited root children
   of a decision (its record has 64 slots and `ranked` is sorted by visits), so records stay
   well-formed but are truncated; `blokee-match`, the bridge and the worker only read the chosen move.
+
+### Rollout policy and reward (P1–P3)
+
+`rollout` and `reward` change what each simulation plays and what it returns. Absent (or
+`{"policy": "sampled"}` / `{"kind": "blend"}`) plays exactly as before (parity tests, a 0.00 mirror;
+`research_paper/v5_p1_p3_rollout_results.md`). Both blocks refuse unknown keys.
+
+```json
+"native": { "rollout": { "policy": "all", "sizeWeight": 1.3995, "localWeight": 0.7185, "localOwnExtra": 0.6515 },
+            "reward":  { "kind": "rank", "qualityWeight": 0.25, "qualitySlope": 1.0, "lengthWeight": 0.1 } }
+```
+
+- `rollout.policy`: `"sampled"` (default; today: one random own corner, at most `playoutMoveCap`
+  placements, uniform `playoutEps` of the time, else the table policy) or `"all"`: the mover's whole
+  legal-move list, sampled with weight `exp(sizeWeight·size + localWeight·(local + localOwnExtra·localOwn))`.
+  `playoutEps`, `playoutMoveCap`, `playoutCorners` and the table policy are then unused;
+  `playoutCutoff` still applies.
+- Local squares (`playout::local_squares`): for each opponent placement made since the mover's own
+  last placement (the game's last placements, then the tree path, then the rollout), the corners it
+  opened that the opponent can still use, plus their empty orthogonal neighbours not forbidden to
+  that opponent. `local` counts the move's squares on that set, `localOwn` those that are also the
+  mover's own open corners.
+- The legal-move lists are incremental (P2, `move_lists.rs`): generated once per search at the root,
+  derived from there the first time a seat moves in a rollout, then updated after every placement.
+  `tests/move_lists.rs` checks them against a from-scratch generation at every ply of 7,000 random games.
+- `reward.kind`: `"blend"` (default; today: `(1 − β)·sigmoid(margin over the best opponent /
+  sigmoidScale) + β·rank`, β = `rankBlend` shifted by the lead) or `"rank"`:
+  `v_i = rank_i + qualityWeight·tanh(qualitySlope·z_i) − lengthWeight·(rank_i − ½)·tanh(qualitySlope·z_len)`.
+  `rank_i` is the fraction of opponents seat i beats (ties count half); `z_i` is i's score minus the
+  mean of the other three, standardised by the running mean and deviation of that quantity over this
+  search's simulations (cleared at each search, each sample added before it is standardised); `z_len`
+  is the game length in placements standardised the same way. It replaces the value of every finished
+  game (rollout end, terminal tree node, all seats sealed; the length term is left out where the
+  packer solved a region, as its piece count is unknown). The truncated-rollout evaluation path
+  (never reached at `playoutCutoff` 84) keeps the old value.
+- Refused in `unsupported()`: unknown policy or kind, non-finite or out-of-range weights,
+  `qualitySlope` ≤ 0, `reward` kind `"rank"` with `native.net` (its value channel uses the old
+  reward's scale) or with `leafMaterialBlend` > 0.

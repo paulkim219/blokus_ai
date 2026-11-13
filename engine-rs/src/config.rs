@@ -252,6 +252,76 @@ pub struct NativeOptions {
     /// feature prior. Absent (or every switch at its default) leaves the search exactly as before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub candidates: Option<CandidateOptions>,
+    /// v5.0 port P1/P2: how a rollout chooses its moves. Absent, or `policy` "sampled", leaves the
+    /// rollout exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rollout: Option<RolloutOptions>,
+    /// v5.0 port P3: what a finished simulation is worth. Absent, or `kind` "blend", leaves the
+    /// reward exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reward: Option<RewardOptions>,
+}
+
+/// `native.rollout` (see `engine-rs/README.md`, "Rollout policy and reward (P1–P3)").
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RolloutOptions {
+    /// "sampled" (today: one random own corner, at most `playoutMoveCap` placements, ε-greedy) or
+    /// "all": the mover's full legal-move list, kept incrementally (P2), sampled with weight
+    /// `exp(sizeWeight · size + localWeight · (local + localOwnExtra · localOwn))`.
+    #[serde(default = "sampled")]
+    pub policy: String,
+    /// Log-weight per square of the piece.
+    #[serde(default)]
+    pub size_weight: f64,
+    /// Log-weight per "local" square covered: a corner opened by an opponent's placement made since
+    /// the mover's own last one (still usable by that opponent), or an empty orthogonal neighbour of
+    /// one (not forbidden to that opponent).
+    #[serde(default)]
+    pub local_weight: f64,
+    /// Extra count for a local square that is also one of the mover's own open corners.
+    #[serde(default)]
+    pub local_own_extra: f64,
+}
+
+fn sampled() -> String {
+    "sampled".into()
+}
+
+impl RolloutOptions {
+    pub fn all_moves(&self) -> bool {
+        self.policy == "all"
+    }
+}
+
+/// `native.reward` (see `engine-rs/README.md`, "Rollout policy and reward (P1–P3)").
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RewardOptions {
+    /// "blend" (today: `sigmoidScale` margin over the best opponent blended with rank by
+    /// `rankBlend`) or "rank": fraction of opponents beaten (ties count half), plus
+    /// `qualityWeight · tanh(qualitySlope · z)` with z the seat's margin over the mean opponent
+    /// standardised by this search's running mean and deviation, minus
+    /// `lengthWeight · (rank − ½) · tanh(qualitySlope · z_len)` with z_len the standardised game
+    /// length (placements).
+    #[serde(default = "blend")]
+    pub kind: String,
+    #[serde(default)]
+    pub quality_weight: f64,
+    #[serde(default = "one")]
+    pub quality_slope: f64,
+    #[serde(default)]
+    pub length_weight: f64,
+}
+
+fn blend() -> String {
+    "blend".into()
+}
+
+impl RewardOptions {
+    pub fn rank(&self) -> bool {
+        self.kind == "rank"
+    }
 }
 
 /// `native.candidates` (see `engine-rs/README.md`, "Candidate generation (P4/P5)").
@@ -339,6 +409,23 @@ impl BitboardParams {
         let native = self.native.as_ref();
         reject(native.is_some_and(|n| n.prior.is_some() && n.net.is_some()), "native.prior and native.net together (use one)");
         reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
+        if let Some(r) = native.and_then(|n| n.rollout.as_ref()) {
+            reject(!matches!(r.policy.as_str(), "sampled" | "all"), "native.rollout.policy must be sampled or all");
+            reject(!(r.size_weight.is_finite() && r.local_weight.is_finite()), "native.rollout weights must be finite");
+            reject(!(r.local_own_extra >= 0.0 && r.local_own_extra.is_finite()), "native.rollout.localOwnExtra must be >= 0");
+            // The weight table is indexed by integer counts and exponentiated once per search; keep
+            // every weight inside a range where exp() cannot overflow (5 squares × 2 counts).
+            reject(r.size_weight.abs() > 20.0 || r.local_weight.abs() > 20.0 || r.local_own_extra > 20.0, "native.rollout weights out of range (|w| <= 20)");
+        }
+        if let Some(r) = native.and_then(|n| n.reward.as_ref()) {
+            reject(!matches!(r.kind.as_str(), "blend" | "rank"), "native.reward.kind must be blend or rank");
+            reject(!(r.quality_weight >= 0.0 && r.quality_weight.is_finite()), "native.reward.qualityWeight must be >= 0");
+            reject(!(r.quality_slope > 0.0 && r.quality_slope.is_finite()), "native.reward.qualitySlope must be > 0");
+            reject(!(r.length_weight >= 0.0 && r.length_weight.is_finite()), "native.reward.lengthWeight must be >= 0");
+            // The E6 value channel and the leaf-material blend mix the old reward's scale into Q.
+            reject(r.rank() && native.is_some_and(|n| n.net.is_some()), "native.reward rank with native.net");
+            reject(r.rank() && s.leaf_material_blend > 0.0, "native.reward rank with leafMaterialBlend");
+        }
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()) {
             // Protocol-1/2 records carry at most 64 candidates and E6 recomputes root-child shortlists
             // outside the tree; neither is defined for these roots, so the combination is refused.

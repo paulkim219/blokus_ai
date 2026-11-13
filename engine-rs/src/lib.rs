@@ -14,6 +14,7 @@ pub mod features;
 pub mod game;
 pub mod gtp;
 pub mod jsmath;
+pub mod move_lists;
 pub mod net;
 pub mod ordering;
 pub mod packer;

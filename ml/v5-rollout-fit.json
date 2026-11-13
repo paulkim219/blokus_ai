@@ -1,0 +1,72 @@
+{
+ "data": "tmp/p13/fit/l6-decisions.jsonl",
+ "split": "test = seeds ending in 4 or 9",
+ "models": [
+  {
+   "kind": "uniform",
+   "theta": [],
+   "train_ll": -4.421220659184328,
+   "train_n": 20110,
+   "test_ll": -4.4307221588563905,
+   "test_n": 5081
+  },
+  {
+   "kind": "size",
+   "theta": [
+    1.4346630186689526
+   ],
+   "train_ll": -3.8823994655322847,
+   "train_n": 20110,
+   "test_ll": -3.8745899142675087,
+   "test_n": 5081
+  },
+  {
+   "kind": "size+local",
+   "theta": [
+    1.3897494770447572,
+    0.8060401504445289
+   ],
+   "train_ll": -3.711423226074328,
+   "train_n": 20110,
+   "test_ll": -3.7042305443869292,
+   "test_n": 5081
+  },
+  {
+   "kind": "size+local+own",
+   "theta": [
+    1.3994897495813339,
+    0.7185055019317291,
+    0.4680926508722832
+   ],
+   "train_ll": -3.7058105748728103,
+   "train_n": 20110,
+   "test_ll": -3.702330299993287,
+   "test_n": 5081
+  },
+  {
+   "kind": "piece-size+local+own",
+   "theta": [
+    0.7443786174241063,
+    1.454216465217505,
+    3.092197320536089,
+    4.970734612220804,
+    0.7047842808172934,
+    0.49357135544952097
+   ],
+   "train_ll": -3.675576175326253,
+   "train_n": 20110,
+   "test_ll": -3.6622765463310247,
+   "test_n": 5081
+  }
+ ],
+ "config": {
+  "sizeWeight": 1.3995,
+  "localWeight": 0.7185,
+  "localOwnExtra": 0.6515
+ },
+ "configSizeOnly": {
+  "sizeWeight": 1.4347,
+  "localWeight": 0.0,
+  "localOwnExtra": 0.0
+ }
+}

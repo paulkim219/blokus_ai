@@ -188,6 +188,12 @@ pub struct V12Search {
     root_recent: Vec<(usize, i32)>,
     /// Per root edge, `sqrt(p_i / p_max)` for value-initialised children; empty when off.
     init_ratio: Vec<f64>,
+    /// `native.reward` kind "rank" (P3). None leaves every value exactly as it was.
+    reward: Option<RankReward>,
+    /// `native.rollout` "all" with a local weight (P1): the rollout needs the recent placements.
+    rollout_local: bool,
+    /// `native.rollout` "all" (P1/P2): the rollouts' move lists are derived from the root's.
+    rollout_all: bool,
 }
 
 impl V12Search {
@@ -195,8 +201,16 @@ impl V12Search {
         let fractional = params.fractional_territory_ties;
         let net_options = params.native.as_ref().and_then(|n| n.net.clone());
         let candidates = params.native.as_ref().and_then(|n| n.candidates.clone());
+        let reward = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
+            .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight));
+        let rollout_local = params.native.as_ref().and_then(|n| n.rollout.as_ref())
+            .is_some_and(|r| r.all_moves() && r.local_weight != 0.0);
+        let rollout_all = params.native.as_ref().and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves());
         V12Search {
             candidates,
+            reward,
+            rollout_local,
+            rollout_all,
             root_recent: Vec::new(),
             init_ratio: Vec::new(),
             depth1_blend: net_options.as_ref().map_or(0.0, |n| n.depth1_blend.clamp(0.0, 1.0)),
@@ -295,6 +309,9 @@ impl V12Search {
         self.table.clear();
         self.nodes.clear();
         self.history.clear();
+        if let Some(reward) = &mut self.reward {
+            reward.clear();
+        }
 
         let scores = position.scores();
         let mut best_other = f64::NEG_INFINITY;
@@ -311,6 +328,9 @@ impl V12Search {
         let root = self.node_for(position);
         self.initialise_node(root, position, true);
         self.root = root;
+        if self.rollout_all {
+            self.playout.set_base(position);
+        }
         self.init_ratio.clear();
         if let Some(c) = &self.candidates {
             let node = &mut self.nodes[root as usize];
@@ -877,7 +897,10 @@ impl V12Search {
         let s = &params.search;
         if self.nodes[id as usize].terminal || position.finished() {
             // The TS engine passes no aggregation here, so it is always `max` on this path.
-            let value = value_vector(&position.scores(), s.sigmoid_scale, self.rank_blend, Aggregation::Max);
+            let value = match &mut self.reward {
+                Some(reward) => reward.value(&position.scores(), Some(position.ply as f64)),
+                None => value_vector(&position.scores(), s.sigmoid_scale, self.rank_blend, Aggregation::Max),
+            };
             self.nodes[id as usize].proven = Some(value);
             return value;
         }
@@ -909,18 +932,31 @@ impl V12Search {
                     scores[seat] = sealed_score[seat];
                 }
             }
-            let value = value_vector(&scores, s.sigmoid_scale, self.rank_blend, self.aggregation);
+            let value = match &mut self.reward {
+                // The packer gives scores, not the number of pieces it places: no length term.
+                Some(reward) => reward.value(&scores, None),
+                None => value_vector(&scores, s.sigmoid_scale, self.rank_blend, self.aggregation),
+            };
             self.nodes[id as usize].proven = Some(value);
             return value;
         }
 
         let skip = if sealed_count > 0 { Some(&sealed_flags) } else { None };
+        if self.rollout_local {
+            let recent = self.path_recent();
+            self.playout.set_recent(&recent);
+        }
         let mut outcome = self.playout.run(&params, position, &mut self.playout_context, self.phase, skip, rng);
         if outcome.terminal {
             for seat in 0..SEAT_COUNT {
                 if sealed_flags[seat] == 1 {
                     outcome.values[seat] = sealed_score[seat];
                 }
+            }
+            if let Some(reward) = &mut self.reward {
+                // With sealed seats left out of the rollout, their pieces are not in the length.
+                let length = if sealed_count > 0 { None } else { Some(outcome.plies as f64) };
+                return reward.value(&outcome.values, length);
             }
             return value_vector(&outcome.values, s.sigmoid_scale, self.rank_blend, self.aggregation);
         }
