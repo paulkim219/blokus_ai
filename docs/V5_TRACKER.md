@@ -44,6 +44,20 @@ before each run.
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 7 (40 seeds) | −15.66 [−17.18, −14.10] | 3.1% |
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 9 (16 games, stopped; descriptive) | −25.10 [−32.50, −17.71] | 0% |
 
+**Current v5.0 line (2026-11-13, after port P4/P5; `engine-rs/configs/v5.0-p4-ultra.json`):**
+
+| Match | Result | First place |
+|---|---|---:|
+| 1 × `v5.0-p4-ultra` vs 3 × Pentobi level 6 (200 seeds) | **−4.93 [−5.74, −4.14]** | 16.2% |
+| 1 × Pentobi level 6 vs 3 × `v5.0-p4-ultra` (100 seeds) | +5.86 [4.89, 6.90] for Pentobi (unchanged from `v4.2-ultra`) | 48.3% |
+| 1 × `v5.0-p4-ultra` vs 3 × Pentobi level 5 (100 seeds) | −0.32 [−1.51, +0.84] | 26.5% |
+| 1 × `v5.0-p4-ultra` vs 3 × Pentobi level 7 (40 seeds) | −10.32 [−12.95, −7.87] | 8.8% |
+| same vs level 6 at 2× / 4× iterations (100 seeds) | −4.78 / −4.67 (budget 300 on those seeds: −6.03) | 15.3% / 17.5% |
+| 1 × `v5.0-p4-ultra` vs 3 × `v4.2-ultra` (200 seeds) | +2.13 [1.55, 2.75] | 38.1% |
+
+Level with level 5, about 5 points behind level 6, and extra compute stops helping after one
+doubling (`research_paper/v5_x2_p4_benchmark_results.md`).
+
 Compute per move, measured:
 
 | Engine | Simulations per move | ms/move |
@@ -63,24 +77,24 @@ Source paths are under `~/src/pentobi` (tag `v31.0`).
 
 | ID | Mechanism in Pentobi | Blokee today | Status | Result |
 |---|---|---|---|---|
-| P1 | **Rollout move choice over all legal moves.** P(move) ∝ 5^(piece squares) × 10⁶ per "local" square covered; local = corners opened by the opponents' last moves and their neighbours, counted double if also an own corner. `libpentobi_mcts/State.cpp` (`init_gamma`, `check_move`), `PlayoutFeatures.h`, `LocalPoints.h` | One random own corner, ≤12 placements, uniform random 60% of the time, else size/centre + table | Proposed | D1: no move-level evidence either way |
+| P1 | **Rollout move choice over all legal moves.** P(move) ∝ 5^(piece squares) × 10⁶ per "local" square covered; local = corners opened by the opponents' last moves and their neighbours, counted double if also an own corner. `libpentobi_mcts/State.cpp` (`init_gamma`, `check_move`), `PlayoutFeatures.h`, `LocalPoints.h` | One random own corner, ≤12 placements, uniform random 60% of the time, else size/centre + table | Proposed (**next port**, with P2 and P3) | D1: no move-level evidence either way. X2: with P4/P5 in, a second doubling of iterations adds +0.11 [−1.19, +1.33], so the gap is in what each simulation returns |
 | P2 | **Incremental legal-move lists in rollouts** (`State.cpp` `update_moves`). The enabler that makes P1 affordable | Moves re-sampled per ply | Proposed (with P1) | |
 | P3 | **Rank reward plus quality bonus.** Result = fraction of opponents beaten, ties shared (`libpentobi_base/ScoreUtil.h`); + 0.3·sigmoid of the score's z-score, − a game-length term (`State.cpp` `get_quality_bonus`) | 65% sigmoid of margin over the best opponent, 35% rank (`rankBlend` 0.35, shifted by lead) | Proposed | Earlier, vs itself: `rankBlend` 0 / 0.7 / 1.0 showed no clear overall gain (v7 screen) |
-| P4 | **Expand every legal move; children start with a value and 3 visits.** Value = parent value × sqrt(gamma / max gamma) (`PriorKnowledge.h` `gen_children`, `SearchParamConst.h` `child_min_count`) | Shortlist 40 (root) / 24, progressive widening, prior only steers exploration | Proposed (first port) | D1: level 7's move is outside the root shortlist ≈55% of the time on moves 3–8 |
-| P5 | **Feature-based move priors**: covers an opponent corner or its neighbour, adjacency to own/other pieces, new own corners by number of free neighbours, piece size, local response (`PriorKnowledge.cpp` `compute_features`); weights trainable by softmax (`learn_tool/`) | Hand ordering score through a softmax at temperature 6 | Proposed (with P4) | D1: Blokee's deviations from level 7 follow its ordering terms (size, centre, corners) |
+| P4 | **Expand every legal move; children start with a value and 3 visits.** Value = parent value × sqrt(gamma / max gamma) (`PriorKnowledge.h` `gen_children`, `SearchParamConst.h` `child_min_count`) | Shortlist 40 (root) / 24, progressive widening, prior only steers exploration | **Added** 2026-11-13 (with P5; config `engine-rs/configs/v5.0-p4-ultra.json`) | Confirmation vs Pentobi level 6, 200 fresh seeds: **+5.32 [+4.30, +6.31]** over `v4.2-ultra` (−4.93 against −10.25), 0.93× ms/move. Directly vs `v4.2-ultra`: +2.13 [1.55, 2.75]. Full expansion with the *old* ordering as prior: +1.06 [−0.33, +2.50] (screen). `research_paper/v5_p4_p5_candidate_generation_results.md` |
+| P5 | **Feature-based move priors**: covers an opponent corner or its neighbour, adjacency to own/other pieces, new own corners by number of free neighbours, piece size, local response (`PriorKnowledge.cpp` `compute_features`); weights trainable by softmax (`learn_tool/`) | Hand ordering score through a softmax at temperature 6 | **Added** 2026-11-13 (with P4). Our own 39 features and weights, fitted on Pentobi level 6's moves in 800 games (`ml/p4_fit_prior.py`, `ml/v5-prior-weights.json`); nothing copied from Pentobi | Carries most of the gain: the prior alone in the old 40-move tree +4.29 [+2.88, +5.81] (screen). Held-out, moves 3–8: Pentobi's move in the top 40 86.5% (old shortlist 54.9%). Not confirmed as better: the prior at interior nodes, 10 initial visits, root widening kept |
 | P6 | **RAVE** with distance weighting, weight 0.7, child max 2,000, parent max 50,000 (`Search.cpp`, `SearchParamConst.h`) | None | Proposed | Earlier piece-level RAVE in the old tree: +0.49 at equivalence 10, −0.39 at 50; neither advanced (v4 report §9.6) |
 | P7 | **Last-good-reply table** (`libboardgame_mcts/LastGoodReply.h`) | Progressive history only (`historyWeight` 0.6) | Proposed | |
 | P8 | **Subtree reuse between moves** (`SearchBase.h` `m_reuse_subtree`) | Fresh tree every move (`treeReuse` unsupported natively) | Proposed | |
 | P9 | **Opening rules**: for the first 12 pieces on the board only moves that minimise distance to the centre (`PriorKnowledge.cpp`); an opening book (`opening_books/book_classic.blksgf`); only larger pieces considered early in rollouts (`State.cpp` `get_is_piece_considered`) | Heuristic move for each seat's first three moves; no book | Proposed | Earlier: Blokee's own book covered plies 1–2 only and was not matched (`selfplay-results/v36-opening-book-findings.md`) |
-| P10 | **Selection rule**: value + prior × 0.4·sqrt(N)·log(N+1) / child count, with a cut-off that skips hopeless children (`SearchBase.h` `select_child`) | PUCT, `cPuct` 1.6, plus history term | Proposed (tune after P4) | |
-| P11 | **Simulation budget grows through the game**: × 0.7·exp(0.1·i) for a seat's i-th move, cut to 20–30% on moves 0–2 (`Player.cpp`) | `iterationShape` exists (v3.5); flat in `v4.2-ultra` apart from the opening shortcut | Proposed | |
+| P10 | **Selection rule**: value + prior × 0.4·sqrt(N)·log(N+1) / child count, with a cut-off that skips hopeless children (`SearchBase.h` `select_child`) | PUCT, `cPuct` 1.6, plus history term | Proposed (the selection formula itself is not ported) | S2, on the P4/P5 base, PUCT kept: `cPuct` 0.8 +0.11 [−1.40, +1.53]; `cPuct` 3.2 −2.10 [−3.53, −0.64] |
+| P11 | **Simulation budget grows through the game**: × 0.7·exp(0.1·i) for a seat's i-th move, cut to 20–30% on moves 0–2 (`Player.cpp`) | `iterationShape` exists (v3.5); flat in `v4.2-ultra` apart from the opening shortcut | **Tested** 2026-11-13 (config-only, S2): null, not added | Rising curve ∝ exp(0.1·i) on the P4/P5 base: −0.31 [−1.70, +1.06], with about 11% more iterations on searched moves |
 
 ## B. Ideas Pentobi does not have
 
 | ID | Idea | Why it could beat Pentobi | Status | Result |
 |---|---|---|---|---|
-| N1 | **Network policy as the tree prior** (root and interior nodes) | Pentobi's prior is linear over hand features; the ResNet picks the search's move about 48% of the time. Most useful once P4 makes the prior seed child values | Building: E5 net training; E6 code built (root + depth 1) | In the old tree, root prior only: +0.18/+0.24 (E3a), +0.39 [0.14, 0.65] (E4) |
-| N2 | **Network value blended with rollouts** (virtual visits; AlphaGo-style mix) | Pentobi has no value function. Offline, the net predicts final margin better than the 4,800-iteration search's own root value (R² 0.448 vs 0.413) | Building: E6 code built, screen pending | |
+| N1 | **Network policy as the tree prior** (root and interior nodes) | Pentobi's prior is linear over hand features; the ResNet picks the search's move about 48% of the time. Most useful once P4 makes the prior seed child values | Tested in the old tree (E6); to be re-tested on the P4/P5 base, where the prior seeds child values | In the old tree, root prior only: +0.18/+0.24 (E3a), +0.39 [0.14, 0.65] (E4), +0.88 [0.50, 1.27] (E5 net, E6 control). Depth-1 policy on top: +0.35 [−0.19, +0.89], not significant |
+| N2 | **Network value blended with rollouts** (virtual visits; AlphaGo-style mix) | Pentobi has no value function. Offline, the net predicts final margin better than the 4,800-iteration search's own root value (R² 0.448 vs 0.413) | Tested in the old tree (E6): not significant | V64 +0.12 [−0.43, +0.67], V512 +0.27 [−0.25, +0.82] over the root-prior control |
 | N3 | **Exact endgame**: sealed-region packer in the tree plus a multi-player MCTS-Solver | Pentobi does not solve Classic endgames | Packer exists; solver Proposed | Packer alone, old tree: +0.01 |
 | N4 | **Better rollout statistics**: N-gram selection (NST), playout policy adaptation | Reported stronger than simpler reply tables in general game playing | Proposed (after P1, P7) | |
 | N5 | **Win-probability objective** from the net's P(first) head | Targets winning directly instead of rank or margin | Proposed (head is in the E5 net) | |
@@ -105,10 +119,12 @@ under a new v5 base, with a note here saying why.
 | ID | Item | Status | Result |
 |---|---|---|---|
 | D1 | **Game anatomy** of the 800 level-6 games, with Pentobi level 7 as a judge of 2,876 positions (`engine-rs/examples/d1_anatomy.rs`, `engine-rs/scripts/d1_report.py`) | **Done** | See "D1 findings" below; full tables in `tmp/d1-results.md` |
-| S1 | **Config-only screen against Pentobi level 6**: single-knob variants of `v4.2-ultra`, 100 seeds from 79,300,000, each paired with the base on the same seeds. Exploratory: a filter for what to build and confirm, not evidence (`engine-rs/scripts/s1-screen.sh`) | **Paused** 2026-11-12 after 1⅔ of 13 arms | base −9.88 [−10.98, −8.78]; `W96` partial (69 seeds) paired Δ +1.60 [−0.26, +3.36]. Notes in `tmp/s1-results.md` on arms that do more than their label says |
+| S1 | **Config-only screen against Pentobi level 6**: single-knob variants of `v4.2-ultra`, 100 seeds from 79,300,000, each paired with the base on the same seeds. Exploratory: a filter for what to build and confirm, not evidence (`engine-rs/scripts/s1-screen.sh`) | **Done** 2026-11-13: nothing confirmed (`research_paper/v5_s1_config_screen_results.md`) | Confirmation on 200 fresh seeds: `W96` +0.97 [−0.06, +2.04], `W400open` +1.11 [−0.07, +2.30]; both superseded by P4/P5. base −9.88 [−10.98, −8.78]. Paired Δ vs base, screen only (selection-biased, 11 arms): `W96` (root shortlist 40→96) **+2.03 [+0.45, +3.49]**; `W400open` (shortlist 400, all open at once) **+1.81 [+0.38, +3.30]**; `C0` (no centre pull in ordering) **−3.22 [−4.71, −1.75]**; `O0` (search from move 1) −1.55 [−3.41, +0.34]; `E30` −1.28 [−2.74, +0.20]; `N96` +0.89, `R0` +0.93, `W400` +0.60, `B4` +0.57 (at 1.92× cost), `A140` +0.17, `R100` −0.42, all with CIs spanning 0. Notes in `tmp/s1-results.md` on arms that do more than their label says |
+| S2 | **Config-only screen on the P4/P5 base** (`v5.0-p4-ultra`): six single-change arms, 100 seeds from 82,000,000 (`engine-rs/scripts/s2-screen.sh`) | **Done** 2026-11-13: no arm cleared, no confirmation | base −6.03 [−7.08, −4.96]. Paired Δ: `cPuct` 0.8 +0.11; `cPuct` 3.2 **−2.10 [−3.53, −0.64]**; search from move 1 +0.40; `initVisits` 1 +0.95; rising budget curve (P11, config-only form) −0.31; `nodeShortlist` 96 +1.38 [−0.04, +2.86]. `research_paper/v5_s2_config_screen_results.md` |
+| X2 | Benchmark of the P4/P5 config: ladder, reverse match, compute scaling (`engine-rs/scripts/x2-run.sh`) | **Done** 2026-11-13 | Table under "Baseline"; `research_paper/v5_x2_p4_benchmark_results.md` |
 | X1 | Pentobi bridge and benchmark (`blokee-pentobi`, validity gate 20/20) | **Added** | Baseline table above |
 | E5 | Model v2 (`resnet2-b8w96`, utility heads) | **Done** (offline only) | Test KL 0.336, top-1 48.4%, margin R² 0.406; best at step 6,000 of 15,000 |
-| E6 | Net inside the old search (root prior, depth-1 policy, root-child value); screen vs `v4.2-ultra`, 400 seeds (`ml/torch/e6_screen.sh`) | **Paused** 2026-11-12 after the control arm | Control P0 (root prior only): +0.88 [0.50, 1.27], first place 31.0%. P1 200 of 400 seeds played; V64, V512, PV not started |
+| E6 | Net inside the old search (root prior, depth-1 policy, root-child value); screen vs `v4.2-ultra`, 400 seeds (`ml/torch/e6_screen.sh`) | **Screen done** 2026-11-13: no new channel advances | vs `v4.2-ultra`, 400 seeds: P0 (root prior only) +0.88 [0.50, 1.27]; P1 (depth-1 policy) +1.24; V64 +1.00; V512 +1.15; PV (both) +1.28 [0.90, 1.65]. Paired vs P0: P1 +0.35 [−0.19, +0.89], V64 +0.12 [−0.43, +0.67], V512 +0.27 [−0.25, +0.82], PV +0.40 [−0.13, +0.92]. All point estimates positive, none clears 0, and PV costs 149 ms/move against 81. No confirmation run. The net cannot yet be combined with the P4/P5 root (more than 64 candidates) |
 
 ## E. v6 — candidate structures (not started)
 
@@ -171,3 +187,10 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-12 — Added N10–N15 and the v6 candidate structures (section E) from a literature pass.
 - 2026-11-12 — Versioning rule set: v5.0 = all Pentobi ports; v5.1+ = one significant addition each.
 - 2026-11-12 — Screens resumed (S1 without the no-op `MAXN` arm). PC runs preregistered and written into `docs/E6_RUNBOOK.md`.
+- 2026-11-13 — Overnight on the Mac. **P4/P5 accepted as the first v5.0 port**: +5.32 [+4.30, +6.31]
+  against Pentobi level 6 on 200 fresh seeds (−4.93 against −10.25) at 0.93× cost; +2.13
+  [1.55, 2.75] against `v4.2-ultra` directly. Gap to level 6 roughly halved; still losing.
+  E6 screen finished: no arm beats the root-prior control. S1 screen finished: `W96` and
+  `W400open` cleared it and went to confirmation. Both implementation agents were stopped by a
+  usage limit from about 01:10 to 04:40, so N10 (tuning) lost its window: tuner being built, real
+  run deferred. S2 (config screen on the P4/P5 base) preregistered and started.
