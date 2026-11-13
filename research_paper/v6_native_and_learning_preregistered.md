@@ -317,3 +317,11 @@ every descent; `false` (every existing version) is byte-identical.
     (X1's reverse seeds are not reused: the prior was fitted on those games);
   - compute: budget 600 and 1,200 (2× and 4× iterations) as the lone seat against level 6 on
     82,000,000–82,000,099, paired with the S2 base (budget 300) on the same seeds.
+- **2026-11-13 06:25 CST, S3 (one dedicated test of `nodeShortlist` 96), fixed before it runs.**
+  Read so far: all of S2 and X2. `N96` read +0.89 [−0.52, +2.33] in S1 (old base) and
+  +1.38 [−0.04, +2.86] in S2 (P4/P5 base); neither cleared, and S2's rule gave it no confirmation.
+  This is a new single test, not that confirmation: `v5.0-p4-ultra` with `search.nodeShortlist`
+  96 against `v5.0-p4-ultra`, each as the lone seat against three Pentobi level-6 seats on 200
+  fresh seeds 82,300,000–82,300,199, the two runs started together on 5 threads each so their
+  ms/move are comparable. **Kept as a config change** if the paired difference has a CI lower
+  bound above 0 and ms/move (own moves 3+) is at most 1.25× base; otherwise dropped.
