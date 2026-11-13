@@ -332,3 +332,44 @@ every descent; `false` (every existing version) is byte-identical.
   for the new seeds alone and pooled with the first 40), and level 7's recorded moves as teacher
   data for a later re-fit of the move prior. The run stops at 07:35 whatever its state; only
   complete seeds are scored.
+- **2026-11-13 10:04 CST, P1–P3 (rollout policy over all legal moves, incremental move lists, rank
+  reward), fixed before any screen game.** Read so far: everything in the entries above. Seen but
+  not read as a result: the liveness table below (2 seeds per arm, which prints advantages; noise at
+  that size). Code: commit `20f6cb1` (`native.rollout`, `native.reward`, `src/move_lists.rs`); the
+  arms and their values were committed in `engine-rs/scripts/p13_configs.py` in that same commit,
+  before liveness or any game. Binaries pinned in `tmp/p13/bin/` (`PROVENANCE.txt`).
+  - **Gates passed before this entry.** 8/8 parity tests; P2 equality test (`tests/move_lists.rs`:
+    incremental lists equal a from-scratch generation as sets, no duplicates, every seat at every ply
+    of 7,000 random games, with and without base lists and rollout resets, both opening rules);
+    `v5.0-p4-ultra` mirror 0.00 with the new binary; the identity point `p13-ID` (`rollout.policy`
+    sampled, `reward.kind` blend) vs `v5.0-p4-ultra` 0.00, 80/80 game scores equal to the old binary;
+    self-play bytes equal; 8/8 bridge games move-for-move equal (`tmp/p13/identity.log`).
+  - **Arms** (each `v5.0-p4-ultra` plus the block shown). P1 weights are a maximum-likelihood fit to
+    Pentobi level-6 decisions at own move ≥ 3 in the X1 games (seeds 79,000,000–099; test = seeds
+    ending in 4 or 9; `ml/p13_fit_rollout.py`, `ml/v5-rollout-fit.json`): test log-likelihood per
+    decision uniform −4.431, size −3.875, size+local+own −3.702.
+    - `P1S`: `rollout` all, `sizeWeight` 1.4347 (size-only fit), no local term.
+    - `P1L`: `rollout` all, `sizeWeight` 1.3995, `localWeight` 0.7185, `localOwnExtra` 0.6515 (joint fit).
+    - `P1X`: as `P1L` with `localWeight` 6.0 (one local square outweighs the whole size range, 4 × 1.3995).
+    - `P3A`: `reward` rank, `qualityWeight` 0.1, `qualitySlope` 1, `lengthWeight` 0.1.
+    - `P3B`: as `P3A` with `qualityWeight` 0.25. (Grid: 0.1 never overturns a rank step of 1/3,
+      0.25 can at the extremes; the length weight is fixed at 0.1.)
+    - `P1LP3B`: `P1L` and `P3B` together.
+    P1S vs P1L separates "all legal moves, size weight only" from "plus local response".
+  - **Screen:** each arm and `base` (`v5.0-p4-ultra`) as the lone seat against three Pentobi level-6
+    seats (budget 300, Pentobi 31.0, book on, one thread), 100 seeds 83,000,000–83,000,099, 4 games
+    per seed. Paired difference arm − base by seed, 95% percentile bootstrap.
+  - **Selection:** among arms whose paired CI lower bound is above 0, the one with the largest point
+    estimate. None clears → no confirmation, and the result is reported as a null.
+  - **Cost:** from the clean cost run already made (`tmp/p13/cost/cost.md`: 150 positions, 2
+    threads, my jobs alone on the machine; ms/move own moves 3+, arm / base): `P1S` 1.36, `P1L` 1.77,
+    `P1X` 1.64, `P3A` 0.93, `P3B` 0.89, `P1LP3B` 1.67.
+  - **Confirmation:** the selected arm and `base`, started together on 200 fresh seeds
+    83,100,000–83,100,199. If the selected arm's clean cost ratio R is above 1.25, an equal-time arm
+    (`<ARM>-ET`: `search.iterationScale` 16 / R) also plays those seeds, started with them.
+    **Accepted at equal iterations** if the arm's paired CI lower bound is above 0. **Becomes the new
+    base config** only if it is accepted and either R ≤ 1.25 or the equal-time arm's paired CI lower
+    bound is also above 0 (then the equal-time config is the one saved).
+  - **If a config becomes the new base:** it plays as one seat against three `v5.0-p4-ultra` seats
+    (`blokee-match`, seat-rotated, budget 300) on 200 seeds 83,200,000–83,200,199, reported, not gated.
+  - No arm, value or seed is added after the screen is read without a new dated entry.
