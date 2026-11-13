@@ -210,3 +210,47 @@ mirror and byte-identical self-play; `research_paper/v5_p4_p5_candidate_generati
 - Refused in `unsupported()`: unknown policy or kind, non-finite or out-of-range weights,
   `qualitySlope` ≤ 0, `reward` kind `"rank"` with `native.net` (its value channel uses the old
   reward's scale) or with `leafMaterialBlend` > 0.
+
+### RAVE and last-good-reply (P6/P7)
+
+`rave` adds all-moves-as-first statistics to the tree; `lastGoodReply` adds a reply table to the
+rollouts. Absent (or `{"weight": 0}` / `{"enabled": false}`) plays exactly as before (parity tests,
+a 0.00 mirror, `tests/rave_lgr.rs`; `research_paper/v5_p6_p7_rave_results.md`). Both blocks refuse
+unknown keys. Written from the published ideas (Gelly & Silver's RAVE with Silver's minimum-error
+schedule; Drake's last-good-reply and Baier & Drake's forgetting); no code or constant from Pentobi.
+
+```json
+"native": { "rave": { "weight": 0.5, "equivalence": 100, "distanceDecay": 0.5, "scope": "all" },
+            "lastGoodReply": { "enabled": true, "forget": true } }
+```
+
+- **Statistics (`search.rs`, `update_amaf`, after `backup`).** Each simulation's placements are
+  listed in order, (seat, placement): the tree path, then the rollout. For every path node (the root
+  only with `scope` `"root"`), each child edge whose placement the node's mover played at or after
+  that node gets `sum += w·v`, `weight += w`, where `v` is the simulation's value for the node's Q
+  component (the mover, or the root seat when the search is paranoid) and
+  `w = 1 − distanceDecay·k/L` (`k` moves after the node, `L` moves from the node to the end of the
+  simulation). The edge actually taken counts with `k = 0`. A placement occupies its cells, so it
+  occurs at most once per simulation. The root, which can have hundreds of edges, is matched through
+  a placement → edge table; interior nodes (at most `nodeShortlist` edges) by scanning their edges.
+- **Selection (`select`).** For an edge with AMAF weight > 0, after Q is formed as before (initial
+  value, value-initialised root mix or child mean): `Q ← (1 − β)·Q + β·Q_amaf`,
+  `β = ñ / (ñ + n + n·ñ/equivalence)`, `ñ = weight × AMAF weight sum`, `n` = the child's visits plus
+  `initVisits` at a value-initialised root (0 for an unvisited interior child, so its AMAF mean
+  replaces the first-play value). The exploration and history terms, the final move choice (visits)
+  and the early stop are unchanged.
+- **Reply table (`reply_table.rs`, `playout.rs`).** Per seat, previous placement → reply. After a
+  simulation that ends in a known final score (rollout to the end, terminal node, all seats sealed),
+  every placement in it (tree and rollout) is stored as the reply of its seat to the placement just
+  before it (the game's last placement before the root for the first one) if that seat's score is
+  the highest (ties included); with `forget`, a stored reply equal to a non-winner's is deleted. In a
+  rollout, the stored reply to the previous placement is played whenever it is legal, before the
+  ε-random draw, the corner sampling and the table policy (`"sampled"`) or the weighted draw
+  (`"all"`). Cleared at the start of every search. The progressive-history term (`historyWeight`)
+  is untouched: it acts in tree selection and still learns from every backed-up edge.
+- Refused in `unsupported()`: negative or non-finite `weight`, `equivalence` ≤ 0, `distanceDecay`
+  outside [0, 1], unknown `scope`, RAVE with `native.net` or `native.prior` (both add counts to the
+  root's Q or decision), and either option with `opponentPolicy` `"brs"` (which moves the turn in the
+  tree).
+- Diagnostics: `examples/p67_probe.rs` (`stats`: AMAF coverage of root edges and the reply table's
+  supply rate; `reuse`: what subtree reuse between moves would carry over, P8).

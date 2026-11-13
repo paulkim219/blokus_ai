@@ -260,6 +260,79 @@ pub struct NativeOptions {
     /// reward exactly as before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reward: Option<RewardOptions>,
+    /// v5.0 port P6: all-moves-as-first (RAVE) statistics per tree edge, blended into the edge's
+    /// value in selection. Absent, or `weight` 0, leaves the search exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rave: Option<RaveOptions>,
+    /// v5.0 port P7: last-good-reply table tried first in rollouts. Absent, or `enabled` false,
+    /// leaves the rollout exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_good_reply: Option<LastGoodReplyOptions>,
+}
+
+/// `native.rave` (see `engine-rs/README.md`, "RAVE and last-good-reply (P6/P7)").
+///
+/// Each tree edge (node, child placement) keeps a second value estimate: the weighted mean of the
+/// simulation's value for the node's mover over every simulation that passed through the node and in
+/// which the mover played that placement at or after the node (in the tree or the rollout). In
+/// selection the edge's value becomes `(1 − β)·Q + β·Q_amaf` with
+/// `β = ñ / (ñ + n + n·ñ / equivalence)`, `ñ = weight · (AMAF weight sum)` and `n` the real count
+/// behind Q (child visits, plus `initVisits` at a value-initialised root).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RaveOptions {
+    /// Scale on the AMAF sample count before it is weighed against real visits. 0 is off.
+    #[serde(default)]
+    pub weight: f64,
+    /// Real visits at which, with many AMAF samples, the AMAF estimate and the real one weigh equally.
+    #[serde(default = "rave_equivalence")]
+    pub equivalence: f64,
+    /// Distance weighting: an update for a placement played `k` moves after the node, in a
+    /// simulation with `L` moves left from the node, counts `1 − distanceDecay · k / L`. 0 is off.
+    #[serde(default)]
+    pub distance_decay: f64,
+    /// "all": every tree node keeps and uses the statistics; "root": the root only.
+    #[serde(default = "all_scope")]
+    pub scope: String,
+}
+
+fn rave_equivalence() -> f64 {
+    100.0
+}
+
+fn all_scope() -> String {
+    "all".into()
+}
+
+impl RaveOptions {
+    pub fn on(&self) -> bool {
+        self.weight > 0.0
+    }
+
+    pub fn root_only(&self) -> bool {
+        self.scope == "root"
+    }
+}
+
+/// `native.lastGoodReply` (see `engine-rs/README.md`, "RAVE and last-good-reply (P6/P7)").
+///
+/// Per seat, a table from the placement just before that seat's move (by any seat; passes are
+/// skipped) to the seat's reply. After each simulation that ends in a known final score, every
+/// reply in it (tree part and rollout) by a seat whose score is the highest (ties included) is
+/// stored; with `forget`, a reply by any other seat is deleted if it is the one stored. In a
+/// rollout the stored reply to the previous placement is played first whenever it is legal. The
+/// table is cleared at the start of each search.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LastGoodReplyOptions {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "yes")]
+    pub forget: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// `native.rollout` (see `engine-rs/README.md`, "Rollout policy and reward (P1–P3)").
@@ -425,6 +498,22 @@ impl BitboardParams {
             // The E6 value channel and the leaf-material blend mix the old reward's scale into Q.
             reject(r.rank() && native.is_some_and(|n| n.net.is_some()), "native.reward rank with native.net");
             reject(r.rank() && s.leaf_material_blend > 0.0, "native.reward rank with leafMaterialBlend");
+        }
+        if let Some(r) = native.and_then(|n| n.rave.as_ref()) {
+            reject(!(r.weight >= 0.0 && r.weight.is_finite()), "native.rave.weight must be >= 0");
+            reject(!(r.equivalence > 0.0 && r.equivalence.is_finite()), "native.rave.equivalence must be > 0");
+            reject(!(0.0..=1.0).contains(&r.distance_decay), "native.rave.distanceDecay must be in [0, 1]");
+            reject(!matches!(r.scope.as_str(), "all" | "root"), "native.rave.scope must be all or root");
+            // The E6 network value channel and the learned prior's pseudo-visits mix extra counts into
+            // the root's Q and decision; the blend is not defined against them.
+            reject(r.on() && native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.rave with native.net or native.prior");
+            // Virtual loss and the ensemble are refused anyway; BRS moves the turn in the tree, so a
+            // node's mover is not the seat whose later placements the statistics would credit.
+            reject(r.on() && s.opponent_policy == "brs", "native.rave with opponentPolicy brs");
+        }
+        if let Some(l) = native.and_then(|n| n.last_good_reply.as_ref()) {
+            // Replies are learned from final scores; under BRS the tree's move order is not the game's.
+            reject(l.enabled && s.opponent_policy == "brs", "native.lastGoodReply with opponentPolicy brs");
         }
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()) {
             // Protocol-1/2 records carry at most 64 candidates and E6 recomputes root-child shortlists

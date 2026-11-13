@@ -51,6 +51,9 @@ pub struct Engine {
     orderer: MoveOrderer,
     /// The game's last placements, set by the harness before each search (P4/P5 local features).
     recent: Vec<(usize, i32)>,
+    /// Iterations of the last decision if it was a tree search (its tree is still in `search`);
+    /// None after an opening, packer or empty decision. Read only by diagnostics.
+    last_tree: Option<u32>,
 }
 
 impl Engine {
@@ -70,6 +73,7 @@ impl Engine {
             context: EvalContext::new(params.fractional_territory_ties),
             orderer: MoveOrderer::new(),
             recent: Vec::new(),
+            last_tree: None,
             params,
         })
     }
@@ -90,6 +94,7 @@ impl Engine {
     pub fn search(&mut self, position: &mut Position, seat: usize, budget: u32, rng: &mut Rng, stats: &mut MoveStats) -> Vec<Ranked> {
         let recent = std::mem::take(&mut self.recent);
         self.search.set_recent(&recent);
+        self.last_tree = None;
         if position.turn != seat {
             position.force_turn(seat);
         }
@@ -140,6 +145,7 @@ impl Engine {
         }
         while self.search.advance(position, 64, scaled, rng) {}
         let outcome = self.search.result();
+        self.last_tree = Some(outcome.iterations);
         stats.iterations += outcome.iterations;
         stats.net_evaluations += self.search.net_evaluations();
         stats.searched = true;
@@ -168,6 +174,24 @@ impl Engine {
                 value: if entry.visits > 0 { logit(entry.value) * scale } else { -scale },
             })
             .collect()
+    }
+
+    /// P8 diagnostic (read only; call before the next `search`): if the last decision was a tree
+    /// search, (visits of the node for `position` in that tree, 0 if it has none; that search's
+    /// iterations). This is what reusing the subtree at `position` would carry over.
+    pub fn reuse_probe(&self, position: &Position) -> Option<(f64, u32)> {
+        let iterations = self.last_tree?;
+        Some((self.search.node_visits(position).unwrap_or(0.0), iterations))
+    }
+
+    /// Diagnostics from the last tree search: per root edge (real visits, AMAF weight), and the
+    /// last-good-reply table's (asked, supplied) counts.
+    pub fn root_edge_stats(&self) -> Option<Vec<(i32, f64)>> {
+        self.last_tree.map(|_| self.search.root_edge_stats())
+    }
+
+    pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
+        self.search.reply_stats()
     }
 
     /// `heuristicOpeningMoves`: the tier-1 ordering's top moves, no tree.

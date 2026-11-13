@@ -23,6 +23,7 @@ pub mod playout;
 pub mod position;
 pub mod prior;
 pub mod regions;
+pub mod reply_table;
 pub mod rng;
 pub mod rollout_policy;
 pub mod search;

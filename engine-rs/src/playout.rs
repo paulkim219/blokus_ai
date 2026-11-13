@@ -7,6 +7,7 @@ use crate::jsmath;
 use crate::move_lists::{self, MoveLists, entry_count, entry_id, rows_of};
 use crate::placements::*;
 use crate::position::{Position, SEAT_COUNT, Undo};
+use crate::reply_table::ReplyTable;
 use crate::rng::Rng;
 use crate::rollout_policy::RolloutPolicy;
 use std::sync::Arc;
@@ -53,6 +54,10 @@ pub struct Playout {
     weights: Vec<f64>,
     weight_table: [f64; WEIGHT_TABLE],
     weight_key: [u64; 3],
+    /// P7 (`native.lastGoodReply`): None leaves every rollout exactly as before.
+    lgr: Option<ReplyTable>,
+    /// The placement before the rollout's next move (-1 if none); kept only with `lgr`.
+    lgr_prev: i32,
 }
 
 impl Playout {
@@ -71,6 +76,47 @@ impl Playout {
             weights: Vec::new(),
             weight_table: [0.0; WEIGHT_TABLE],
             weight_key: [u64::MAX; 3],
+            lgr: None,
+            lgr_prev: -1,
+        }
+    }
+
+    /// P7: turns the last-good-reply table on (empty) for every later rollout.
+    pub fn enable_last_good_reply(&mut self, forget: bool) {
+        self.lgr = Some(ReplyTable::new(forget));
+    }
+
+    pub fn reply_table(&mut self) -> Option<&mut ReplyTable> {
+        self.lgr.as_mut()
+    }
+
+    /// P7: the placement made just before the next rollout's first move (-1 if none).
+    pub fn set_previous(&mut self, mv: i32) {
+        self.lgr_prev = mv;
+    }
+
+    /// The placements the last rollout made, in order, as (seat, placement), appended to `out`.
+    /// Valid until the next `run`.
+    pub fn played(&self, out: &mut Vec<(usize, i32)>) {
+        for step in &self.steps {
+            if let Step::Move(undo) = step {
+                out.push((undo.seat, undo.mv));
+            }
+        }
+    }
+
+    /// P7: the stored reply of `seat` to the previous placement, if it is legal now.
+    #[inline]
+    fn last_good_reply(&mut self, position: &Position, seat: usize) -> Option<i32> {
+        let prev = self.lgr_prev;
+        let table = self.lgr.as_mut()?;
+        table.asked += 1;
+        let reply = table.get(seat, prev);
+        if reply >= 0 && position.is_legal(seat, reply) {
+            table.supplied += 1;
+            Some(reply)
+        } else {
+            None
         }
     }
 
@@ -222,6 +268,15 @@ impl Playout {
 
         while steps < cutoff && !position.finished() {
             let seat = position.turn;
+            if self.lgr.is_some()
+                && let Some(reply) = self.last_good_reply(position, seat)
+            {
+                let undo = position.apply(reply);
+                self.steps.push(Step::Move(undo));
+                self.lgr_prev = reply;
+                steps += 1.0;
+                continue;
+            }
             let count = self.sample_moves(position, seat, cap, max_corners, rng);
             if count == 0 {
                 let turn = position.turn;
@@ -255,6 +310,9 @@ impl Playout {
             };
             let undo = position.apply(chosen);
             self.steps.push(Step::Move(undo));
+            if self.lgr.is_some() {
+                self.lgr_prev = chosen;
+            }
             steps += 1.0;
         }
 
@@ -320,7 +378,10 @@ impl Playout {
                 steps += 1.0;
                 continue;
             }
-            let chosen = if count == 1 {
+            let reply = if self.lgr.is_some() && count > 1 { self.last_good_reply(position, seat) } else { None };
+            let chosen = if let Some(reply) = reply {
+                reply
+            } else if count == 1 {
                 entry_id(moves[0])
             } else {
                 let (local, local_own) = if use_local { local_squares(position, seat, &self.recent[..self.recent_len]) } else { (EMPTY, EMPTY) };
@@ -344,6 +405,9 @@ impl Playout {
             let undo = position.apply(chosen);
             lists.after_placement(position, seat, chosen, &corner_before, played_before);
             self.push_recent(seat, chosen);
+            if self.lgr.is_some() {
+                self.lgr_prev = chosen;
+            }
             self.steps.push(Step::Move(undo));
             steps += 1.0;
         }

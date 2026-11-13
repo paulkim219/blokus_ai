@@ -5,7 +5,7 @@
 
 use crate::backup::*;
 use crate::bitboard::*;
-use crate::config::{BitboardParams, CandidateOptions, Phase};
+use crate::config::{BitboardParams, CandidateOptions, Phase, RaveOptions};
 use crate::feature_prior::PriorContext;
 use crate::features::{EvalContext, detect_phase, evaluate, refresh_context};
 use crate::ordering::{HistoryTable, MoveOrderer, softmax_priors, sort_by_score};
@@ -42,6 +42,9 @@ struct Node {
     settled_turn: usize,
     terminal: bool,
     proven: Option<[f64; SEAT_COUNT]>,
+    /// P6 (`native.rave`): per child edge, (weighted value sum, weight sum) of the AMAF updates.
+    /// Empty unless RAVE is on for this node.
+    amaf: Vec<[f64; 2]>,
 }
 
 impl Node {
@@ -63,6 +66,7 @@ impl Node {
             settled_turn: 0,
             terminal: false,
             proven: None,
+            amaf: Vec::new(),
         }
     }
 
@@ -194,6 +198,22 @@ pub struct V12Search {
     rollout_local: bool,
     /// `native.rollout` "all" (P1/P2): the rollouts' move lists are derived from the root's.
     rollout_all: bool,
+    /// `native.rave` with a positive weight (P6). None leaves selection and backup exactly as before.
+    rave: Option<RaveOptions>,
+    /// `native.lastGoodReply` enabled (P7); the table itself lives in the playout.
+    last_good_reply: bool,
+    /// This simulation's placements in order, (seat, placement): tree path, then rollout (P6/P7).
+    sim_moves: Vec<(usize, i32)>,
+    /// This simulation's final scores, when it ended in a known final score (P7).
+    sim_scores: Option<[f64; SEAT_COUNT]>,
+    /// Whether this simulation ran a rollout (its moves are then in the playout).
+    rollout_ran: bool,
+    /// Per placement: the generation it was last played in and its index in `sim_moves` (P6).
+    amaf_stamp: Vec<u32>,
+    amaf_index: Vec<u32>,
+    amaf_generation: u32,
+    /// Per placement: its edge index at the root, or NONE (P6; the root can have hundreds of edges).
+    root_edge: Vec<u32>,
 }
 
 impl V12Search {
@@ -206,7 +226,23 @@ impl V12Search {
         let rollout_local = params.native.as_ref().and_then(|n| n.rollout.as_ref())
             .is_some_and(|r| r.all_moves() && r.local_weight != 0.0);
         let rollout_all = params.native.as_ref().and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves());
+        let rave = params.native.as_ref().and_then(|n| n.rave.clone()).filter(|r| r.on());
+        let lgr = params.native.as_ref().and_then(|n| n.last_good_reply.clone()).filter(|l| l.enabled);
+        let mut playout = Playout::new(table);
+        if let Some(l) = &lgr {
+            playout.enable_last_good_reply(l.forget);
+        }
+        let per_placement = if rave.is_some() { placements().count } else { 0 };
         V12Search {
+            last_good_reply: lgr.is_some(),
+            sim_moves: Vec::new(),
+            sim_scores: None,
+            rollout_ran: false,
+            amaf_stamp: vec![0; per_placement],
+            amaf_index: vec![0; per_placement],
+            amaf_generation: 0,
+            root_edge: vec![NONE; per_placement],
+            rave,
             candidates,
             reward,
             rollout_local,
@@ -229,7 +265,7 @@ impl V12Search {
             context: EvalContext::new(fractional),
             playout_context: EvalContext::new(fractional),
             orderer: MoveOrderer::new(),
-            playout: Playout::new(table),
+            playout,
             history: HistoryTable::new(),
             path_nodes: Vec::new(),
             path_edges: Vec::new(),
@@ -312,6 +348,9 @@ impl V12Search {
         if let Some(reward) = &mut self.reward {
             reward.clear();
         }
+        if let Some(table) = self.playout.reply_table() {
+            table.clear();
+        }
 
         let scores = position.scores();
         let mut best_other = f64::NEG_INFINITY;
@@ -328,6 +367,12 @@ impl V12Search {
         let root = self.node_for(position);
         self.initialise_node(root, position, true);
         self.root = root;
+        if self.rave.is_some() {
+            self.root_edge.fill(NONE);
+            for (edge, &mv) in self.nodes[root as usize].moves.iter().enumerate() {
+                self.root_edge[mv as usize] = edge as u32;
+            }
+        }
         if self.rollout_all {
             self.playout.set_base(position);
         }
@@ -419,6 +464,11 @@ impl V12Search {
         node.child_visits = vec![0; shortlist];
         node.opened = 0;
         node.initialised = true;
+        if let Some(r) = &self.rave
+            && (is_root || !r.root_only())
+        {
+            node.amaf = vec![[0.0; 2]; shortlist];
+        }
     }
 
     /// The move shortlist and hand prior a node at `position` (settled, `position.turn` to move)
@@ -761,6 +811,8 @@ impl V12Search {
         self.path_nodes.clear();
         self.path_edges.clear();
         self.path_undos.clear();
+        self.rollout_ran = false;
+        self.sim_scores = None;
         let root = self.root;
         let mut node = root;
         loop {
@@ -805,6 +857,28 @@ impl V12Search {
         }
         let value = self.leaf_value(node, position, rng);
         self.backup(&value);
+        if self.rave.is_some() || self.last_good_reply {
+            self.sim_moves.clear();
+            for undo in &self.path_undos {
+                self.sim_moves.push((undo.seat, undo.mv));
+            }
+            if self.rollout_ran {
+                self.playout.played(&mut self.sim_moves);
+            }
+            if self.rave.is_some() {
+                self.update_amaf(&value);
+            }
+            if self.last_good_reply
+                && let Some(scores) = self.sim_scores
+            {
+                let best = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+                let won: [bool; SEAT_COUNT] = std::array::from_fn(|seat| scores[seat] == best);
+                let prev = self.root_previous();
+                let moves = std::mem::take(&mut self.sim_moves);
+                self.playout.reply_table().expect("last-good-reply table").learn(prev, &moves, &won);
+                self.sim_moves = moves;
+            }
+        }
         for undo in self.path_undos.iter().rev() {
             position.undo(undo);
         }
@@ -865,6 +939,21 @@ impl V12Search {
                 let mean = c.values[component] / c.visits;
                 if invert { 1.0 - mean } else { mean }
             };
+            let q = if node.amaf.is_empty() || node.amaf[index][1] <= 0.0 {
+                q
+            } else {
+                // P6: blend in the edge's AMAF mean. `n` is the count behind Q: the child's visits,
+                // plus the virtual visits of a value-initialised root child.
+                let r = self.rave.as_ref().unwrap();
+                let child_n = if child == NONE { 0.0 } else { self.nodes[child as usize].visits };
+                let n = if init_value { child_n + n0 } else { child_n };
+                let [sum, weight] = node.amaf[index];
+                let amaf_mean = sum / weight;
+                let amaf_q = if invert { 1.0 - amaf_mean } else { amaf_mean };
+                let tilde = r.weight * weight;
+                let beta = tilde / (tilde + n + n * tilde / r.equivalence);
+                (1.0 - beta) * q + beta * amaf_q
+            };
             let u = 1.0 * s.c_puct * node.priors[index] * (sqrt_visits / (1.0 + edge_visits));
             let h = if s.history_weight == 0.0 {
                 0.0
@@ -897,6 +986,9 @@ impl V12Search {
         let s = &params.search;
         if self.nodes[id as usize].terminal || position.finished() {
             // The TS engine passes no aggregation here, so it is always `max` on this path.
+            if self.last_good_reply {
+                self.sim_scores = Some(position.scores());
+            }
             let value = match &mut self.reward {
                 Some(reward) => reward.value(&position.scores(), Some(position.ply as f64)),
                 None => value_vector(&position.scores(), s.sigmoid_scale, self.rank_blend, Aggregation::Max),
@@ -932,6 +1024,9 @@ impl V12Search {
                     scores[seat] = sealed_score[seat];
                 }
             }
+            if self.last_good_reply {
+                self.sim_scores = Some(scores);
+            }
             let value = match &mut self.reward {
                 // The packer gives scores, not the number of pieces it places: no length term.
                 Some(reward) => reward.value(&scores, None),
@@ -946,12 +1041,23 @@ impl V12Search {
             let recent = self.path_recent();
             self.playout.set_recent(&recent);
         }
+        if self.last_good_reply {
+            let prev = match (self.path_nodes.last(), self.path_edges.last()) {
+                (Some(&node), Some(&edge)) => self.nodes[node as usize].moves[edge],
+                _ => self.root_previous(),
+            };
+            self.playout.set_previous(prev);
+        }
         let mut outcome = self.playout.run(&params, position, &mut self.playout_context, self.phase, skip, rng);
+        self.rollout_ran = true;
         if outcome.terminal {
             for seat in 0..SEAT_COUNT {
                 if sealed_flags[seat] == 1 {
                     outcome.values[seat] = sealed_score[seat];
                 }
+            }
+            if self.last_good_reply {
+                self.sim_scores = Some(outcome.values);
             }
             if let Some(reward) = &mut self.reward {
                 // With sealed seats left out of the rollout, their pieces are not in the length.
@@ -986,6 +1092,97 @@ impl V12Search {
             }
         }
         value
+    }
+
+    /// The game's last placement before this search's root, or -1 (P7).
+    fn root_previous(&self) -> i32 {
+        self.root_recent.last().map_or(-1, |&(_, mv)| mv)
+    }
+
+    /// P6: credits every path node's edges whose placement the node's mover played at or after that
+    /// node in this simulation (tree or rollout), with the simulation's value for the node's Q
+    /// component, weighted by distance when `distanceDecay` > 0. A placement occupies its cells, so it
+    /// appears at most once in a simulation.
+    fn update_amaf(&mut self, value: &[f64; SEAT_COUNT]) {
+        let (decay, root_only) = {
+            let r = self.rave.as_ref().unwrap();
+            (r.distance_decay, r.root_only())
+        };
+        let total = self.sim_moves.len();
+        self.amaf_generation = self.amaf_generation.wrapping_add(1);
+        if self.amaf_generation == 0 {
+            self.amaf_stamp.fill(0);
+            self.amaf_generation = 1;
+        }
+        let generation = self.amaf_generation;
+        for (j, &(_, mv)) in self.sim_moves.iter().enumerate() {
+            self.amaf_stamp[mv as usize] = generation;
+            self.amaf_index[mv as usize] = j as u32;
+        }
+        let depth = if root_only { self.path_nodes.len().min(1) } else { self.path_nodes.len() };
+        for i in 0..depth {
+            let id = self.path_nodes[i];
+            let node = &mut self.nodes[id as usize];
+            if node.amaf.is_empty() {
+                continue;
+            }
+            let seat = node.turn;
+            debug_assert_eq!(self.sim_moves[i].0, seat, "path move by another seat than the node's mover");
+            let v = value[if self.paranoid { self.root_seat } else { seat }];
+            let span = (total - i) as f64;
+            let weight_at = |j: usize| if decay > 0.0 { 1.0 - decay * (j - i) as f64 / span } else { 1.0 };
+            if id == self.root {
+                for j in i..total {
+                    let (s, mv) = self.sim_moves[j];
+                    let edge = self.root_edge[mv as usize];
+                    if s != seat || edge == NONE {
+                        continue;
+                    }
+                    let w = weight_at(j);
+                    let slot = &mut node.amaf[edge as usize];
+                    slot[0] += w * v;
+                    slot[1] += w;
+                }
+            } else {
+                for edge in 0..node.moves.len() {
+                    let mv = node.moves[edge] as usize;
+                    if self.amaf_stamp[mv] != generation {
+                        continue;
+                    }
+                    let j = self.amaf_index[mv] as usize;
+                    if j < i || self.sim_moves[j].0 != seat {
+                        continue;
+                    }
+                    let w = weight_at(j);
+                    let slot = &mut node.amaf[edge];
+                    slot[0] += w * v;
+                    slot[1] += w;
+                }
+            }
+        }
+    }
+
+    /// P8 diagnostic (read only): the visits of the node for `position` in the tree as the last
+    /// search left it, if there is one. Needs transpositions (the node is found by its hash).
+    pub fn node_visits(&self, position: &Position) -> Option<f64> {
+        if !self.params.search.transpositions || self.nodes.is_empty() {
+            return None;
+        }
+        let bucket = self.table.get(&position.hash_lo)?;
+        bucket.iter().map(|&id| &self.nodes[id as usize]).find(|n| n.hash_hi == position.hash_hi).map(|n| n.visits)
+    }
+
+    /// Diagnostics (read only): per root edge, (real visits, AMAF weight sum); the AMAF part is 0
+    /// without RAVE.
+    pub fn root_edge_stats(&self) -> Vec<(i32, f64)> {
+        let root = &self.nodes[self.root as usize];
+        (0..root.move_count()).map(|i| (root.child_visits[i], root.amaf.get(i).map_or(0.0, |a| a[1]))).collect()
+    }
+
+    /// Diagnostics: (rollout moves asked of the reply table, moves it supplied) since the table was
+    /// built; None without `native.lastGoodReply`.
+    pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
+        self.playout.reply_table().map(|t| (t.asked, t.supplied))
     }
 
     fn backup(&mut self, value: &[f64; SEAT_COUNT]) {
