@@ -280,3 +280,50 @@ Screen (400 seeds from 76,000,000, 7 threads, shared machine), so far:
 P0 is the control. Its 800-seed confirmation on the PC is fixed in the preregistration (seeds
 from 77,100,000). The screen was paused for about 8.5 hours at Paul's request and resumed; the
 driver replays only incomplete chunks.
+
+### E6-P0 confirmation (PC, 2026-11-13)
+
+The preregistered control confirmation, read on its own and not pooled with the Mac screen.
+Mac checkpoint `resnet2-b8w96-g18500-s0`, root prior only (blend 0.5, temperature 1, depth-1 blend
+0, value visits 0), 800 seeds from 77,100,000, budget 300, 14 threads. 29.5 minutes.
+
+**+0.83 [0.56, 1.09]**, first place 31.8% (sole wins 23.7%). The mean is above +0.50 and the
+interval sits above 0, so the gate passes. The v2 network as a root prior is a promotion
+candidate over `v4.2-ultra`. This says nothing about the depth-1 or value channels.
+
+The challenger used 1.0 network evaluation per searched move and 136 ms/move of wall time.
+Per-seat advantage: blue +1.36, green +2.36, purple +1.27, yellow −1.66.
+
+### E5 larger arms (PC, 2026-11-13)
+
+Three arms, each 15,000 steps at batch 512 on base games 0–18,499 plus E4 generations 0–7.
+Validation on base games 18,500–18,999. Selection was lowest validation loss, with a smaller arm
+winning a tie within 1% when it is at least twice as fast.
+
+| Arm | Val loss | Best step | Test KL | Top-1 | Margin R² | pos/s | Time |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `resnet2-b8w96` | **7.171** | 11,000 | 0.322 | 49.9% | 0.422 | 19,214 | 37 min |
+| `resnet2-b12w128` | 7.172 | 9,000 | 0.320 | 50.1% | 0.420 | 7,999 | 69 min |
+| `resnet2-b16w160` | 7.172 | 8,000 | 0.319 | 50.2% | 0.422 | 3,190 | 2 h 31 min |
+
+`resnet2-b8w96-g36k-s0` is selected. It has the lowest validation loss and is 2.4× and 6.0×
+faster than the two larger arms. On the fuel table the margin head adds +0.075, +0.074 and
++0.075 R² over the search value on `score − mean(others)`, so width bought no extra signal.
+These metrics are compared arm against arm on the PC corpus. The selected network does not
+replace the Mac checkpoint in the E6-P0 confirmation above.
+
+### Pentobi level 6, `ei-gen6` (PC, 2026-11-13, exploratory)
+
+Not gated. Pentobi 31.0, opening book on, one thread per process. Validity gate passed: 20/20
+replays and the pentobi-vs-pentobi game agree. Then each of `v4.2-ultra` and `ei-gen6` (E4's
+final network, `native.prior` blend 0.5, protocol 1) played as the lone seat against three
+level-6 seats, 100 seeds from 79,400,000, budget 300, 8 game threads. About 4 minutes per arm.
+
+| Arm | Advantage vs level 6 | First place | Blokee ms/move | Pentobi ms/move |
+|---|---|---:|---:|---:|
+| `v4.2-ultra` | −9.99 [−11.05, −8.85] | 7.8% | 82 | 60 |
+| `ei-gen6` | −9.58 [−10.75, −8.43] | 7.5% | 93 | 61 |
+
+Seed-paired difference, `ei-gen6` minus base: **+0.41 [−1.00, +1.75]**. The interval includes 0,
+so this does not advance. Both arms remain about 10 points behind level 6, in line with the Mac
+level-6 baseline of −10.68 [−11.96, −9.41].

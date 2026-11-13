@@ -1,0 +1,9 @@
+Pooled 1 logs → 100 complete seeds (400 games), seeds 79400000–79400099
+
+v4.2-ultra vs pentobi-31.0-L6 — 400 games over 100 seeds
+Advantage (score − mean of the three pentobi-31.0-L6 seats): -9.99 [95% CI -11.05, -8.85] → SIGNIFICANTLY WORSE than pentobi-31.0-L6
+First place: 7.8% (par 25%), sole wins 6.5%
+Mean score: -17.83 (opponents -7.84), squares placed 70.92 / 89
+Per-seat advantage: blue -7.38  yellow -14.42  purple -11.17  green -6.99
+
+Minimum detectable effect at this sample size (80% power): ~1.34

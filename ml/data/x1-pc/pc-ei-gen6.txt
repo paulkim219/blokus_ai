@@ -1,0 +1,9 @@
+Pooled 1 logs → 100 complete seeds (400 games), seeds 79400000–79400099
+
+ei-gen6 vs pentobi-31.0-L6 — 400 games over 100 seeds
+Advantage (score − mean of the three pentobi-31.0-L6 seats): -9.58 [95% CI -10.75, -8.43] → SIGNIFICANTLY WORSE than pentobi-31.0-L6
+First place: 7.5% (par 25%), sole wins 6.8%
+Mean score: -17.40 (opponents -7.82), squares placed 71.28 / 89
+Per-seat advantage: blue -5.06  yellow -12.74  purple -13.40  green -7.12
+
+Minimum detectable effect at this sample size (80% power): ~1.34
