@@ -240,3 +240,31 @@ every descent; `false` (every existing version) is byte-identical.
   - **Exploratory, not gated:** `ei-gen6` (the E4 network, `native.prior` blend 0.5) and plain
     `v4.2-ultra`, each as the lone seat against three Pentobi level-6 seats on 100 seeds from
     79,400,000, both played on the PC, read as a seed-paired difference.
+- **2026-11-13 00:05 CST, overnight runs on the Mac fixed before they are read.** S1 has three
+  arms scored and E6 is on its V64 arm; neither screen has been read beyond the E6 control and
+  the partial `W96` figure already recorded.
+  - **S1 follow-up.** Any S1 arm whose seed-paired difference against `base` has a 95% CI lower
+    bound above 0 gets a confirmation: that arm and `base`, each as the lone seat against three
+    Pentobi level-6 seats, on 200 fresh seeds 79,700,000–79,700,199. **Confirmed** if the paired
+    difference's CI lower bound is above 0 there. Confirmed arms are config-only candidates; they
+    are reported with ms/move and are not a version by themselves.
+  - **P4/P5 — the first v5.0 port: candidate generation and priors.** Mechanism: every legal move
+    of the root enters the tree; each child starts with `n0` virtual visits at a value derived
+    from a move prior; the prior comes from move features whose weights are fitted by us on
+    Pentobi's recorded moves (multinomial logit, split by game). No Pentobi source code or weight
+    table is copied. With the option off the engine is byte-identical (parity tests, 0.00 mirror).
+    - Offline report: top-1 and top-5 accuracy of the fitted prior and of today's ordering at
+      predicting Pentobi's move on held-out games. Not a strength claim.
+    - **Screen:** arms against three Pentobi level-6 seats on 100 seeds 79,500,000–79,500,099,
+      with `base` (`v4.2-ultra`) on the same seeds. Arms are fixed by the implementer before the
+      first screen game and listed in the results: at least (a) full root expansion with today's
+      ordering as the prior, (b) the fitted prior in today's shortlist tree, (c) both.
+    - **Confirmation:** the arm with the best paired difference, and `base`, on 200 fresh seeds
+      79,600,000–79,600,199. **The port is accepted for v5.0** if the paired difference's CI lower
+      bound is above 0 and its ms/move is at most 1.25× base. The same arm against `v4.2-ultra`
+      directly (`blokee-match`, 200 seeds from 80,000,000) is reported, not gated.
+  - **N10 — re-fitting weights against Pentobi (exploratory).** A cross-entropy-method search over
+    move-ordering and evaluation weights with fitness = advantage against three level-6 seats.
+    Tuning seeds come from 81,000,000 upward and are never reused for validation. The best config
+    is validated once on 200 fresh seeds 79,800,000–79,800,199, paired with `base`. Generation-best
+    fitness is never quoted as a result.
