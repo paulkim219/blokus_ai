@@ -6,6 +6,7 @@
 //! [`BitboardParams::unsupported`] rather than silently ignored — a config falling through to a
 //! different engine has already cost this project a day of measurements once.
 
+use crate::feature_prior::PriorModel;
 use crate::net::NetOptions;
 use crate::prior::PriorOptions;
 use serde::{Deserialize, Serialize};
@@ -247,6 +248,65 @@ pub struct NativeOptions {
     /// The network inside the search (E6): root prior, depth-1 policy and root-child value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub net: Option<NetOptions>,
+    /// v5.0 port P4/P5: root candidate generation, value-initialised root children and the fitted
+    /// feature prior. Absent (or every switch at its default) leaves the search exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candidates: Option<CandidateOptions>,
+}
+
+/// `native.candidates` (see `engine-rs/README.md`, "Candidate generation (P4/P5)").
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CandidateOptions {
+    /// Scorer that orders and gives priors to the root's moves: "ordering" (today's hand ordering)
+    /// or "fitted" (`model`). "fitted" without `rootFull` takes the `rootShortlist` best moves by the
+    /// fitted score over *all* legal moves (no size/centre funnel).
+    #[serde(default = "ordering")]
+    pub root_scorer: String,
+    /// Every legal root move becomes a child, ordered by the root scorer.
+    #[serde(default)]
+    pub root_full: bool,
+    /// No progressive widening at the root: every root child is selectable from the first iteration
+    /// (unvisited children score with their initial value instead of being opened one per iteration).
+    #[serde(default)]
+    pub root_no_widening: bool,
+    /// Value-initialised root children: `n0` virtual visits at `m · sqrt(p_i / p_max)` for the root
+    /// seat, `m` the root's current rollout mean, `p` the root prior. 0 is off.
+    #[serde(default)]
+    pub init_visits: f64,
+    /// Scorer that chooses and orders the `nodeShortlist` at interior nodes from today's
+    /// size/centre funnel: "ordering" (today) or "fitted".
+    #[serde(default = "ordering")]
+    pub interior_scorer: String,
+    /// Softmax temperature over fitted scores (the fit is at temperature 1).
+    #[serde(default = "one")]
+    pub temperature: f64,
+    /// The fitted model (`ml/v5-prior-weights.json`), inline so a config is self-contained.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<PriorModel>,
+}
+
+fn ordering() -> String {
+    "ordering".into()
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+impl CandidateOptions {
+    pub fn root_fitted(&self) -> bool {
+        self.root_scorer == "fitted"
+    }
+
+    pub fn interior_fitted(&self) -> bool {
+        self.interior_scorer == "fitted"
+    }
+
+    /// Whether the root is built by the P4/P5 path rather than today's `shortlist`.
+    pub fn custom_root(&self) -> bool {
+        self.root_full || self.root_fitted()
+    }
 }
 
 impl BitboardParams {
@@ -279,6 +339,20 @@ impl BitboardParams {
         let native = self.native.as_ref();
         reject(native.is_some_and(|n| n.prior.is_some() && n.net.is_some()), "native.prior and native.net together (use one)");
         reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
+        if let Some(c) = native.and_then(|n| n.candidates.as_ref()) {
+            // Protocol-1/2 records carry at most 64 candidates and E6 recomputes root-child shortlists
+            // outside the tree; neither is defined for these roots, so the combination is refused.
+            reject(native.is_some_and(|n| n.prior.is_some() || n.net.is_some()), "native.candidates with native.prior or native.net");
+            reject(!matches!(c.root_scorer.as_str(), "ordering" | "fitted"), "native.candidates.rootScorer must be ordering or fitted");
+            reject(!matches!(c.interior_scorer.as_str(), "ordering" | "fitted"), "native.candidates.interiorScorer must be ordering or fitted");
+            reject(!(c.init_visits >= 0.0 && c.init_visits.is_finite()), "native.candidates.initVisits must be >= 0");
+            reject(!(c.temperature > 0.0 && c.temperature.is_finite()), "native.candidates.temperature must be > 0");
+            let needs_model = c.root_fitted() || c.interior_fitted();
+            reject(needs_model && c.model.is_none(), "native.candidates: a fitted scorer needs a model");
+            if let Some(Err(e)) = c.model.as_ref().map(|m| m.check()) {
+                out.push(format!("native.candidates.model: {e}"));
+            }
+        }
         out
     }
 }

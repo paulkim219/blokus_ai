@@ -9,6 +9,7 @@ pub mod backup;
 pub mod bitboard;
 pub mod config;
 pub mod engine;
+pub mod feature_prior;
 pub mod features;
 pub mod game;
 pub mod gtp;

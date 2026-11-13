@@ -120,3 +120,55 @@ is kept:
   visits) are unchanged.
 - `blokee-match` logs the challenger's searched moves, network positions and seconds per game
   (`challengerSearches`, `challengerNetEvals`, `challengerSeconds`) and prints evaluations/move.
+
+### Candidate generation (P4/P5, the first v5.0 port)
+
+`candidates` changes which root moves enter the tree, the prior they get, and the value a root child
+starts with. Every key is optional; absent (or `{}`) plays exactly as before (parity tests, a 0.00
+mirror and byte-identical self-play; `research_paper/v5_p4_p5_candidate_generation_results.md`).
+
+```json
+"native": { "candidates": { "rootScorer": "fitted", "rootFull": true, "rootNoWidening": true,
+                            "initVisits": 3, "interiorScorer": "ordering", "temperature": 1.0,
+                            "model": { "features": [...], "bands": [...] } } }
+```
+
+- `rootScorer`: `"ordering"` (default: today's hand ordering) or `"fitted"` (the move-feature prior
+  in `model`, `feature_prior.rs`). With `"fitted"` the root no longer goes through today's
+  size/centre funnel: every legal move is scored, and the best `rootShortlist` (40) are kept unless
+  `rootFull`. Priors are the scorer's softmax over the kept moves, at `temperature` for the fitted
+  score and at `priorTemp` for the ordering score.
+- `rootFull`: every legal root move becomes a child, sorted best first by the root scorer. With
+  `"ordering"` every legal move gets today's ordering score (the split term's budget of 24 goes to
+  the moves the size/centre tier ranks highest, as today).
+- `rootNoWidening`: no progressive widening at the root. Every root child is selectable from the
+  first iteration: an unvisited child is scored with its initial value (below) or, without
+  `initVisits`, with the usual first-play value (the root mean minus `fpuReduction`), instead of being
+  opened one per iteration in prior order. Interior nodes keep today's widening.
+- `initVisits` (`n0`, 0 = off): value-initialised root children. In root selection only,
+  `Q_i = (W_i + n0·v_i) / (N_i + n0)` with `v_i = m · sqrt(p_i / p_max)`, `m` the root's current
+  rollout mean for the root seat (0.5 before the first visit) and `p` the root prior; an unvisited
+  child scores `v_i`. This is the E6 `valueVisits` mixing with a prior-derived value. The virtual
+  visits never count towards the move choice (real visits) or backup. **With widening on**, children
+  still enter one per iteration on today's schedule (`wideningInit` + `wideningGrowth`·sqrt(N), about
+  63 children by 4,800 iterations) and are visited once on entry; `n0` then only shades their Q.
+  Pentobi has no widening, so the port's main arms set `rootNoWidening`.
+- `interiorScorer`: `"ordering"` (default) or `"fitted"`. With `"fitted"` an interior node keeps
+  today's size/centre funnel (`max(2·nodeShortlist, 48)` moves) and today's shortlist size
+  (`nodeShortlist`, 24), but the fitted score chooses and orders the shortlist and gives its prior
+  (softmax at `temperature`). The local-response features see the game's last placements followed by
+  the moves on the tree path.
+- `model`: the fitted model, inline (`ml/v5-prior-weights.json`: `features` must equal the engine's
+  feature layout, one weight vector per own-move band). Fitted by `ml/p4_fit_prior.py` on features
+  dumped by `examples/p4_features.rs`, which calls the same `PriorContext::features` the search does.
+- The local-response features (`local_attach`, `local_near`) need the game's last three placements.
+  `game::play_game_observed` (blokee-match, blokee-selfplay, blokee-worker) and the Pentobi bridge pass them with
+  `Engine::set_recent` before each search; any other caller gets them as zero.
+- The opening shortcut (heuristic first three own moves) and the sealed-region packer are unchanged.
+- Refused in `unsupported()`: `candidates` together with `prior` or `net` (their records hold at most
+  64 root candidates and E6 recomputes root-child shortlists outside the tree), unknown scorer names,
+  a fitted scorer without a model, a model whose feature list does not match, negative `initVisits`,
+  non-positive `temperature`.
+- More than 64 root candidates elsewhere: `blokee-selfplay` keeps the 64 most-visited root children
+  of a decision (its record has 64 slots and `ranked` is sorted by visits), so records stay
+  well-formed but are truncated; `blokee-match`, the bridge and the worker only read the chosen move.

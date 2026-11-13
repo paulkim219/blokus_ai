@@ -49,6 +49,8 @@ pub struct Engine {
     search: V12Search,
     context: EvalContext,
     orderer: MoveOrderer,
+    /// The game's last placements, set by the harness before each search (P4/P5 local features).
+    recent: Vec<(usize, i32)>,
 }
 
 impl Engine {
@@ -67,6 +69,7 @@ impl Engine {
             search,
             context: EvalContext::new(params.fractional_territory_ties),
             orderer: MoveOrderer::new(),
+            recent: Vec::new(),
             params,
         })
     }
@@ -75,8 +78,18 @@ impl Engine {
         PIECE_COUNT as i32 - position.hand[seat].count_ones() as i32
     }
 
+    /// The game's placements so far as (seat, placement), oldest first, for the next `search` only.
+    /// Read only by the fitted prior's local-response features (`native.candidates`); a harness
+    /// that never calls it gets those features as zero.
+    pub fn set_recent(&mut self, recent: &[(usize, i32)]) {
+        self.recent.clear();
+        self.recent.extend_from_slice(&recent[recent.len().saturating_sub(3)..]);
+    }
+
     /// `searchBestMoveV12` with an iteration budget. Returns the ranked root moves, best first.
     pub fn search(&mut self, position: &mut Position, seat: usize, budget: u32, rng: &mut Rng, stats: &mut MoveStats) -> Vec<Ranked> {
+        let recent = std::mem::take(&mut self.recent);
+        self.search.set_recent(&recent);
         if position.turn != seat {
             position.force_turn(seat);
         }

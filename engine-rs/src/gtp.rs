@@ -397,6 +397,7 @@ pub fn play_bridge_game(
                     let mut position = state.to_position();
                     let mut stats = MoveStats::default();
                     let started = Instant::now();
+                    engine.set_recent(&crate::game::recent_placements(&moves));
                     let ranked: Vec<Ranked> = engine.search(&mut position, seat, budget, &mut rng, &mut stats);
                     move_ms[seat].push(started.elapsed().as_secs_f64() * 1000.0);
                     let mv = choose_ranked(&ranked, plies, options, &mut opening_rng)

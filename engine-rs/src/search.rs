@@ -5,7 +5,8 @@
 
 use crate::backup::*;
 use crate::bitboard::*;
-use crate::config::{BitboardParams, Phase};
+use crate::config::{BitboardParams, CandidateOptions, Phase};
+use crate::feature_prior::PriorContext;
 use crate::features::{EvalContext, detect_phase, evaluate, refresh_context};
 use crate::ordering::{HistoryTable, MoveOrderer, softmax_priors, sort_by_score};
 use crate::packer::solve_sealed_region;
@@ -181,13 +182,23 @@ pub struct V12Search {
     net_value_delta: Vec<Option<f64>>,
     /// Positions sent to the network for the current move.
     net_positions: u32,
+    /// `native.candidates` (P4/P5). None leaves every path below exactly as it was.
+    candidates: Option<CandidateOptions>,
+    /// The game's last placements before this root, (seat, placement), for the local features.
+    root_recent: Vec<(usize, i32)>,
+    /// Per root edge, `sqrt(p_i / p_max)` for value-initialised children; empty when off.
+    init_ratio: Vec<f64>,
 }
 
 impl V12Search {
     pub fn new(params: Arc<BitboardParams>, table: Option<Arc<RolloutPolicy>>) -> V12Search {
         let fractional = params.fractional_territory_ties;
         let net_options = params.native.as_ref().and_then(|n| n.net.clone());
+        let candidates = params.native.as_ref().and_then(|n| n.candidates.clone());
         V12Search {
+            candidates,
+            root_recent: Vec::new(),
+            init_ratio: Vec::new(),
             depth1_blend: net_options.as_ref().map_or(0.0, |n| n.depth1_blend.clamp(0.0, 1.0)),
             value_visits: net_options.as_ref().map_or(0.0, |n| n.value_visits.max(0.0)),
             net_options,
@@ -241,6 +252,19 @@ impl V12Search {
         self.iterations
     }
 
+    /// The game's placements before the next root, oldest first (only the last three are kept).
+    /// Read by the fitted prior's local-response features; without it they are zero.
+    pub fn set_recent(&mut self, recent: &[(usize, i32)]) {
+        self.root_recent.clear();
+        self.root_recent.extend_from_slice(&recent[recent.len().saturating_sub(3)..]);
+    }
+
+    /// The root's candidate moves and priors, in tree order, for the move last prepared.
+    pub fn root_candidates(&self) -> (&[i32], &[f64]) {
+        let root = &self.nodes[self.root as usize];
+        (&root.moves, &root.priors)
+    }
+
     /// Positions the network evaluated for the move last prepared (0 without `native.net`).
     pub fn net_evaluations(&self) -> u32 {
         self.net_positions
@@ -287,6 +311,17 @@ impl V12Search {
         let root = self.node_for(position);
         self.initialise_node(root, position, true);
         self.root = root;
+        self.init_ratio.clear();
+        if let Some(c) = &self.candidates {
+            let node = &mut self.nodes[root as usize];
+            if c.root_no_widening {
+                node.opened = node.moves.len();
+            }
+            if c.init_visits > 0.0 && !node.priors.is_empty() {
+                let max = node.priors.iter().copied().fold(0.0, f64::max);
+                self.init_ratio = node.priors.iter().map(|&p| if max > 0.0 { (p / max).sqrt() } else { 1.0 }).collect();
+            }
+        }
         self.learned_prior = false;
         self.apply_learned_prior(position, root_seat);
         self.net_edges.clear();
@@ -378,6 +413,12 @@ impl V12Search {
             return None;
         }
         let params = Arc::clone(&self.params);
+        if is_root && let Some(c) = params.native.as_ref().and_then(|n| n.candidates.as_ref()).filter(|c| c.custom_root()) {
+            let moves = buffer[..count].to_vec();
+            self.generate_buffer = buffer;
+            return Some(self.root_candidates_v5(position, c, moves));
+        }
+        let fitted_interior = !is_root && params.native.as_ref().and_then(|n| n.candidates.as_ref()).is_some_and(|c| c.interior_fitted());
         let s = &params.search;
         let t = placements();
         let ordering = params.ordering.get(self.phase);
@@ -392,7 +433,9 @@ impl V12Search {
         } as usize;
         let with_split = is_root || s.split_at_interior;
         let reserve = s.funnel_reserve as usize;
-        refresh_context(&mut self.context, position, with_split || reserve > 0);
+        if !fitted_interior || reserve > 0 {
+            refresh_context(&mut self.context, position, with_split || reserve > 0);
+        }
 
         let kept = if reserve > 0 {
             self.reserved_top_k(&buffer[..count], count, funnel, reserve, seat)
@@ -401,6 +444,17 @@ impl V12Search {
         };
         self.generate_buffer = buffer;
 
+        if fitted_interior {
+            let c = params.native.as_ref().and_then(|n| n.candidates.as_ref()).unwrap();
+            let recent = self.path_recent();
+            let ctx = PriorContext::new(position, seat, &recent);
+            c.model.as_ref().unwrap().score(&ctx, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            sort_by_score(&mut self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            let shortlist = kept.min(s.node_shortlist as usize);
+            let mut priors = vec![0.0; shortlist];
+            softmax_priors(&self.scratch_scores[..shortlist], c.temperature, &mut priors);
+            return Some((self.scratch_moves[..shortlist].to_vec(), priors));
+        }
         let split_budget = if is_root { 24 } else { s.interior_split_budget as i32 };
         self.orderer.score_moves(
             &params,
@@ -422,6 +476,51 @@ impl V12Search {
         let mut priors = vec![0.0; shortlist];
         softmax_priors(&self.scratch_scores[..shortlist], s.prior_temp, &mut priors);
         Some((self.scratch_moves[..shortlist].to_vec(), priors))
+    }
+
+    /// P4/P5 root: every legal move scored by the chosen scorer, sorted best first, and either all
+    /// kept (`rootFull`) or the `rootShortlist` best. Priors are the scorer's softmax over the kept
+    /// moves (fitted: at `temperature`; ordering: at `priorTemp`, as today).
+    fn root_candidates_v5(&mut self, position: &Position, c: &CandidateOptions, mut moves: Vec<i32>) -> (Vec<i32>, Vec<f64>) {
+        let params = Arc::clone(&self.params);
+        let s = &params.search;
+        let seat = position.turn;
+        let count = moves.len();
+        let mut scores = vec![0.0; count];
+        let temperature;
+        if c.root_fitted() {
+            let ctx = PriorContext::new(position, seat, &self.root_recent);
+            c.model.as_ref().expect("fitted root scorer without a model").score(&ctx, &moves, &mut scores);
+            temperature = c.temperature;
+        } else {
+            // Today's ordering over every legal move: tier-1 order first so the split term's budget
+            // (24, as at today's root) goes to the moves today's funnel would rank highest.
+            let t = placements();
+            let ordering = params.ordering.get(self.phase);
+            let mut tier1: Vec<f64> = moves.iter().map(|&m| t.size[m as usize] as f64 * ordering.piece_size - t.centre_distance[m as usize] as f64 * ordering.centre_pull).collect();
+            sort_by_score(&mut moves, &mut tier1);
+            refresh_context(&mut self.context, position, true);
+            self.orderer.score_moves(&params, position, &self.context, seat, &moves, &mut scores, self.phase, true, 24);
+            temperature = s.prior_temp;
+        }
+        sort_by_score(&mut moves, &mut scores);
+        let kept = if c.root_full { count } else { count.min(s.root_shortlist as usize) };
+        moves.truncate(kept);
+        let mut priors = vec![0.0; kept];
+        softmax_priors(&scores[..kept], temperature, &mut priors);
+        (moves, priors)
+    }
+
+    /// `root_recent` followed by the moves on the current tree path (for interior nodes).
+    fn path_recent(&self) -> Vec<(usize, i32)> {
+        let mut recent = self.root_recent.clone();
+        for (&node, &edge) in self.path_nodes.iter().zip(&self.path_edges) {
+            let n = &self.nodes[node as usize];
+            recent.push((n.turn, n.moves[edge]));
+        }
+        let start = recent.len().saturating_sub(3);
+        recent.drain(..start);
+        recent
     }
 
     /// Blend the network's softmax into the root prior, as TS `netPrior` / `netPriorBlend` do.
@@ -631,6 +730,9 @@ impl V12Search {
         if !s.widening_all_nodes && id != self.root {
             return node.move_count();
         }
+        if id == self.root && self.candidates.as_ref().is_some_and(|c| c.root_no_widening) {
+            return node.move_count();
+        }
         let widened = (s.widening_init + s.widening_growth * node.visits.sqrt()).floor();
         (node.move_count() as f64).min(widened) as usize
     }
@@ -709,6 +811,10 @@ impl V12Search {
         // E6 root-child value: n_v virtual visits of the network utility, re-centred on the root's
         // current rollout mean for the root seat. Off (empty table) without `native.net`.
         let net_value = id == self.root && !self.net_value_delta.is_empty();
+        // P4/P5 value-initialised root children: n0 virtual visits at m · sqrt(p_i / p_max), mixed
+        // into Q exactly as the E6 value term is. Off (empty table) without `initVisits`.
+        let init_value = id == self.root && !self.init_ratio.is_empty();
+        let n0 = self.candidates.as_ref().map_or(0.0, |c| c.init_visits);
         let n_v = self.value_visits;
         let root_mean = if node.visits > 0.0 { node.values[self.root_seat] / node.visits } else { 0.5 };
         let mut best_index = None;
@@ -716,7 +822,15 @@ impl V12Search {
         for index in 0..node.opened {
             let child = node.children[index];
             let edge_visits = node.child_visits[index] as f64;
-            let q = if net_value && let Some(delta) = self.net_value_delta[index] {
+            let q = if init_value {
+                let v = root_mean * self.init_ratio[index];
+                if child == NONE || self.nodes[child as usize].visits == 0.0 {
+                    v
+                } else {
+                    let c = &self.nodes[child as usize];
+                    (c.values[self.root_seat] + n0 * v) / (c.visits + n0)
+                }
+            } else if net_value && let Some(delta) = self.net_value_delta[index] {
                 let u = (root_mean + delta).clamp(0.0, 1.0);
                 if child == NONE || self.nodes[child as usize].visits == 0.0 {
                     u

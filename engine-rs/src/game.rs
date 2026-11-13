@@ -156,6 +156,7 @@ pub fn play_game_observed(
                     let budget = options
                         .iteration_budget
                         .ok_or("the native engine plays iteration-budgeted searches only")?;
+                    engine.set_recent(&recent_placements(&moves));
                     engine.search(&mut position, seat, budget, &mut rng, &mut stats)
                 }
             };
@@ -195,6 +196,14 @@ pub fn choose_ranked(ranked: &[Ranked], plies: usize, options: &GameOptions, ope
         chosen = Some(ranked[(opening_rng.next_f64() * pool_size as f64).floor() as usize].mv);
     }
     chosen
+}
+
+/// The last three placements of a game record (one entry per ply, −1 for a pass; seat = ply mod 4,
+/// since a pass also moves the turn on) as (seat, placement), oldest first.
+pub fn recent_placements(moves: &[i32]) -> Vec<(usize, i32)> {
+    let mut out: Vec<(usize, i32)> = moves.iter().enumerate().rev().filter(|(_, m)| **m >= 0).take(3).map(|(ply, &m)| (ply % SEAT_COUNT, m)).collect();
+    out.reverse();
+    out
 }
 
 /// Seat index → colour, for the protocol.
