@@ -14,9 +14,15 @@ intervals are 95% bootstrap by seed.
 | Level 5 (≈560 simulations, 10 ms/move) | 100 | **−0.32 [−1.51, +0.84]** | 26.5% | −2.50 [−4.01, −1.06] (40 seeds) | +2.50 [+0.09, +4.99] (40 seeds) |
 | Level 6 (≈3,900 simulations, equal compute) | 200 | **−4.93 [−5.74, −4.14]** | 16.2% | −10.25 [−11.02, −9.51] | +5.32 [+4.30, +6.31] (P4/P5 confirmation) |
 | Level 7 (≈52,000 simulations, 740 ms/move here) | 40 | **−10.32 [−12.95, −7.87]** | 8.8% | −15.66 [−17.18, −14.10] | +5.34 [+2.31, +8.33] (40 seeds) |
+| Level 7, extension on new seeds 79,200,040–199 | 160 | −11.04 [−12.10, −10.00] | 8.1% | not played | — |
+| Level 7, all 200 seeds pooled | 200 | **−10.90 [−11.88, −9.94]** | 8.3% | | |
 
 The level-6 row is the P4/P5 confirmation, repeated for reference. The level-5 and level-7 rows use
 X1's ladder seeds (79,100,000 and 79,200,000), so the first 40 of each pair with `v4.2-ultra`.
+
+The level-7 extension was added at 06:40 (preregistered then) and ran to 07:24. Its 640 games also
+record every level-7 move (`tmp/x2/x2-l7ext.moves.jsonl`, git-ignored), kept as teacher data for a
+later re-fit of the move prior on a stronger teacher than level 6.
 
 - The config is now **level with Pentobi level 5** (interval spans 0, first place at par). Level 5
   uses about a seventh of the compute.
