@@ -327,3 +327,32 @@ level-6 seats, 100 seeds from 79,400,000, budget 300, 8 game threads. About 4 mi
 Seed-paired difference, `ei-gen6` minus base: **+0.41 [−1.00, +1.75]**. The interval includes 0,
 so this does not advance. Both arms remain about 10 points behind level 6, in line with the Mac
 level-6 baseline of −10.68 [−11.96, −9.41].
+
+### E6 screen, remaining arms (Mac, 2026-11-13)
+
+The screen resumed overnight and finished at 01:41 CST: 400 seeds from 76,000,000, every arm
+against plain `v4.2-ultra`, Mac checkpoint `resnet2-b8w96-g18500-s0`, 7 threads. The preregistered
+rule: an arm advances only if its seed-paired difference against the control P0 (root prior only)
+has a CI lower bound above 0.
+
+| Arm | Channels on top of the root prior | vs `v4.2-ultra` [95% CI] | First place | Paired Δ vs P0 [95% CI] | Advances |
+|---|---|---:|---:|---:|---|
+| P0 | none (control) | +0.88 [0.50, 1.27] | 31.0% | — | |
+| P1 | depth-1 policy, blend 0.5 | +1.24 [0.87, 1.61] | 32.4% | +0.35 [−0.19, +0.89] | no |
+| V64 | root-child value, 64 virtual visits | +1.00 [0.62, 1.41] | 33.3% | +0.12 [−0.43, +0.67] | no |
+| V512 | root-child value, 512 virtual visits | +1.15 [0.78, 1.53] | 33.8% | +0.27 [−0.25, +0.82] | no |
+| PV | depth-1 policy and value (512) | +1.28 [0.90, 1.65] | 34.1% | +0.40 [−0.13, +0.92] | no |
+
+**No new channel advances.** Every arm's point estimate is above the control's and they are ordered
+as one would expect if both channels helped a little (PV highest), but no paired interval excludes
+0 on 400 seeds, so the depth-1 policy and the root-child value are not shown to add anything to the
+root prior. The child-channel arms also cost more: about 33 network evaluations and 149 ms per move
+for PV against 81 ms for P0 on this machine. No candidate confirmation was run. With the PC's P0
+confirmation above (+0.83 [0.56, 1.09]), the result of E6 is: **the v2 network as a root prior
+passes the gate; the two new channels are null at this sample size.** E7 (expert iteration v2) was
+conditional on a positive new arm and is not triggered.
+
+Since then the search itself has changed (port P4/P5, `research_paper/v5_p4_p5_candidate_generation_results.md`):
+the root now holds every legal move with a fitted prior, and `native.net` cannot yet be combined
+with it (records carry at most 64 candidates). Whether the network adds anything on that base is
+untested.
