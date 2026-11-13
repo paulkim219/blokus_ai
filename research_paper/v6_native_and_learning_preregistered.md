@@ -285,3 +285,24 @@ every descent; `false` (every existing version) is byte-identical.
     tuning is **kept** if the paired difference against the starting point has a CI lower bound
     above 0. One validation only: the config validated is the final generation's distribution
     mean, not the best-scoring individual.
+- **2026-11-13 04:55 CST, S2 (config screen on the P4/P5 base) fixed before it runs; N10 deferred.**
+  Read so far: the P4/P5 screen, its confirmation (`FULLfit` +5.32 [+4.30, +6.31] against base on
+  seeds 79,600,000–199, 0.93× base ms/move: accepted) and the direct match against `v4.2-ultra`
+  (+2.13 [1.55, 2.75]). The S1 confirmation had not started (a wait loop of mine never released);
+  it was started at 04:48 unchanged. Both implementation agents were stopped by a usage limit from
+  about 01:10 to 04:40.
+  - **S2.** Base = `v4.2-ultra` + the accepted `FULLfit` candidates block. At most six
+    single-change config arms, fixed by the implementer in a file before the first screen game
+    after a liveness check (an arm that plays the same games as base is dropped). Intended arms:
+    exploration constant (`cPuct` halved and doubled), `initVisits` 1, the opening heuristic off
+    (search from the first move), the root shortlist arms that S1 flagged if they are still live
+    with `rootFull`, and a rising iteration shape (Pentobi's budget curve, P11) if the native
+    engine supports it. Screen: 100 seeds 82,000,000–82,000,099 against three Pentobi level-6
+    seats, base on the same seeds. An arm whose paired difference against base has a CI lower
+    bound above 0 goes to a confirmation with base on 200 seeds 82,100,000–82,100,199 (at most
+    the two best). **Confirmed** if the CI lower bound is above 0 there and ms/move is at most
+    1.25× base. Confirmed arms are reported as tuning of the port, not as a new version.
+  - **N10.** The tuning window was lost to the outage. Tonight the tuner is built and
+    smoke-tested, and its liveness pass and first generations may run on spare threads from the
+    P4/P5 base as the starting point (resumable). The one-shot validation on 79,800,000–199 is
+    **not** run tonight unless at least eight generations complete; those seeds stay unread.
