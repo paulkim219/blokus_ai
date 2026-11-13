@@ -6,6 +6,7 @@
 //! [`BitboardParams::unsupported`] rather than silently ignored — a config falling through to a
 //! different engine has already cost this project a day of measurements once.
 
+use crate::net::NetOptions;
 use crate::prior::PriorOptions;
 use serde::{Deserialize, Serialize};
 
@@ -243,6 +244,9 @@ pub struct BitboardParams {
 pub struct NativeOptions {
     #[serde(default)]
     pub prior: Option<PriorOptions>,
+    /// The network inside the search (E6): root prior, depth-1 policy and root-child value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub net: Option<NetOptions>,
 }
 
 impl BitboardParams {
@@ -272,6 +276,9 @@ impl BitboardParams {
         reject(s.implicit_maxn_weight > 0.0, "implicitMaxnWeight");
         reject(s.playout_policy == "linear" && s.playout_temp > 0.0, "linear rollout policy with temperature");
         reject(self.endgame.max_region_cells > 0.0 && self.endgame.max_own_moves < 0.0, "negative maxOwnMoves");
+        let native = self.native.as_ref();
+        reject(native.is_some_and(|n| n.prior.is_some() && n.net.is_some()), "native.prior and native.net together (use one)");
+        reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
         out
     }
 }

@@ -37,6 +37,8 @@ pub enum Source {
 #[derive(Clone, Debug, Default)]
 pub struct MoveStats {
     pub iterations: u32,
+    /// Positions sent to the network (`native.net`) for this decision.
+    pub net_evaluations: u32,
     pub searched: bool,
     pub source: Source,
 }
@@ -126,6 +128,7 @@ impl Engine {
         while self.search.advance(position, 64, scaled, rng) {}
         let outcome = self.search.result();
         stats.iterations += outcome.iterations;
+        stats.net_evaluations += self.search.net_evaluations();
         stats.searched = true;
         stats.source = Source::Search;
         let mut ranked = outcome.ranked;

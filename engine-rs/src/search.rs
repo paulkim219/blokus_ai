@@ -12,7 +12,8 @@ use crate::packer::solve_sealed_region;
 use crate::placements::*;
 use crate::playout::Playout;
 use crate::position::{MAX_MOVES, Position, SEAT_COUNT, Undo};
-use crate::prior::PriorClient;
+use crate::net::{NetClient, NetOptions, NetOutput};
+use crate::prior::{PriorClient, encode_request};
 use crate::rng::Rng;
 use crate::rollout_policy::RolloutPolicy;
 use crate::territory::is_sealed;
@@ -131,6 +132,15 @@ fn top_k(moves: &[i32], scores: &[f64], k: usize, out_moves: &mut [i32], out_sco
     kept
 }
 
+/// What this move's batched network call said about one root child (E6 side table).
+struct EdgeNet {
+    /// The child's mover after settling, i.e. the network record's seat.
+    mover: usize,
+    /// The child's shortlist as `initialise_node` will build it, in the order sent.
+    moves: Vec<i32>,
+    output: NetOutput,
+}
+
 pub struct V12Search {
     params: Arc<BitboardParams>,
     aggregation: Aggregation,
@@ -160,12 +170,31 @@ pub struct V12Search {
     prior: Option<PriorClient>,
     learned_prior: bool,
     replay_settle: bool,
+    /// `native.net` (E6). None leaves every path below exactly as it was.
+    net_options: Option<NetOptions>,
+    net: Option<NetClient>,
+    depth1_blend: f64,
+    value_visits: f64,
+    /// Per root edge, from this move's call; empty unless a child channel is on.
+    net_edges: Vec<Option<EdgeNet>>,
+    /// Per root edge, `u_i − ū` for the value channel; None for a child without a network value.
+    net_value_delta: Vec<Option<f64>>,
+    /// Positions sent to the network for the current move.
+    net_positions: u32,
 }
 
 impl V12Search {
     pub fn new(params: Arc<BitboardParams>, table: Option<Arc<RolloutPolicy>>) -> V12Search {
         let fractional = params.fractional_territory_ties;
+        let net_options = params.native.as_ref().and_then(|n| n.net.clone());
         V12Search {
+            depth1_blend: net_options.as_ref().map_or(0.0, |n| n.depth1_blend.clamp(0.0, 1.0)),
+            value_visits: net_options.as_ref().map_or(0.0, |n| n.value_visits.max(0.0)),
+            net_options,
+            net: None,
+            net_edges: Vec::new(),
+            net_value_delta: Vec::new(),
+            net_positions: 0,
             aggregation: Aggregation::parse(&params.search.opponent_aggregation),
             brs: params.search.opponent_policy == "brs",
             replay_settle: params.search.replay_settle.unwrap_or(false),
@@ -202,11 +231,19 @@ impl V12Search {
         if let Some(options) = self.params.native.as_ref().and_then(|n| n.prior.as_ref()) {
             self.prior = Some(PriorClient::connect(&options.socket)?);
         }
+        if let Some(options) = &self.net_options {
+            self.net = Some(NetClient::connect(&options.socket)?);
+        }
         Ok(())
     }
 
     pub fn iteration_count(&self) -> u32 {
         self.iterations
+    }
+
+    /// Positions the network evaluated for the move last prepared (0 without `native.net`).
+    pub fn net_evaluations(&self) -> u32 {
+        self.net_positions
     }
 
     fn node_for(&mut self, position: &Position) -> u32 {
@@ -252,6 +289,12 @@ impl V12Search {
         self.root = root;
         self.learned_prior = false;
         self.apply_learned_prior(position, root_seat);
+        self.net_edges.clear();
+        self.net_value_delta.clear();
+        self.net_positions = 0;
+        if self.net_options.is_some() {
+            self.apply_net(position, root_seat);
+        }
         self.iterations = 0;
         self.nodes[root as usize].move_count()
     }
@@ -307,15 +350,32 @@ impl V12Search {
         if node.initialised || node.terminal {
             return;
         }
+        let Some((moves, priors)) = self.shortlist(position, is_root) else {
+            let node = &mut self.nodes[id as usize];
+            node.terminal = true;
+            node.initialised = true;
+            return;
+        };
+        let shortlist = moves.len();
+        let node = &mut self.nodes[id as usize];
+        node.moves = moves;
+        node.priors = priors;
+        node.children = vec![NONE; shortlist];
+        node.child_visits = vec![0; shortlist];
+        node.opened = 0;
+        node.initialised = true;
+    }
+
+    /// The move shortlist and hand prior a node at `position` (settled, `position.turn` to move)
+    /// gets; None when the mover has no move. Uses only the search's phase and scratch state — no
+    /// RNG and no history — so `prepare` can compute a root child's list before the tree reaches it.
+    fn shortlist(&mut self, position: &Position, is_root: bool) -> Option<(Vec<i32>, Vec<f64>)> {
         let seat = position.turn;
         let mut buffer = std::mem::take(&mut self.generate_buffer);
         let count = position.generate_moves(seat, &mut buffer, usize::MAX);
         if count == 0 {
             self.generate_buffer = buffer;
-            let node = &mut self.nodes[id as usize];
-            node.terminal = true;
-            node.initialised = true;
-            return;
+            return None;
         }
         let params = Arc::clone(&self.params);
         let s = &params.search;
@@ -361,13 +421,7 @@ impl V12Search {
         }
         let mut priors = vec![0.0; shortlist];
         softmax_priors(&self.scratch_scores[..shortlist], s.prior_temp, &mut priors);
-        let node = &mut self.nodes[id as usize];
-        node.moves = self.scratch_moves[..shortlist].to_vec();
-        node.priors = priors;
-        node.children = vec![NONE; shortlist];
-        node.child_visits = vec![0; shortlist];
-        node.opened = 0;
-        node.initialised = true;
+        Some((self.scratch_moves[..shortlist].to_vec(), priors))
     }
 
     /// Blend the network's softmax into the root prior, as TS `netPrior` / `netPriorBlend` do.
@@ -393,6 +447,107 @@ impl V12Search {
             *prior = (1.0 - blend) * *prior + blend * learned;
         }
         self.learned_prior = true;
+    }
+
+    /// E6: this move's one batched network call (see `net.rs`). Record 0 is the root, exactly the
+    /// record `apply_learned_prior` sends, and its logits blend into the root prior with the same
+    /// arithmetic (no re-sort). With a child channel on, each non-terminal root child follows: the
+    /// root move applied and settled as `iterate` + `enter_node` would, its shortlist computed as
+    /// `initialise_node` will compute it, then undone. No tree node is created here, so lazy node
+    /// creation and every child's first visit stay exactly as without the network.
+    fn apply_net(&mut self, position: &mut Position, root_seat: usize) {
+        let Some(options) = self.net_options.clone() else { return };
+        let root = self.root as usize;
+        let count = self.nodes[root].move_count();
+        // As `apply_learned_prior`: a forced (or empty) root is not sent; nothing could change the move.
+        if count < 2 {
+            return;
+        }
+        let root_moves = self.nodes[root].moves.clone();
+        let mut records = vec![encode_request(position, root_seat, &root_moves)];
+        let mut sizes = vec![root_moves.len()];
+        let mut children: Vec<(usize, usize, Vec<i32>)> = Vec::new();
+        if options.wants_children() {
+            for (edge, &mv) in root_moves.iter().enumerate() {
+                let undo = position.apply(mv);
+                if self.brs && position.turn != self.root_seat && !position.finished() && position.out[self.root_seat] == 0 {
+                    position.force_turn(self.root_seat);
+                }
+                settle(position);
+                if !position.finished()
+                    && let Some((moves, _)) = self.shortlist(position, false)
+                {
+                    records.push(encode_request(position, position.turn, &moves));
+                    sizes.push(moves.len());
+                    children.push((edge, position.turn, moves));
+                }
+                position.undo(&undo);
+            }
+        }
+        let client = self.net.as_mut().expect("native.net configured but not connected");
+        let outputs = client.evaluate(&records, &sizes).unwrap_or_else(|e| panic!("{e}"));
+        self.net_positions = records.len() as u32;
+
+        let scores: Vec<f64> = outputs[0].logits.iter().map(|&l| l as f64).collect();
+        let mut net = vec![0.0; scores.len()];
+        softmax_priors(&scores, options.temperature, &mut net);
+        let blend = options.root_blend.clamp(0.0, 1.0);
+        for (prior, learned) in self.nodes[root].priors.iter_mut().zip(&net) {
+            *prior = (1.0 - blend) * *prior + blend * learned;
+        }
+
+        if children.is_empty() {
+            return;
+        }
+        self.net_edges = (0..count).map(|_| None).collect();
+        for ((edge, mover, moves), output) in children.into_iter().zip(outputs.into_iter().skip(1)) {
+            self.net_edges[edge] = Some(EdgeNet { mover, moves, output });
+        }
+        if self.value_visits > 0.0 {
+            let beta = self.rank_blend.clamp(0.0, 1.0);
+            let utility: Vec<Option<f64>> = self
+                .net_edges
+                .iter()
+                .map(|e| {
+                    e.as_ref().map(|e| {
+                        let (margin, rank) = e.output.margin_rank(e.mover, root_seat);
+                        (1.0 - beta) * margin + beta * rank
+                    })
+                })
+                .collect();
+            let evaluated: Vec<f64> = utility.iter().flatten().copied().collect();
+            let mean = evaluated.iter().sum::<f64>() / evaluated.len() as f64;
+            self.net_value_delta = utility.into_iter().map(|u| u.map(|u| u - mean)).collect();
+        }
+    }
+
+    /// E6 depth-1 policy: blend the network's policy into a just-initialised root child's prior
+    /// (matched by move id) and stably re-sort its moves by the blended prior, best first, so
+    /// progressive widening opens them in that order.
+    fn apply_depth1_policy(&mut self, id: u32, edge: usize) {
+        let Some(Some(edge_net)) = self.net_edges.get(edge) else { return };
+        let temperature = self.net_options.as_ref().map_or(1.0, |n| n.depth1_temperature);
+        let blend = self.depth1_blend;
+        let scores: Vec<f64> = edge_net.output.logits.iter().map(|&l| l as f64).collect();
+        let mut net = vec![0.0; scores.len()];
+        softmax_priors(&scores, temperature, &mut net);
+        let node = &mut self.nodes[id as usize];
+        if node.moves != edge_net.moves {
+            eprintln!("E6: root edge {edge}: depth-1 shortlist differs from the one prepare sent");
+        }
+        let blended: Vec<f64> = node
+            .moves
+            .iter()
+            .zip(&node.priors)
+            .map(|(mv, &hand)| {
+                let learned = edge_net.moves.iter().position(|m| m == mv).and_then(|k| net.get(k)).copied().unwrap_or(0.0);
+                (1.0 - blend) * hand + blend * learned
+            })
+            .collect();
+        let mut order: Vec<usize> = (0..blended.len()).collect();
+        order.sort_by(|&a, &b| blended[b].partial_cmp(&blended[a]).unwrap_or(std::cmp::Ordering::Equal));
+        node.moves = order.iter().map(|&i| node.moves[i]).collect();
+        node.priors = order.iter().map(|&i| blended[i]).collect();
     }
 
     /// Root ranking statistic: visits, plus prior pseudo-visits once a learned prior is in.
@@ -457,15 +612,7 @@ impl V12Search {
             position.force_turn(node.settled_turn);
             return;
         }
-        let mut guard = 0;
-        while !position.finished() && guard < SEAT_COUNT {
-            if position.has_move(position.turn) {
-                break;
-            }
-            position.mark_out(position.turn);
-            position.advance_turn();
-            guard += 1;
-        }
+        settle(position);
         node.settled = true;
         node.settled_out_mask = position.out_mask();
         node.settled_turn = position.turn;
@@ -504,6 +651,10 @@ impl V12Search {
                     self.initialise_node(node, position, node == root);
                     if self.nodes[node as usize].terminal {
                         break;
+                    }
+                    // A root child, initialised on its second visit: E6 depth-1 policy.
+                    if self.depth1_blend > 0.0 && self.path_nodes.len() == 1 {
+                        self.apply_depth1_policy(node, self.path_edges[0]);
                     }
                 } else if self.replay_settle {
                     self.enter_node(node, position);
@@ -555,12 +706,25 @@ impl V12Search {
         let invert = self.paranoid && seat != self.root_seat;
         let sqrt_visits = f64::max(1.0, node.visits).sqrt();
         let parent_mean = if node.visits > 0.0 { node.values[component] / node.visits } else { 0.5 };
+        // E6 root-child value: n_v virtual visits of the network utility, re-centred on the root's
+        // current rollout mean for the root seat. Off (empty table) without `native.net`.
+        let net_value = id == self.root && !self.net_value_delta.is_empty();
+        let n_v = self.value_visits;
+        let root_mean = if node.visits > 0.0 { node.values[self.root_seat] / node.visits } else { 0.5 };
         let mut best_index = None;
         let mut best_score = f64::NEG_INFINITY;
         for index in 0..node.opened {
             let child = node.children[index];
             let edge_visits = node.child_visits[index] as f64;
-            let q = if child == NONE || self.nodes[child as usize].visits == 0.0 {
+            let q = if net_value && let Some(delta) = self.net_value_delta[index] {
+                let u = (root_mean + delta).clamp(0.0, 1.0);
+                if child == NONE || self.nodes[child as usize].visits == 0.0 {
+                    u
+                } else {
+                    let c = &self.nodes[child as usize];
+                    (c.values[self.root_seat] + n_v * u) / (c.visits + n_v)
+                }
+            } else if child == NONE || self.nodes[child as usize].visits == 0.0 {
                 (if invert { 1.0 - parent_mean } else { parent_mean }) - s.fpu_reduction
             } else {
                 let c = &self.nodes[child as usize];
@@ -770,6 +934,19 @@ impl V12Search {
             }
         }
         second + (remaining as i64) < best
+    }
+}
+
+/// `enter_node`'s settle: seats with no move are marked out until someone can move or all are out.
+fn settle(position: &mut Position) {
+    let mut guard = 0;
+    while !position.finished() && guard < SEAT_COUNT {
+        if position.has_move(position.turn) {
+            break;
+        }
+        position.mark_out(position.turn);
+        position.advance_turn();
+        guard += 1;
     }
 }
 

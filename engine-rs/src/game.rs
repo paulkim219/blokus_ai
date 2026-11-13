@@ -100,6 +100,11 @@ pub struct GameRecord {
     pub finished: bool,
     pub moves: Vec<i32>,
     pub iterations: [u64; SEAT_COUNT],
+    /// Per seat: decisions that ran the tree search, network positions sent, and wall-clock seconds
+    /// spent choosing moves (all decisions). Reporting only; nothing reads them back.
+    pub searches: [u64; SEAT_COUNT],
+    pub net_evaluations: [u64; SEAT_COUNT],
+    pub seconds: [f64; SEAT_COUNT],
 }
 
 /// One decision, as an observer sees it: the state before the move and what the mover considered.
@@ -131,6 +136,9 @@ pub fn play_game_observed(
     let mut plies = 0;
     let mut moves = Vec::new();
     let mut iterations = [0u64; SEAT_COUNT];
+    let mut searches = [0u64; SEAT_COUNT];
+    let mut net_evaluations = [0u64; SEAT_COUNT];
+    let mut seconds = [0f64; SEAT_COUNT];
     while !state.finished && plies < options.max_plies {
         let seat = state.turn;
         let mut chosen: Option<i32> = None;
@@ -138,6 +146,7 @@ pub fn play_game_observed(
             let engine = &mut pool[seat_engine[seat]];
             let mut position = state.to_position();
             let mut stats = MoveStats::default();
+            let started = std::time::Instant::now();
             let ranked: Vec<Ranked> = match policies[seat] {
                 Policy::Greedy => {
                     stats.source = Source::Greedy;
@@ -150,13 +159,11 @@ pub fn play_game_observed(
                     engine.search(&mut position, seat, budget, &mut rng, &mut stats)
                 }
             };
+            seconds[seat] += started.elapsed().as_secs_f64();
             iterations[seat] += stats.iterations as u64;
-            let top_k = if plies < options.opening_random_plies { options.opening_top_k } else { 1 };
-            chosen = ranked.first().map(|r| r.mv);
-            if top_k > 1 && !ranked.is_empty() {
-                let pool_size = top_k.min(ranked.len());
-                chosen = Some(ranked[(opening_rng.next_f64() * pool_size as f64).floor() as usize].mv);
-            }
+            searches[seat] += stats.searched as u64;
+            net_evaluations[seat] += stats.net_evaluations as u64;
+            chosen = choose_ranked(&ranked, plies, options, &mut opening_rng);
             if let Some(mv) = chosen {
                 observe(Decision { state: &state, ply: plies, seat, ranked: &ranked, chosen: mv, stats: &stats });
             }
@@ -173,7 +180,21 @@ pub fn play_game_observed(
         }
         plies += 1;
     }
-    Ok(GameRecord { scores: state.scores(), plies, finished: state.finished, moves, iterations })
+    Ok(GameRecord { scores: state.scores(), plies, finished: state.finished, moves, iterations, searches, net_evaluations, seconds })
+}
+
+/// The move a seat plays from its ranked list: before `opening_random_plies` (counted over the whole
+/// game) uniformly from the top `opening_top_k`, drawing once from `opening_rng`; afterwards the
+/// best. `None` only when `ranked` is empty. Shared with drivers that run their own game loop
+/// (`blokee-pentobi`), so their Blokee seats choose exactly as here.
+pub fn choose_ranked(ranked: &[Ranked], plies: usize, options: &GameOptions, opening_rng: &mut Rng) -> Option<i32> {
+    let top_k = if plies < options.opening_random_plies { options.opening_top_k } else { 1 };
+    let mut chosen = ranked.first().map(|r| r.mv);
+    if top_k > 1 && !ranked.is_empty() {
+        let pool_size = top_k.min(ranked.len());
+        chosen = Some(ranked[(opening_rng.next_f64() * pool_size as f64).floor() as usize].mv);
+    }
+    chosen
 }
 
 /// Seat index → colour, for the protocol.

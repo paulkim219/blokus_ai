@@ -74,6 +74,11 @@ npm run aggregate -- selfplay-results/m.jsonl
 engine-rs/target/release/blokee-selfplay --config engine-rs/configs/v4.1-ultra.json \
   --games 20000 --budget 300 --threads 11 --seed-base 61000000 --out ml/data/selfplay-v41u-300
 
+# External benchmark against Pentobi's GTP engine (X1; build and gate in docs/E6_RUNBOOK.md).
+engine-rs/target/release/blokee-pentobi --blokee engine-rs/configs/v4.2-ultra.json \
+  --pentobi ~/src/pentobi-build/pentobi_gtp/pentobi-gtp --mode one-blokee --level 9 \
+  --seeds 100 --seed-base 79000000 --budget 300 --threads 5 --label x1a --out tmp/x1/x1a.jsonl
+
 # Placement geometry for the Python trainers.
 engine-rs/target/release/blokee-tables > ml/data/placements.json
 ```
@@ -93,3 +98,25 @@ played natively:
 
 `prior` blends a learned policy, served by `ml/torch/serve.py`, into the root PUCT prior with the
 semantics of TS `netPrior`/`netPriorBlend`/`rootPriorPseudoVisits`.
+
+`net` (experiment E6; a config carries `prior` or `net`, never both) puts a model-v2 network,
+served by `ml/torch/serve.py --protocol 2`, inside the search as a second evaluator. Every rollout
+is kept:
+
+```json
+"native": { "net": { "socket": "/tmp/blokee-e6.sock", "rootBlend": 0.5, "temperature": 1.0,
+                     "depth1Blend": 0.0, "depth1Temperature": 1.0, "valueVisits": 0.0 } }
+```
+
+- One batched call per searched move (`net.rs`, pipelined): the root, and when either child
+  channel is on, every non-terminal root child. Roots with fewer than two moves are not sent.
+- `rootBlend`/`temperature`: the root prior, with the same arithmetic as `prior` (no re-sort).
+  With both child channels at 0 this is exactly `prior` with phase `all` and no pseudo-visits.
+- `depth1Blend`: when a root child's node is initialised, the network's policy is blended into its
+  prior and its moves are stably re-sorted by the blended prior, so widening opens them in that order.
+- `valueVisits` (`n_v`): in root selection only, `Q_i = (W_i + n_v·u'_i) / (N_i + n_v)`, where
+  `u_i = (1−β)·margin + β·rank` for the root seat (β the search's rank blend) and
+  `u'_i = clamp(root mean + u_i − mean_j u_j, 0, 1)`. Backup, widening and the move choice (by real
+  visits) are unchanged.
+- `blokee-match` logs the challenger's searched moves, network positions and seconds per game
+  (`challengerSearches`, `challengerNetEvals`, `challengerSeconds`) and prints evaluations/move.

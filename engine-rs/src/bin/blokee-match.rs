@@ -70,10 +70,13 @@ fn main() {
     let next = Arc::new(AtomicUsize::new(0));
     let log = Arc::new(Mutex::new(OpenOptions::new().create(true).append(true).open(&out).unwrap()));
     let advantages = Arc::new(Mutex::new(Vec::<f64>::new()));
+    // Challenger cost: searched decisions, network positions, seconds.
+    let cost = Arc::new(Mutex::new((0u64, 0u64, 0f64)));
     let started = Instant::now();
     let handles: Vec<_> = (0..threads)
         .map(|_| {
             let (next, log, advantages, assignments) = (Arc::clone(&next), Arc::clone(&log), Arc::clone(&advantages), assignments.clone());
+            let cost = Arc::clone(&cost);
             let (challenger, champion) = (challenger.clone(), champion.clone());
             let (label, challenger_name, champion_name) = (label.clone(), challenger_name.clone(), champion_name.clone());
             std::thread::spawn(move || {
@@ -104,10 +107,20 @@ fn main() {
                     let best = DISPLAY.iter().map(|c| score_of(c)).fold(f64::NEG_INFINITY, f64::max);
                     let scores: serde_json::Map<String, serde_json::Value> = DISPLAY.iter().map(|c| (c.to_string(), json!(score_of(c)))).collect();
                     let winner: Vec<&str> = DISPLAY.iter().copied().filter(|c| score_of(c) == best).collect();
+                    let (searches, evals, secs) =
+                        (record.searches[challenger_seat], record.net_evaluations[challenger_seat], record.seconds[challenger_seat]);
                     let line = json!({
                         "seed": seed, "seat": color, "scores": scores, "winner": winner,
                         "label": label, "challenger": challenger_name, "champion": champion_name,
+                        "challengerSearches": searches, "challengerNetEvals": evals,
+                        "challengerSeconds": (secs * 1000.0).round() / 1000.0,
                     });
+                    {
+                        let mut c = cost.lock().unwrap();
+                        c.0 += searches;
+                        c.1 += evals;
+                        c.2 += secs;
+                    }
                     writeln!(log.lock().unwrap(), "{line}").unwrap();
                     let others: f64 = DISPLAY.iter().filter(|c| **c != color).map(|c| score_of(c)).sum::<f64>() / 3.0;
                     let mut adv = advantages.lock().unwrap();
@@ -122,6 +135,14 @@ fn main() {
         .collect();
     for handle in handles {
         handle.join().unwrap();
+    }
+    let (searches, evals, secs) = *cost.lock().unwrap();
+    if searches > 0 {
+        eprintln!(
+            "challenger: {searches} searched moves, {:.1} network evaluations/move, {:.1} ms/move (wall, all decisions)",
+            evals as f64 / searches as f64,
+            secs * 1000.0 / searches as f64
+        );
     }
     eprintln!("wrote {out}; score it with: npm run aggregate -- {out}");
 }

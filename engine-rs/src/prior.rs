@@ -49,32 +49,40 @@ impl PriorClient {
 
     /// Logits for `moves` at `position` with `seat` to move.
     pub fn logits(&mut self, position: &Position, seat: usize, moves: &[i32]) -> Result<Vec<f32>, String> {
-        let mut request = [0u8; REQUEST_BYTES];
-        request[6] = seat as u8;
-        let mut at = 8;
-        for s in 0..SEAT_COUNT {
-            for w in 0..WORDS {
-                request[at..at + 4].copy_from_slice(&position.own[s][w].to_le_bytes());
-                at += 4;
-            }
-        }
-        for s in 0..SEAT_COUNT {
-            request[at..at + 4].copy_from_slice(&position.hand[s].to_le_bytes());
-            at += 4;
-        }
-        for s in 0..SEAT_COUNT {
-            request[at] = position.last_piece[s] as i8 as u8;
-            at += 1;
-        }
+        let request = encode_request(position, seat, moves);
         let n = moves.len().min(MAX_CANDIDATES);
-        request[236] = n as u8;
-        for (i, &mv) in moves.iter().take(n).enumerate() {
-            request[240 + 2 * i..242 + 2 * i].copy_from_slice(&(mv as u16).to_le_bytes());
-            request[368 + 2 * i..370 + 2 * i].copy_from_slice(&1u16.to_le_bytes());
-        }
         self.stream.write_all(&request).map_err(|e| format!("prior request: {e}"))?;
         let mut response = [0u8; 4 * MAX_CANDIDATES];
         self.stream.read_exact(&mut response).map_err(|e| format!("prior response: {e}"))?;
         Ok((0..n).map(|i| f32::from_le_bytes(response[4 * i..4 * i + 4].try_into().unwrap())).collect())
     }
+}
+
+/// One request record: `position` with `seat` to move and `moves` (the first 64) as candidates, in
+/// the self-play record layout. Shared by the protocol-1 prior client and the protocol-2 net client.
+pub fn encode_request(position: &Position, seat: usize, moves: &[i32]) -> [u8; REQUEST_BYTES] {
+    let mut request = [0u8; REQUEST_BYTES];
+    request[6] = seat as u8;
+    let mut at = 8;
+    for s in 0..SEAT_COUNT {
+        for w in 0..WORDS {
+            request[at..at + 4].copy_from_slice(&position.own[s][w].to_le_bytes());
+            at += 4;
+        }
+    }
+    for s in 0..SEAT_COUNT {
+        request[at..at + 4].copy_from_slice(&position.hand[s].to_le_bytes());
+        at += 4;
+    }
+    for s in 0..SEAT_COUNT {
+        request[at] = position.last_piece[s] as i8 as u8;
+        at += 1;
+    }
+    let n = moves.len().min(MAX_CANDIDATES);
+    request[236] = n as u8;
+    for (i, &mv) in moves.iter().take(n).enumerate() {
+        request[240 + 2 * i..242 + 2 * i].copy_from_slice(&(mv as u16).to_le_bytes());
+        request[368 + 2 * i..370 + 2 * i].copy_from_slice(&1u16.to_le_bytes());
+    }
+    request
 }
