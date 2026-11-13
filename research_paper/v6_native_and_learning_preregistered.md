@@ -306,3 +306,14 @@ every descent; `false` (every existing version) is byte-identical.
     smoke-tested, and its liveness pass and first generations may run on spare threads from the
     P4/P5 base as the starting point (resumable). The one-shot validation on 79,800,000–199 is
     **not** run tonight unless at least eight generations complete; those seeds stay unread.
+- **2026-11-13 05:59 CST, X2 (where the P4/P5 config stands), fixed before it runs.** Read so far:
+  the S1 confirmation (neither arm confirmed) and the S2 screen (no arm cleared; no confirmation).
+  X2 is a descriptive benchmark of `engine-rs/configs/v5.0-p4-ultra.json` with no gate, on the
+  pinned P4 binary, Pentobi 31.0 settings as in X1:
+  - ladder: lone seat against three level-5 seats on seeds 79,100,000–79,100,099 and against three
+    level-7 seats on 79,200,000–79,200,039 (the first 40 seeds of each are X1's, so `v4.2-ultra`
+    is paired there);
+  - reverse: one level-6 seat against three `v5.0-p4-ultra` seats on 82,200,000–82,200,099
+    (X1's reverse seeds are not reused: the prior was fitted on those games);
+  - compute: budget 600 and 1,200 (2× and 4× iterations) as the lone seat against level 6 on
+    82,000,000–82,000,099, paired with the S2 base (budget 300) on the same seeds.
