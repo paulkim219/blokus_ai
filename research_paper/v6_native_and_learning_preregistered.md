@@ -325,3 +325,10 @@ every descent; `false` (every existing version) is byte-identical.
   fresh seeds 82,300,000–82,300,199, the two runs started together on 5 threads each so their
   ms/move are comparable. **Kept as a config change** if the paired difference has a CI lower
   bound above 0 and ms/move (own moves 3+) is at most 1.25× base; otherwise dropped.
+- **2026-11-13 06:40 CST, S3 read; X2 level-7 extension fixed before it runs.** S3: `nodeShortlist`
+  96 +0.30 [−0.71, +1.35], dropped. With the remaining hour, the X2 level-7 block is extended on
+  new seeds 79,200,040–79,200,199 (`v5.0-p4-ultra` as the lone seat against three level-7 seats,
+  same settings, moves recorded). Two uses, both descriptive: a tighter level-7 figure (reported
+  for the new seeds alone and pooled with the first 40), and level 7's recorded moves as teacher
+  data for a later re-fit of the move prior. The run stops at 07:35 whatever its state; only
+  complete seeds are scored.
