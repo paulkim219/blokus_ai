@@ -52,6 +52,21 @@ impl Gtp {
         Ok(Gtp { child, stdin, stdout })
     }
 
+    /// As `spawn`, with the engine's stderr (its log) appended to `log` (diagnostics only).
+    pub fn spawn_logged(program: &str, args: &[String], log: &std::path::Path) -> Result<Gtp, String> {
+        let file = std::fs::OpenOptions::new().create(true).append(true).open(log).map_err(|e| format!("cannot open {log:?}: {e}"))?;
+        let mut child = Command::new(program)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::from(file))
+            .spawn()
+            .map_err(|e| format!("cannot start {program}: {e}"))?;
+        let stdin = child.stdin.take().ok_or("no stdin")?;
+        let stdout = BufReader::new(child.stdout.take().ok_or("no stdout")?);
+        Ok(Gtp { child, stdin, stdout })
+    }
+
     /// Sends one command. `Ok(body)` for `=`, `Err` for `?` (the engine's message) or I/O failure.
     /// The body has the status character and the following space stripped; lines are kept.
     pub fn command(&mut self, cmd: &str) -> Result<String, String> {

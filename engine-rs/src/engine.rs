@@ -190,6 +190,11 @@ impl Engine {
         self.last_tree.map(|_| self.search.root_edge_stats())
     }
 
+    /// Diagnostics: the shape of the last tree search's tree (None after a non-search decision).
+    pub fn tree_shape(&self) -> Option<crate::search::TreeShape> {
+        self.last_tree.map(|_| self.search.tree_shape())
+    }
+
     pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
         self.search.reply_stats()
     }

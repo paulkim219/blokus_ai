@@ -3,7 +3,7 @@
 //!
 //!   cargo run --release --example p4_cost -- <moves.jsonl> <positions> <threads> <out.csv> <config.json>...
 //!
-//! Positions are the lone Blokee seat's decisions at own moves 3–20 in a `blokee-pentobi --moves-out`
+//! Positions are the lone Blokee seat's decisions at own moves 3+ (`P4_COST_MIN_OWN`, default 3) in a `blokee-pentobi --moves-out`
 //! file, sampled evenly (every k-th). Each position is searched by every config in turn on the same
 //! thread with the same RNG seed and budget 300, so machine load changes hit all configs alike.
 //! Run from the repo root.
@@ -32,6 +32,8 @@ fn main() {
         (params, table)
     };
     let loaded: Vec<_> = configs.iter().map(|c| load(c)).collect();
+    // P4_COST_MIN_OWN (default 3): the smallest own-move index sampled (0 to include the opening).
+    let min_own: u32 = std::env::var("P4_COST_MIN_OWN").ok().and_then(|v| v.parse().ok()).unwrap_or(3);
     // (seed, moves prefix, seat, own index)
     let mut jobs: Vec<(u64, Vec<i32>, usize, u32)> = Vec::new();
     for l in std::fs::read_to_string(moves_path).unwrap().lines().filter(|l| !l.trim().is_empty()) {
@@ -43,7 +45,7 @@ fn main() {
             let seat = state.turn;
             if seat == lone && mv >= 0 {
                 let own = 21 - state.board.hand[seat].count_ones();
-                if own >= 3 {
+                if own >= min_own {
                     jobs.push((v["seed"].as_u64().unwrap(), moves[..ply].to_vec(), seat, own));
                 }
             }

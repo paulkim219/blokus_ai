@@ -5,7 +5,7 @@
 
 use crate::backup::*;
 use crate::bitboard::*;
-use crate::config::{BitboardParams, CandidateOptions, Phase, RaveOptions};
+use crate::config::{BitboardParams, CandidateOptions, OpeningOptions, Phase, RaveOptions, SelectionOptions};
 use crate::feature_prior::PriorContext;
 use crate::features::{EvalContext, detect_phase, evaluate, refresh_context};
 use crate::ordering::{HistoryTable, MoveOrderer, softmax_priors, sort_by_score};
@@ -45,6 +45,10 @@ struct Node {
     /// P6 (`native.rave`): per child edge, (weighted value sum, weight sum) of the AMAF updates.
     /// Empty unless RAVE is on for this node.
     amaf: Vec<[f64; 2]>,
+    /// The largest prior among the node's moves (0 before initialisation).
+    prior_max: f64,
+    /// P4 at interior nodes (`interiorInitVisits`): children carry a prior-derived initial value.
+    value_init: bool,
 }
 
 impl Node {
@@ -67,6 +71,8 @@ impl Node {
             terminal: false,
             proven: None,
             amaf: Vec::new(),
+            prior_max: 0.0,
+            value_init: false,
         }
     }
 
@@ -214,6 +220,19 @@ pub struct V12Search {
     amaf_generation: u32,
     /// Per placement: its edge index at the root, or NONE (P6; the root can have hundreds of edges).
     root_edge: Vec<u32>,
+    /// `native.selection` when it changes anything (P10). None leaves selection exactly as before.
+    selection: Option<SelectionOptions>,
+    /// Upper bound on |history term| (for the selection cut-off).
+    history_bound: f64,
+    /// `native.opening` with the centre rule on (P9). None leaves candidate generation as before.
+    opening: Option<OpeningOptions>,
+    /// P4 at interior nodes (`native.candidates`): all legal moves, no widening, `n0` there.
+    interior_full: bool,
+    interior_no_widening: bool,
+    interior_init_visits: f64,
+    /// Diagnostics: the tree part of each simulation (edges descended), summed and maximum.
+    depth_sum: u64,
+    depth_max: u32,
 }
 
 impl V12Search {
@@ -233,7 +252,27 @@ impl V12Search {
             playout.enable_last_good_reply(l.forget);
         }
         let per_placement = if rave.is_some() { placements().count } else { 0 };
+        let selection = params.native.as_ref().and_then(|n| n.selection.clone()).filter(|s| s.prior_log() || s.cutoff > 0.0);
+        let history_bound = {
+            // History scores are means of backed-up values: in [0, 1] for the blend reward, within
+            // [-(q + l), 1 + q + l] for the rank reward.
+            let spread = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
+                .map_or(1.0, |r| 1.0 + r.quality_weight + r.length_weight);
+            params.search.history_weight.abs() * spread
+        };
+        let opening = params.native.as_ref().and_then(|n| n.opening.clone()).filter(|o| o.centre_on());
+        let (interior_full, interior_no_widening, interior_init_visits) = candidates
+            .as_ref()
+            .map_or((false, false, 0.0), |c| (c.interior_full, c.interior_no_widening, c.interior_init_visits));
         V12Search {
+            selection,
+            history_bound,
+            opening,
+            interior_full,
+            interior_no_widening,
+            interior_init_visits,
+            depth_sum: 0,
+            depth_max: 0,
             last_good_reply: lgr.is_some(),
             sim_moves: Vec::new(),
             sim_scores: None,
@@ -396,6 +435,8 @@ impl V12Search {
             self.apply_net(position, root_seat);
         }
         self.iterations = 0;
+        self.depth_sum = 0;
+        self.depth_max = 0;
         self.nodes[root as usize].move_count()
     }
 
@@ -464,6 +505,13 @@ impl V12Search {
         node.child_visits = vec![0; shortlist];
         node.opened = 0;
         node.initialised = true;
+        node.prior_max = node.priors.iter().copied().fold(0.0, f64::max);
+        if !is_root {
+            if self.interior_no_widening {
+                node.opened = shortlist;
+            }
+            node.value_init = self.interior_init_visits > 0.0 && node.prior_max > 0.0;
+        }
         if let Some(r) = &self.rave
             && (is_root || !r.root_only())
         {
@@ -482,7 +530,24 @@ impl V12Search {
             self.generate_buffer = buffer;
             return None;
         }
+        let count = match &self.opening {
+            Some(o) => centre_rule(o, position, &mut buffer[..count]),
+            None => count,
+        };
         let params = Arc::clone(&self.params);
+        if !is_root && self.interior_full {
+            let c = params.native.as_ref().and_then(|n| n.candidates.as_ref()).unwrap();
+            let mut moves = buffer[..count].to_vec();
+            self.generate_buffer = buffer;
+            let recent = self.path_recent();
+            let ctx = PriorContext::new(position, seat, &recent);
+            let mut scores = vec![0.0; moves.len()];
+            c.model.as_ref().expect("interiorFull without a model").score(&ctx, &moves, &mut scores);
+            sort_by_score(&mut moves, &mut scores);
+            let mut priors = vec![0.0; moves.len()];
+            softmax_priors(&scores, c.temperature, &mut priors);
+            return Some((moves, priors));
+        }
         if is_root && let Some(c) = params.native.as_ref().and_then(|n| n.candidates.as_ref()).filter(|c| c.custom_root()) {
             let moves = buffer[..count].to_vec();
             self.generate_buffer = buffer;
@@ -855,6 +920,9 @@ impl V12Search {
             }
             node = existing;
         }
+        let depth = self.path_nodes.len() as u32;
+        self.depth_sum += depth as u64;
+        self.depth_max = self.depth_max.max(depth);
         let value = self.leaf_value(node, position, rng);
         self.backup(&value);
         if self.rave.is_some() || self.last_good_reply {
@@ -911,6 +979,34 @@ impl V12Search {
         let n0 = self.candidates.as_ref().map_or(0.0, |c| c.init_visits);
         let n_v = self.value_visits;
         let root_mean = if node.visits > 0.0 { node.values[self.root_seat] / node.visits } else { 0.5 };
+        // P4 at interior nodes: children start at m · sqrt(p_i / p_max) with `interiorInitVisits`
+        // virtual visits, m the node's current mean for its mover (component, inverted if paranoid).
+        let interior_init = id != self.root && node.value_init;
+        let n0_interior = self.interior_init_visits;
+        let mover_mean = if invert { 1.0 - parent_mean } else { parent_mean };
+        // P10: the "priorLog" rule here, its count offset k and exploration factor; the cut-off bound.
+        let sel = self.selection.as_ref();
+        let prior_log = sel.is_some_and(|x| x.applies(id == self.root));
+        let k = if init_value {
+            n0
+        } else if interior_init {
+            n0_interior
+        } else {
+            sel.map_or(1.0, |x| x.count_offset)
+        };
+        let log_factor = if prior_log {
+            let n = node.visits;
+            sel.unwrap().exploration * n.sqrt() * (n + 1.0).ln()
+        } else {
+            0.0
+        };
+        let cutoff = match sel {
+            Some(x) if x.cutoff > 0.0 => {
+                let explore = if prior_log { log_factor * node.prior_max / k } else { s.c_puct * node.prior_max * sqrt_visits };
+                x.cutoff * (explore + self.history_bound)
+            }
+            _ => f64::INFINITY,
+        };
         let mut best_index = None;
         let mut best_score = f64::NEG_INFINITY;
         for index in 0..node.opened {
@@ -931,6 +1027,15 @@ impl V12Search {
                 } else {
                     let c = &self.nodes[child as usize];
                     (c.values[self.root_seat] + n_v * u) / (c.visits + n_v)
+                }
+            } else if interior_init {
+                let v = mover_mean * (node.priors[index] / node.prior_max).sqrt();
+                if child == NONE || self.nodes[child as usize].visits == 0.0 {
+                    v
+                } else {
+                    let c = &self.nodes[child as usize];
+                    let w = if invert { c.visits - c.values[component] } else { c.values[component] };
+                    (w + n0_interior * v) / (c.visits + n0_interior)
                 }
             } else if child == NONE || self.nodes[child as usize].visits == 0.0 {
                 (if invert { 1.0 - parent_mean } else { parent_mean }) - s.fpu_reduction
@@ -954,7 +1059,15 @@ impl V12Search {
                 let beta = tilde / (tilde + n + n * tilde / r.equivalence);
                 (1.0 - beta) * q + beta * amaf_q
             };
-            let u = 1.0 * s.c_puct * node.priors[index] * (sqrt_visits / (1.0 + edge_visits));
+            if q + cutoff <= best_score {
+                // P10 cut-off: even the largest exploration and history terms cannot lift it above.
+                continue;
+            }
+            let u = if prior_log {
+                log_factor * node.priors[index] / (edge_visits + k)
+            } else {
+                1.0 * s.c_puct * node.priors[index] * (sqrt_visits / (1.0 + edge_visits))
+            };
             let h = if s.history_weight == 0.0 {
                 0.0
             } else {
@@ -1179,6 +1292,88 @@ impl V12Search {
         (0..root.move_count()).map(|i| (root.child_visits[i], root.amaf.get(i).map_or(0.0, |a| a[1]))).collect()
     }
 
+    /// Diagnostics (read only): the shape of the tree the last search left.
+    pub fn tree_shape(&self) -> TreeShape {
+        let mut shape = TreeShape { iterations: self.iterations, depth_max: self.depth_max, nodes_total: self.nodes.len(), ..Default::default() };
+        if self.root == NONE || self.nodes.is_empty() {
+            return shape;
+        }
+        shape.depth_mean = if self.iterations > 0 { self.depth_sum as f64 / self.iterations as f64 } else { 0.0 };
+        let mut depth = vec![u32::MAX; self.nodes.len()];
+        let mut frontier = vec![self.root];
+        depth[self.root as usize] = 0;
+        let mut d = 0usize;
+        while !frontier.is_empty() {
+            shape.nodes_by_depth.push(0);
+            shape.visits_by_depth.push(0.0);
+            let mut next = Vec::new();
+            for &id in &frontier {
+                let n = &self.nodes[id as usize];
+                shape.nodes_by_depth[d] += 1;
+                shape.visits_by_depth[d] += n.visits;
+                for &c in &n.children {
+                    if c != NONE && depth[c as usize] == u32::MAX {
+                        depth[c as usize] = d as u32 + 1;
+                        next.push(c);
+                    }
+                }
+            }
+            frontier = next;
+            d += 1;
+        }
+        let root = &self.nodes[self.root as usize];
+        shape.root_edges = root.move_count();
+        let mut v: Vec<i32> = root.child_visits.clone();
+        v.sort_unstable_by(|a, b| b.cmp(a));
+        let total: i64 = v.iter().map(|&x| x as i64).sum();
+        shape.root_visited = v.iter().filter(|&&x| x > 0).count();
+        if total > 0 {
+            shape.root_top_share = v[0] as f64 / total as f64;
+            let (mut acc, mut k50, mut k90) = (0i64, 0usize, 0usize);
+            for (i, &x) in v.iter().enumerate() {
+                acc += x as i64;
+                if k50 == 0 && acc * 2 >= total {
+                    k50 = i + 1;
+                }
+                if k90 == 0 && acc * 10 >= total * 9 {
+                    k90 = i + 1;
+                    break;
+                }
+            }
+            shape.root_50 = k50;
+            shape.root_90 = k90;
+        }
+        let mut id = self.root;
+        for _ in 0..16 {
+            let n = &self.nodes[id as usize];
+            let Some((best, _)) = n.child_visits.iter().enumerate().filter(|(_, v)| **v > 0).max_by_key(|(i, v)| (**v, std::cmp::Reverse(*i))) else { break };
+            let c = n.children[best];
+            if c == NONE {
+                break;
+            }
+            shape.pv_visits.push(self.nodes[c as usize].visits);
+            id = c;
+        }
+        for (i, n) in self.nodes.iter().enumerate() {
+            if i as u32 == self.root || !n.initialised || n.terminal || n.moves.is_empty() {
+                continue;
+            }
+            let visited = n.child_visits.iter().filter(|&&x| x > 0).count();
+            shape.interior_nodes += 1;
+            shape.interior_edges += n.moves.len();
+            shape.interior_visited += visited;
+            if n.visits >= 100.0 {
+                let edge_total: i64 = n.child_visits.iter().map(|&x| x as i64).sum();
+                let top = n.child_visits.iter().copied().max().unwrap_or(0);
+                shape.busy_nodes += 1;
+                shape.busy_edges += n.moves.len();
+                shape.busy_visited += visited;
+                shape.busy_top_share_sum += if edge_total > 0 { top as f64 / edge_total as f64 } else { 0.0 };
+            }
+        }
+        shape
+    }
+
     /// Diagnostics: (rollout moves asked of the reply table, moves it supplied) since the table was
     /// built; None without `native.lastGoodReply`.
     pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
@@ -1282,6 +1477,58 @@ impl V12Search {
         }
         second + (remaining as i64) < best
     }
+}
+
+/// P9 centre rule: if the mover has played fewer than `centreMaxOwnMove` pieces, keep (in order)
+/// only the moves whose centre distance is at most the smallest plus `centreSlack`; returns the count.
+fn centre_rule(o: &OpeningOptions, position: &Position, moves: &mut [i32]) -> usize {
+    let seat = position.turn;
+    let own = (PIECE_COUNT as u32 - position.hand[seat].count_ones()) as f64;
+    if own >= o.centre_max_own_move || moves.is_empty() {
+        return moves.len();
+    }
+    let t = placements();
+    let min = moves.iter().map(|&m| t.centre_distance[m as usize] as f64).fold(f64::INFINITY, f64::min);
+    let limit = min + o.centre_slack;
+    let mut kept = 0;
+    for i in 0..moves.len() {
+        let m = moves[i];
+        if t.centre_distance[m as usize] as f64 <= limit {
+            moves[kept] = m;
+            kept += 1;
+        }
+    }
+    kept
+}
+
+/// Tree-shape diagnostics of the last search (read only; P9/P10 probe).
+#[derive(Clone, Debug, Default)]
+pub struct TreeShape {
+    pub iterations: u32,
+    /// Edges descended in the tree part of a simulation: mean and maximum over the search.
+    pub depth_mean: f64,
+    pub depth_max: u32,
+    /// Per depth (0 = root; a node counted once, at its smallest depth): nodes and their visits.
+    pub nodes_by_depth: Vec<usize>,
+    pub visits_by_depth: Vec<f64>,
+    /// Visits of the nodes along the most-visited line (index 0 = after the root move).
+    pub pv_visits: Vec<f64>,
+    pub root_edges: usize,
+    pub root_visited: usize,
+    /// Fewest root children holding 50% / 90% of the root's edge visits, and the top child's share.
+    pub root_50: usize,
+    pub root_90: usize,
+    pub root_top_share: f64,
+    /// Initialised non-terminal non-root nodes: count, candidate edges, edges with a visit.
+    pub interior_nodes: usize,
+    pub interior_edges: usize,
+    pub interior_visited: usize,
+    /// The same for interior nodes with at least 100 visits, plus the sum of their top-edge shares.
+    pub busy_nodes: usize,
+    pub busy_edges: usize,
+    pub busy_visited: usize,
+    pub busy_top_share_sum: f64,
+    pub nodes_total: usize,
 }
 
 /// `enter_node`'s settle: seats with no move are marked out until someone can move or all are out.

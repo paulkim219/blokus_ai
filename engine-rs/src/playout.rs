@@ -153,7 +153,8 @@ impl Playout {
 
     /// Legal placements covering randomly drawn open corners of `seat`, up to `limit`. Returns 0
     /// only when the seat has no legal move anywhere.
-    fn sample_moves(&mut self, position: &Position, seat: usize, limit: usize, max_corners: usize, rng: &mut Rng) -> usize {
+    /// `considered` masks the seat's hand (P9 large-piece rule); `u32::MAX` keeps every piece.
+    fn sample_moves(&mut self, position: &Position, seat: usize, limit: usize, max_corners: usize, considered: u32, rng: &mut Rng) -> usize {
         if position.hand[seat] == 0 {
             return 0;
         }
@@ -166,7 +167,7 @@ impl Playout {
             return 0;
         }
         let t = placements();
-        let hand = position.hand[seat];
+        let hand = position.hand[seat] & considered;
         let occ_rows = board_rows(&position.occ);
         let own_rows = board_rows(&position.own[seat]);
         let mut count = 0usize;
@@ -261,6 +262,11 @@ impl Playout {
         let mut steps = 0.0f64;
         let t = placements();
         let all_moves = params.native.as_ref().and_then(|n| n.rollout.as_ref()).filter(|r| r.all_moves());
+        // P9 large-piece rule (`native.opening`): (pieces of the minimum size or more, piece-count limit).
+        let early = params.native.as_ref().and_then(|n| n.opening.as_ref()).filter(|o| o.rollout_on()).map(|o| {
+            let mask = (0..PIECE_COUNT).filter(|&p| PIECE_SIZES[p] as f64 >= o.rollout_min_size).fold(0u32, |m, p| m | (1 << p));
+            (mask, o.rollout_until_pieces)
+        });
         if let Some(options) = all_moves {
             self.play_all_moves(options, position, cutoff, rng);
             steps = cutoff;
@@ -277,7 +283,17 @@ impl Playout {
                 steps += 1.0;
                 continue;
             }
-            let count = self.sample_moves(position, seat, cap, max_corners, rng);
+            let considered = match early {
+                Some((mask, until)) => {
+                    let on_board: u32 = position.hand.iter().map(|h| PIECE_COUNT as u32 - h.count_ones()).sum();
+                    if (on_board as f64) < until { mask } else { u32::MAX }
+                }
+                None => u32::MAX,
+            };
+            let mut count = self.sample_moves(position, seat, cap, max_corners, considered, rng);
+            if count == 0 && considered != u32::MAX {
+                count = self.sample_moves(position, seat, cap, max_corners, u32::MAX, rng);
+            }
             if count == 0 {
                 let turn = position.turn;
                 position.mark_out(seat);

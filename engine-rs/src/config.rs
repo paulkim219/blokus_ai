@@ -268,6 +268,90 @@ pub struct NativeOptions {
     /// leaves the rollout exactly as before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_good_reply: Option<LastGoodReplyOptions>,
+    /// v5.0 port P10: the tree's child-selection rule. Absent, or `rule` "puct", leaves selection
+    /// exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection: Option<SelectionOptions>,
+    /// v5.0 port P9: opening rules (centre restriction of early candidates, large pieces only early
+    /// in rollouts). Absent, or every switch at 0, leaves the search exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening: Option<OpeningOptions>,
+}
+
+/// `native.selection` (see `engine-rs/README.md`, "Selection rule, interior expansion and opening
+/// rules (P9/P10)").
+///
+/// `rule` "puct" is today's `Q + cPuct·p·sqrt(max(1, N))/(1 + n) + history`. `rule` "priorLog" is
+/// `Q + exploration·p·sqrt(N)·ln(N + 1)/(n + k) + history`, with N the node's real visits, n the
+/// edge's visits and k the value-initialisation count at a value-initialised node (`initVisits` at
+/// the root, `interiorInitVisits` inside) or `countOffset` elsewhere. `cutoff` > 0 skips a child whose
+/// Q cannot reach the best score so far even with the largest exploration and history terms the node
+/// can give (scaled by `cutoff`; 1 is exact and changes no choice).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SelectionOptions {
+    #[serde(default = "puct")]
+    pub rule: String,
+    /// The exploration constant of "priorLog".
+    #[serde(default = "one")]
+    pub exploration: f64,
+    /// "all": root and interior nodes; "root" or "interior": only there (the rest keeps PUCT).
+    #[serde(default = "all_scope")]
+    pub scope: String,
+    /// Count added to an edge's visits in the "priorLog" denominator at nodes that are not
+    /// value-initialised.
+    #[serde(default = "one")]
+    pub count_offset: f64,
+    /// 0: off. In (0, 1]: skip children whose Q is at most best − cutoff·(largest possible bonus).
+    #[serde(default)]
+    pub cutoff: f64,
+}
+
+fn puct() -> String {
+    "puct".into()
+}
+
+impl SelectionOptions {
+    pub fn prior_log(&self) -> bool {
+        self.rule == "priorLog"
+    }
+
+    /// Whether "priorLog" applies at the root (`root` true) or at an interior node.
+    pub fn applies(&self, root: bool) -> bool {
+        self.prior_log() && (self.scope == "all" || (root && self.scope == "root") || (!root && self.scope == "interior"))
+    }
+}
+
+/// `native.opening` (P9; see `engine-rs/README.md`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpeningOptions {
+    /// Centre rule: at any searched node (root or interior) whose mover has played fewer than this
+    /// many pieces, only the legal moves whose centre distance (`placements().centre_distance`, the
+    /// mean over the piece's squares) is at most the smallest one plus `centreSlack` are candidates.
+    /// 0 is off. The opening shortcut (`openingHeuristicMaxOwnMove`) decides before the search, so
+    /// with it on the rule never acts at own moves below the shortcut's limit.
+    #[serde(default)]
+    pub centre_max_own_move: f64,
+    #[serde(default)]
+    pub centre_slack: f64,
+    /// Large-piece rule: in a rollout (policy "sampled"), while fewer than `rolloutUntilPieces`
+    /// pieces are on the board (all seats), the mover's candidates are drawn from its pieces of at
+    /// least `rolloutMinSize` squares; if that finds no move, from all its pieces. 0 is off.
+    #[serde(default)]
+    pub rollout_min_size: f64,
+    #[serde(default)]
+    pub rollout_until_pieces: f64,
+}
+
+impl OpeningOptions {
+    pub fn centre_on(&self) -> bool {
+        self.centre_max_own_move > 0.0
+    }
+
+    pub fn rollout_on(&self) -> bool {
+        self.rollout_min_size > 0.0 && self.rollout_until_pieces > 0.0
+    }
 }
 
 /// `native.rave` (see `engine-rs/README.md`, "RAVE and last-good-reply (P6/P7)").
@@ -421,6 +505,18 @@ pub struct CandidateOptions {
     /// size/centre funnel: "ordering" (today) or "fitted".
     #[serde(default = "ordering")]
     pub interior_scorer: String,
+    /// P4 at interior nodes: every legal move of an interior node becomes a child, scored by the
+    /// fitted interior scorer over all of them (no size/centre funnel, no `nodeShortlist` cap).
+    #[serde(default)]
+    pub interior_full: bool,
+    /// No progressive widening at interior nodes: every child is selectable from the node's first
+    /// selection (as `rootNoWidening` at the root).
+    #[serde(default)]
+    pub interior_no_widening: bool,
+    /// Value-initialised interior children: `n0` virtual visits at `m · sqrt(p_i / p_max)` for the
+    /// node's mover, `m` the node's current mean for the mover, `p` the node's prior. 0 is off.
+    #[serde(default)]
+    pub interior_init_visits: f64,
     /// Softmax temperature over fitted scores (the fit is at temperature 1).
     #[serde(default = "one")]
     pub temperature: f64,
@@ -526,8 +622,36 @@ impl BitboardParams {
             let needs_model = c.root_fitted() || c.interior_fitted();
             reject(needs_model && c.model.is_none(), "native.candidates: a fitted scorer needs a model");
             if let Some(Err(e)) = c.model.as_ref().map(|m| m.check()) {
-                out.push(format!("native.candidates.model: {e}"));
+                reject(true, &format!("native.candidates.model: {e}"));
             }
+            reject(c.interior_full && !c.interior_fitted(), "native.candidates.interiorFull needs interiorScorer fitted");
+            reject(!(c.interior_init_visits >= 0.0 && c.interior_init_visits.is_finite()), "native.candidates.interiorInitVisits must be >= 0");
+            // RAVE's β counts the root's virtual visits only; it is not defined for interior ones.
+            let interior_init = c.interior_init_visits > 0.0;
+            reject(interior_init && native.and_then(|n| n.rave.as_ref()).is_some_and(|r| r.on()), "native.candidates.interiorInitVisits with native.rave");
+        }
+        if let Some(sel) = native.and_then(|n| n.selection.as_ref()) {
+            reject(!matches!(sel.rule.as_str(), "puct" | "priorLog"), "native.selection.rule must be puct or priorLog");
+            reject(!matches!(sel.scope.as_str(), "all" | "root" | "interior"), "native.selection.scope must be all, root or interior");
+            reject(!(sel.exploration > 0.0 && sel.exploration.is_finite()), "native.selection.exploration must be > 0");
+            reject(!(sel.count_offset > 0.0 && sel.count_offset.is_finite()), "native.selection.countOffset must be > 0");
+            reject(!(0.0..=1.0).contains(&sel.cutoff), "native.selection.cutoff must be in [0, 1]");
+            // RAVE blends Q with its own count, and the E6 value channel / learned prior add counts to
+            // the root; the new denominator is not defined against them.
+            let changes = sel.prior_log() || sel.cutoff > 0.0;
+            reject(changes && native.and_then(|n| n.rave.as_ref()).is_some_and(|r| r.on()), "native.selection with native.rave");
+            reject(changes && native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.selection with native.net or native.prior");
+        }
+        if let Some(o) = native.and_then(|n| n.opening.as_ref()) {
+            reject(!(o.centre_max_own_move >= 0.0 && o.centre_max_own_move.is_finite()), "native.opening.centreMaxOwnMove must be >= 0");
+            reject(!(o.centre_slack >= 0.0 && o.centre_slack.is_finite()), "native.opening.centreSlack must be >= 0");
+            reject(!(0.0..=5.0).contains(&o.rollout_min_size), "native.opening.rolloutMinSize must be in [0, 5]");
+            reject(!(o.rollout_until_pieces >= 0.0 && o.rollout_until_pieces.is_finite()), "native.opening.rolloutUntilPieces must be >= 0");
+            // The rule lives in the "sampled" rollout; the "all" rollout and a stored last-good reply
+            // would bypass it.
+            let rollout_rule = o.rollout_on();
+            reject(rollout_rule && native.and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves()), "native.opening rollout rule with native.rollout all");
+            reject(rollout_rule && native.and_then(|n| n.last_good_reply.as_ref()).is_some_and(|l| l.enabled), "native.opening rollout rule with native.lastGoodReply");
         }
         out
     }

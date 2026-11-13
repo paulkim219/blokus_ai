@@ -254,3 +254,58 @@ schedule; Drake's last-good-reply and Baier & Drake's forgetting); no code or co
   tree).
 - Diagnostics: `examples/p67_probe.rs` (`stats`: AMAF coverage of root edges and the reply table's
   supply rate; `reuse`: what subtree reuse between moves would carry over, P8).
+
+### Selection rule, interior expansion and opening rules (P9/P10)
+
+`selection` replaces the tree's exploration term; three `candidates` keys give interior nodes what
+P4 gives the root; `opening` adds two opening rules. Absent (or at their identity points: `rule`
+`"puct"` with `cutoff` 0, the interior keys false/0, every `opening` number 0) the engine plays exactly
+as before (parity tests, a 0.00 mirror, byte-identical self-play, `tests/p910.rs`;
+`research_paper/v5_p9_p10_selection_results.md`). `selection` and `opening` refuse unknown keys.
+Written from the idea (exploration driven by the prior and fading with visits, a cut-off, every legal
+move expanded and value-initialised at every node, centre-first openings, large pieces early in
+rollouts); no code or constant from Pentobi, every number a config value.
+
+```json
+"native": { "selection":  { "rule": "priorLog", "exploration": 0.2, "scope": "all", "countOffset": 1.0, "cutoff": 1.0 },
+            "candidates": { ..., "interiorFull": true, "interiorScorer": "fitted", "interiorNoWidening": true,
+                            "interiorInitVisits": 3.0 },
+            "opening":    { "centreMaxOwnMove": 3, "centreSlack": 0.0, "rolloutMinSize": 5, "rolloutUntilPieces": 31 } }
+```
+
+- **`selection.rule`** `"puct"` (default): `Q + cPuct·p·sqrt(max(1, N))/(1 + n) + h`. `"priorLog"`:
+  `Q + exploration·p·sqrt(N)·ln(N + 1)/(n + k) + h`, N the node's real visits, n the edge's visits,
+  k = `initVisits` at a value-initialised root, `interiorInitVisits` at a value-initialised interior
+  node, `countOffset` elsewhere. Q and the history term h are formed as before; the move choice
+  (visits) and the early stop are unchanged. `scope` `"all"`, `"root"` or `"interior"` (the rest
+  keeps PUCT).
+- **`selection.cutoff`** c in (0, 1]: a child is skipped when `Q + c·B ≤` the best score so far, B the
+  largest exploration term the node can give (`p_max` over the smallest denominator) plus the largest
+  history term (|historyWeight| × the reward's range). At 1 the skip is exact: such a child cannot
+  win, so no choice changes (tested), only time. Works under both rules.
+- **`candidates.interiorFull`**: every legal move of an interior node is a child, scored by the fitted
+  model over all of them and sorted (needs `interiorScorer` `"fitted"`); without it an interior node
+  keeps today's size/centre funnel and `nodeShortlist` (24). **`interiorNoWidening`**: every interior
+  child is selectable from the node's first selection. **`interiorInitVisits`** (`n0`, 0 = off):
+  `Q_i = (W_i + n0·v_i)/(n_i + n0)` with `v_i = m·sqrt(p_i/p_max)`, m the node's current mean for its
+  mover (as at the root; inverted for a paranoid search's opponents), an unvisited child scoring `v_i`.
+  What already existed: `interiorScorer` `"fitted"` (the fitted score choosing and ordering the
+  24-move interior shortlist out of the 48-move funnel); no interior node had all legal moves, value
+  initialisation or no widening.
+- **`opening.centreMaxOwnMove`** K / **`centreSlack`** d: at any searched node (root or interior) whose
+  mover has placed fewer than K pieces, only legal moves with centre distance ≤ the smallest + d
+  are candidates (centre distance: `placements().centre_distance`, mean over the piece's squares).
+  The opening shortcut (`openingHeuristicMaxOwnMove`, 3 in the v5 configs) decides own moves 0–2
+  before any search, so with the shortcut on and K ≤ 3 the rule never acts; the P9A arm turns the
+  shortcut off.
+- **`opening.rolloutMinSize`** S / **`rolloutUntilPieces`** M: in a `"sampled"` rollout, while fewer
+  than M pieces are on the board (all seats), the mover's corner sampling considers only its pieces
+  of at least S squares; if that finds no move, all its pieces. Refused with `rollout` `"all"` and
+  with `lastGoodReply` (both would bypass it).
+- Refused in `unsupported()`: unknown rule or scope, `exploration` or `countOffset` ≤ 0, `cutoff`
+  outside [0, 1], `interiorFull` without the fitted interior scorer, negative `interiorInitVisits`,
+  `selection` (rule `"priorLog"` or a cut-off) with `rave`, `net` or `prior`, `interiorInitVisits`
+  with `rave`, negative opening numbers, `rolloutMinSize` above 5.
+- Diagnostics: `examples/p910_probe.rs` (`shape`: tree shape of each config on recorded positions;
+  `pentobi`: the same read from Pentobi's `save_tree` and log through GTP; `opening`: Pentobi's
+  opening centre distances and piece sizes in recorded games) and `Engine::tree_shape`.
