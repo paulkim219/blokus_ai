@@ -118,13 +118,28 @@ Reading:
   port; a version that redistributes exactly the same total was not run.
 - `N96` has now read +0.89 (S1, old base) and +1.38 (here) with both intervals touching 0. Two
   screens are not a confirmation, and its cost could not be measured tonight. It is the one arm
-  worth a dedicated 200-seed test with an interleaved cost probe.
+  worth a dedicated 200-seed test. That test is S3 below: it found nothing.
 - With 100 seeds the screen detects paired effects of about 2 points; smaller real effects would
   pass unseen.
 
 **The ms/move columns in the screen table are not usable.** Base ran first, while two other match
 jobs were starting (load average about 66); the arms ran later at half that load. The apparent
 0.34–0.52× ratios reflect the machine, not the configs.
+
+## S3 — the dedicated test of `nodeShortlist` 96 (2026-11-13 06:25–06:39 CST)
+
+Preregistered as a new single test after the screen above (entry of 06:25 CST): base and
+`nodeShortlist` 96 each as the lone seat against three level-6 seats on 200 fresh seeds
+82,300,000–82,300,199, the two runs started together on 5 threads each, so their timings are
+comparable. Outputs `tmp/s3/`.
+
+| Arm | Advantage vs L6 [95% CI] | Paired Δ vs base [95% CI] | ms/move (mean) |
+|---|---:|---:|---:|
+| base (`v5.0-p4-ultra`) | −4.72 [−5.58, −3.85] | — | 67.5 |
+| `nodeShortlist` 96 | −4.42 [−5.33, −3.53] | **+0.30 [−0.71, +1.35]** | 69.9 (1.04×) |
+
+**Dropped.** The interval spans 0 and the point estimate is a fifth of the screen's. The two
+earlier readings (+0.89, +1.38) were the favourable end of the noise.
 
 ## Caveats
 
