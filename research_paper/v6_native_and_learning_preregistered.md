@@ -268,3 +268,20 @@ every descent; `false` (every existing version) is byte-identical.
     Tuning seeds come from 81,000,000 upward and are never reused for validation. The best config
     is validated once on 200 fresh seeds 79,800,000–79,800,199, paired with `base`. Generation-best
     fitness is never quoted as a result.
+- **2026-11-13 01:04 CST, N10 starting point and S1 confirmation arms, fixed before either runs.**
+  Read so far: the S1 screen (complete) and the E6 arms P1, V64, V512 against P0. Seen but not
+  read as a result: one progress line of the P4/P5 screen (arm `FULLfitI`, 220 of 400 games).
+  - **S1 confirmation arms.** Two arms cleared the screen rule: `W96` (+2.03 [+0.45, +3.49]) and
+    `W400open` (+1.81 [+0.38, +3.30]). Both, with `base`, play seeds 79,700,000–79,700,199 with
+    the same binary as the screen. Eleven arms were screened, so the screen figures are
+    selection-biased; only the confirmation is quoted as an effect.
+  - **N10 starting point.** The config the tuner starts from is, in this order: the P4/P5 arm if
+    it is accepted; otherwise `v4.2-ultra` with the confirmed S1 arm that has the larger
+    confirmation difference; otherwise `v4.2-ultra`. Only parameters that change play in that
+    starting config are tuned (a parameter whose perturbation leaves every game identical is
+    dropped), at most 24 dimensions.
+  - **N10 validation.** The tuned config and its starting point play seeds
+    79,800,000–79,800,199; `v4.2-ultra` plays them too if it is not the starting point. The
+    tuning is **kept** if the paired difference against the starting point has a CI lower bound
+    above 0. One validation only: the config validated is the final generation's distribution
+    mean, not the best-scoring individual.
