@@ -373,3 +373,72 @@ every descent; `false` (every existing version) is byte-identical.
   - **If a config becomes the new base:** it plays as one seat against three `v5.0-p4-ultra` seats
     (`blokee-match`, seat-rotated, budget 300) on 200 seeds 83,200,000–83,200,199, reported, not gated.
   - No arm, value or seed is added after the screen is read without a new dated entry.
+- **2026-11-13 12:44 CST, P6/P7 (RAVE, last-good-reply) and a re-test of P3B, fixed before any screen
+  game.** Read so far: everything in the entries above, including the P1–P3 screen (no arm cleared;
+  P3B +0.44 [−0.92, +1.87] on 83,000,000–099). Seen but not read as a result: the liveness run
+  (2 seeds per arm from 84,900,000; only its "games differ from base" column was printed: 8/8 for
+  every arm). Used to set the grid (search internals, no game outcome): `p67_probe stats` on 60 X1
+  positions (`tmp/p67/scratch/stats.csv`). Also seen: the P8 reuse probe on 3 of this morning's base
+  games (83,000,000 / 033 / 066), to check that it reproduces the bridge's moves (42/42) and finds
+  nodes. Code: commit `79bfa0b` (`native.rave`, `native.lastGoodReply`, `src/reply_table.rs`,
+  `examples/p67_probe.rs`); arms and values committed in `engine-rs/scripts/p67_configs.py` in the
+  same commit, before liveness or any game. Binaries pinned in `tmp/p67/bin/` (`PROVENANCE.txt`);
+  pre-change reference binaries `tmp/p67/bin-before/` (= `tmp/p13/bin`, built at `20f6cb1`, whose
+  engine sources equal the parent `db6676c`).
+  - **Gates passed before this entry** (`tmp/p67/identity.log`): `cargo test --release` 5 + 2 + 8 + 5
+    (the 5 new ones: identity points search like the base on 12 positions; AMAF weight ≥ real visits
+    on every root edge, integer without decay, interior statistics only with scope "all"; the reply
+    table supplies moves on both rollout paths; refusals; the reuse probe finds the played child);
+    `v5.0-p4-ultra` mirror 0.00 with the new binary; the identity point `p67-ID` (`rave.weight` 0,
+    `lastGoodReply.enabled` false) vs `v5.0-p4-ultra` 0.00, 80/80 game scores equal to the old
+    binary; self-play bytes equal (sha256 `e834eb15…` / `f788f905…`); bridge 8/8 games equal.
+  - **Design** (stated before the screen). RAVE is placement-level, with statistics kept apart from
+    the real values: every path node's edges get `sum += w·v, weight += w` for placements its mover
+    played at or after it in the simulation (tree or rollout), `w = 1 − distanceDecay·k/L`; selection
+    uses `(1 − β)·Q + β·Q_amaf`, `β = ñ/(ñ + n + n·ñ/equivalence)`, `ñ = weight·AMAF weight`, `n` =
+    child visits (+ `initVisits` 3 at the value-initialised root). Interior nodes use it too (scope
+    "all"); `R6SR` measures the root-only variant. Last-good-reply is LGR-1 (key: the previous
+    placement by any seat) with forgetting; "did well" = the seat's final score is the highest, ties
+    included; the stored reply is played first in a rollout whenever legal (before ε, corner
+    sampling and the table policy); the table is cleared at each search. Progressive history is
+    unchanged (tree selection only).
+  - **Arms** (each `v5.0-p4-ultra` plus the block shown; RAVE `equivalence` 100 and `distanceDecay`
+    0.5 throughout; strength is the AMAF weight, chosen from the stats run so that an unvisited root
+    edge with the median ~37 AMAF samples gets β ≈ 0.38 (weak) or ≈ 0.85 (strong)):
+    - `P3B`: `reward` rank, `qualityWeight` 0.25, `qualitySlope` 1, `lengthWeight` 0.1 — **a
+      follow-up of a null 100-seed screen arm** (the only positive point estimate this morning),
+      re-tested here on fresh seeds at 4× the sample; this morning's seeds are not pooled with it.
+    - `R6W`: `rave` weight 0.05, scope all. `R6S`: weight 0.5, scope all. `R6SR`: as `R6S`, root only.
+    - `L7`: `lastGoodReply` enabled, forget.
+    - `R6SL7`: `R6S` + `L7`. `R6SP1L`: `R6S` + `rollout` all with the P1L fit (1.3995 / 0.7185 / 0.6515).
+  - **Screen:** each arm and `base` as the lone seat against three Pentobi level-6 seats (budget 300,
+    Pentobi 31.0, book on, one thread), **400 seeds 84,000,000–84,000,399**, 4 games per seed, arms
+    one after another on 10 threads under `caffeinate -i -s -m -w`. Paired difference arm − base by
+    seed, 95% percentile bootstrap. Seven arms are read at 95% each; the confirmation is the guard
+    against a false clearance.
+  - **Selection:** an arm clears if its paired CI lower bound is above 0. Confirmed: the cleared arm
+    with the largest point estimate. If cleared single-mechanism arms (RAVE: `R6W`/`R6S`/`R6SR`;
+    LGR: `L7`; P3: `P3B`) cover two or more mechanisms, also the combination of the best cleared arm
+    of each (an existing arm if one has exactly those blocks, else a new config `C-<A>+<B>`) and the
+    best cleared single-mechanism arm, each if not already selected. None clears → no confirmation,
+    reported as a null.
+  - **Cost:** clean run already made (`tmp/p67/cost/cost.md`: 150 positions, 2 threads, nothing of
+    mine running; ms/move own moves 3+, arm / base): `P3B` 0.88, `R6W` 1.03, `R6S` 1.05, `R6SR`
+    1.04, `L7` 0.96, `R6SL7` 1.02, `R6SP1L` 1.91. A combination built at selection is costed the same
+    way in the chain before any confirmation game.
+  - **Confirmation:** base and every selected arm started together on **400 fresh seeds
+    84,400,000–84,400,399**; for each selected arm with clean cost ratio R > 1.25 an equal-time arm
+    (`search.iterationScale` 16 / R) plays the same seeds alongside. **Accepted** if the arm's paired CI
+    lower bound is above 0. **New base config** only if accepted and either R ≤ 1.25 or its
+    equal-time arm's lower bound is also above 0 (the equal-time config is then the one saved); among
+    several, the largest confirmation point estimate.
+  - **If a new base:** one seat against three `v5.0-p4-ultra` seats (`blokee-match`, seat-rotated,
+    budget 300) on **200 seeds 84,800,000–84,800,199**, reported, not gated; the config is saved under
+    `engine-rs/configs/` and the tracker's "Current v5.0 line" table updated.
+  - **P8 diagnostic (descriptive, no strength claim):** after the screen, `p67_probe reuse` on 48 of
+    the screen's base games (evenly spaced): at each searched decision, the visits the previous
+    decision's tree holds at the position now on the board (and at the three intermediate plies), as a
+    share of 4,800 and of that search's iterations. Reading: if the mean share at the next own turn is
+    under 5% of the budget, building P8 is not worth it on this base (Parked).
+  - Unused and unread: 83,100,000 and 83,200,000 (P1–P3); the block 84,220,000–039 (v4.2, 2026-10)
+    is avoided. No arm, value or seed is added after the screen is read without a new dated entry.
