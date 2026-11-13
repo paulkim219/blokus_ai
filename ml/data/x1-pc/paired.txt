@@ -1,0 +1,4 @@
+ei-gen6 vs base: 100 paired seeds (100 complete in arm, 100 in control)
+  arm advantage          -9.58 [95% CI -10.75, -8.43]
+  control advantage      -9.99 [95% CI -11.05, -8.85]
+  paired Δ (arm − control) +0.41 [95% CI -1.00, +1.75] → does not advance

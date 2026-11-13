@@ -84,7 +84,7 @@ Source paths are under `~/src/pentobi` (tag `v31.0`).
 | N3 | **Exact endgame**: sealed-region packer in the tree plus a multi-player MCTS-Solver | Pentobi does not solve Classic endgames | Packer exists; solver Proposed | Packer alone, old tree: +0.01 |
 | N4 | **Better rollout statistics**: N-gram selection (NST), playout policy adaptation | Reported stronger than simpler reply tables in general game playing | Proposed (after P1, P7) | |
 | N5 | **Win-probability objective** from the net's P(first) head | Targets winning directly instead of rank or margin | Proposed (head is in the E5 net) | |
-| N6 | **Seat-aware play** | Turn order is worth several points (2nd seat wins 33.5%, 4th 14.7% in a `v4.2-ultra` mirror); Pentobi plays every seat alike | v7 confirmation paused on the PC | Screen: more blocking from blue +7.2 pp [1.2, 13.4] win share (unconfirmed) |
+| N6 | **Seat-aware play** | Turn order is worth several points (2nd seat wins 33.5%, 4th 14.7% in a `v4.2-ultra` mirror); Pentobi plays every seat alike | H1 passed; H2 not confirmed | H1 blue `agg140` +3.65 pp [0.60, 6.67]; H2 yellow `flat` −1.14 pp [−3.38, 1.10]. Not in the engine yet |
 | N7 | **Re-test the opponent model**: plain max^n vs the paranoid-when-leading switch | Nijssen & Winands found max^n best inside MCTS | Proposed | Earlier: the switch measured +0.52 [−0.21, 1.31] |
 | N8 | **Distil a strong slow teacher** (Pentobi level 7–9, or v5 at a high budget) into the net | A fast model that keeps most of the teacher's strength | Proposed (after the first ports) | |
 | N9 | **Network-only player** (no search) as the speed baseline | Sets the bar that N8 has to beat | Proposed | |
@@ -106,9 +106,9 @@ under a new v5 base, with a note here saying why.
 |---|---|---|---|
 | D1 | **Game anatomy** of the 800 level-6 games, with Pentobi level 7 as a judge of 2,876 positions (`engine-rs/examples/d1_anatomy.rs`, `engine-rs/scripts/d1_report.py`) | **Done** | See "D1 findings" below; full tables in `tmp/d1-results.md` |
 | S1 | **Config-only screen against Pentobi level 6**: single-knob variants of `v4.2-ultra`, 100 seeds from 79,300,000, each paired with the base on the same seeds. Exploratory: a filter for what to build and confirm, not evidence (`engine-rs/scripts/s1-screen.sh`) | **Paused** 2026-11-12 after 1⅔ of 13 arms | base −9.88 [−10.98, −8.78]; `W96` partial (69 seeds) paired Δ +1.60 [−0.26, +3.36]. Notes in `tmp/s1-results.md` on arms that do more than their label says |
-| X1 | Pentobi bridge and benchmark (`blokee-pentobi`, validity gate 20/20) | **Added** | Baseline table above |
-| E5 | Model v2 (`resnet2-b8w96`, utility heads) | **Done** (offline only) | Test KL 0.336, top-1 48.4%, margin R² 0.406; best at step 6,000 of 15,000 |
-| E6 | Net inside the old search (root prior, depth-1 policy, root-child value); screen vs `v4.2-ultra`, 400 seeds (`ml/torch/e6_screen.sh`) | **Paused** 2026-11-12 after the control arm | Control P0 (root prior only): +0.88 [0.50, 1.27], first place 31.0%. P1 200 of 400 seeds played; V64, V512, PV not started |
+| X1 | Pentobi bridge and benchmark (`blokee-pentobi`, validity gate 20/20) | **Added** | Mac level 6: −10.68 [−11.96, −9.41]. PC, 100 seeds from 79,400,000: base −9.99 [−11.05, −8.85], 82 ms/move; `ei-gen6` −9.58 [−10.75, −8.43], 93 ms/move. Paired Δ +0.41 [−1.00, +1.75], not an advance |
+| E5 | Model v2 (`resnet2-b8w96`, utility heads) | **Done** (offline only) | Mac: test KL 0.336, top-1 48.4%, margin R² 0.406. PC 36k games: `resnet2-b8w96` selected (val loss 7.171, 19.2k pos/s). `b12w128` 7.172 / 8.0k, `b16w160` 7.172 / 3.2k |
+| E6 | Net inside the old search (root prior, depth-1 policy, root-child value); screen vs `v4.2-ultra`, 400 seeds (`ml/torch/e6_screen.sh`) | P0 confirmed; other arms paused | Mac screen P0 +0.88 [0.50, 1.27]. PC confirmation (800 seeds from 77,100,000): **+0.83 [0.56, 1.09]**, first place 31.8%, 136 ms/move, 1.0 eval/move. Passes the +0.50 gate. P1/V64/V512/PV not started |
 
 ## E. v6 — candidate structures (not started)
 
@@ -171,3 +171,20 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-12 — Added N10–N15 and the v6 candidate structures (section E) from a literature pass.
 - 2026-11-12 — Versioning rule set: v5.0 = all Pentobi ports; v5.1+ = one significant addition each.
 - 2026-11-12 — Screens resumed (S1 without the no-op `MAXN` arm). PC runs preregistered and written into `docs/E6_RUNBOOK.md`.
+- 2026-11-13 — E6-P0 confirmation on the PC passes: root prior only, Mac `resnet2-b8w96-g18500-s0`,
+  800 seeds from 77,100,000, **+0.83 [0.56, 1.09]** versus `v4.2-ultra`, first place 31.8%, 136 ms/move,
+  1.0 network evaluation per move. This makes the v2 root prior a promotion candidate. It says
+  nothing about the depth-1 or value channels, which are still unplayed.
+- 2026-11-13 — E5 PC arms finished. Validation losses 7.171 / 7.172 / 7.172 for `b8w96` / `b12w128` /
+  `b16w160`, at 19.2k / 8.0k / 3.2k positions per second. `resnet2-b8w96-g36k-s0` is selected: lowest
+  validation loss, and at least twice as fast as either larger arm. It does not replace the Mac
+  checkpoint in E6-P0. Fuel: the margin head still adds about +0.075 R² over the search value on
+  the mean target, the same on all three arms.
+- 2026-11-13 — v7 seat confirmation finished on the PC (1,600 seeds from 75,000,000). H1 passes:
+  `agg140` from blue, Δ win share +3.65 pp [0.60, 6.67]. H2 does not: `flat` from yellow, −1.14 pp
+  [−3.38, 1.10]. Write-up: `research_paper/v7_seat_strategy_results.md`. Root-seat dispatch and the
+  promotion match are not started.
+- 2026-11-13 — PC Pentobi level 6, exploratory, 100 seeds from 79,400,000. Validity gate passed (20/20).
+  `v4.2-ultra` −9.99 [−11.05, −8.85], first place 7.8%, 82 ms/move against Pentobi at 60 ms/move.
+  `ei-gen6` −9.58 [−10.75, −8.43], first place 7.5%, 93 ms/move. Seed-paired difference
+  +0.41 [−1.00, +1.75], so the E4 network does not advance against level 6.
