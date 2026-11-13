@@ -216,3 +216,27 @@ every descent; `false` (every existing version) is byte-identical.
   - **"`v4.2-ultra` beats Pentobi level 6"** = X1-L6a advantage CI lower bound above 0 and
     first-place share above 25%, with X1-L6b's Pentobi advantage CI not lying wholly above 0.
     ms/move is reported for both engines; this is close to equal simulations, not equal time.
+- **2026-11-12, PC runs fixed before they start: E5 larger arms and a confirmation of the E6
+  control arm.** Written while the E6 screen was still running on the Mac (P0 complete, P1 half
+  played, no value arm read).
+  - **E5 on the PC (offline; no strength claim).** Arms `resnet2-b8w96`, `resnet2-b12w128` and
+    `resnet2-b16w160`, each trained on base games 0–18,499 plus all eight E4 generations
+    (`ml/data/expert-iteration/gen-0` … `gen-7`) as extra training runs; validation on base games
+    18,500–18,999 and test on 19,000–19,999 as before. 15,000 steps at batch 512, EMA, checkpoint
+    by validation loss. The PC's base corpus was regenerated there and differs from the Mac's by
+    14 positions, so its metrics are compared arm against arm on the PC, not digit for digit with
+    the Mac's. **Selection:** lowest validation loss; a smaller arm wins if it is within 1% and at
+    least 2× faster. The selected network replaces the Mac `resnet2-b8w96` only in experiments
+    that say so in advance.
+  - **E6-P0 confirmation.** The screen's control arm (root prior only, blend 0.5, temperature 1,
+    served from `ml/torch/results/resnet2-b8w96-g18500-s0.pt`, the Mac checkpoint) measured
+    +0.88 [0.50, 1.27] over 400 seeds. It is the control, not the E6 candidate, so this is a
+    separate test: the same config against plain `v4.2-ultra` on **800 seeds
+    77,100,000–77,100,799**, budget 300, on the PC. The block 77,000,000–77,000,799 stays
+    reserved for the screen's candidate. **Pass** if the mean is ≥ +0.50 with the CI lower bound
+    above 0. It is read on its own and not pooled with the Mac screen. A pass makes "v2 network as
+    a root prior" a promotion candidate over `v4.2-ultra`; it says nothing about the depth-1 or
+    value channels.
+  - **Exploratory, not gated:** `ei-gen6` (the E4 network, `native.prior` blend 0.5) and plain
+    `v4.2-ultra`, each as the lone seat against three Pentobi level-6 seats on 100 seeds from
+    79,400,000, both played on the PC, read as a seed-paired difference.

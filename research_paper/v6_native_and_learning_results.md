@@ -205,3 +205,78 @@ generation's offline metrics (`ei-gen*.json`). The games and checkpoints stay on
 - Checkpoints and metrics: `ml/torch/results/*.pt`, `*.json`.
 - Matches: `selfplay-results/match-native-settlefix-200.jsonl`,
   `match-native-settlefix-confirm-200.jsonl`, `match-native-e3a-blend-{0.25,0.5}.jsonl`.
+
+## 2026-11-12 — X1 (Pentobi), E5 (model v2), E6 (in progress)
+
+Gates for everything here are in the 2026-11-12 entries of the preregistration. Run on the Mac
+(M4 Pro). The v5 ledger is `docs/V5_TRACKER.md`.
+
+### X1 — `v4.2-ultra` does not beat Pentobi at equal compute
+
+Full write-up: `v5_x1_pentobi_benchmark_results.md`. Pentobi 31.0 through `blokee-pentobi`; the
+validity gate passed (20/20 replays, legal-move sets equal at all 1,612 plies, scores equal to
+Pentobi's minus 89), and all 1,120 scored games ran with no rules disagreement.
+
+| Match | Advantage | First place | Pentobi ms/move |
+|---|---|---:|---:|
+| 1 × `v4.2-ultra` vs 3 × level 5 (40 seeds) | −2.50 [−4.01, −1.06] | 23.1% | 9 |
+| 1 × `v4.2-ultra` vs 3 × level 6 (100 seeds) | **−10.68 [−11.96, −9.41]** | 8.8% | 54 |
+| 1 × level 6 vs 3 × `v4.2-ultra` (same seeds) | +5.56 [4.59, 6.59] for Pentobi | 49.5% | 72 |
+| 1 × `v4.2-ultra` vs 3 × level 7 (40 seeds) | −15.66 [−17.18, −14.10] | 3.1% | 590 |
+| level 9, stopped after 16 games (descriptive) | −25.10 [−32.50, −17.71] | 0% | ≈9,900 |
+
+`v4.2-ultra` spends about 62 ms and 4,800 iterations per move. Level 6 runs about 3,900 new
+simulations per move (7,100 at the root with its reused subtree), measured on 4 Pentobi self-play
+games, so level 6 is the equal-compute opponent. Under the preregistered rule `v4.2-ultra` does
+not beat it: all three parts fail.
+
+D1 (`v5_d1_game_anatomy.md`, descriptive) locates the gap: squares are level through round 9 while
+territory and legal moves fall behind from rounds 4–5; on a seat's moves 3–8 the move Pentobi
+level 7 would play is inside Blokee's 40-move root shortlist only 42–45% of the time.
+
+### E5 — model v2 (offline; prediction quality only)
+
+`resnet2-b8w96` (1.57M parameters): the E2 trunk with an absolute-seat input and heads for policy,
+soft policy, margins, a 4 × 3 utility block, the search's `root_value`, and ownership. Trained as
+preregistered on base games 0–18,499; 15,000 steps at batch 512 took 2.9 h on MPS. Loss weights:
+policy 1, soft policy 1, margins 1, utility margin 0.5, rank 0.5, first 0.25, search value 2
+(Huber), ownership 0.25.
+
+| Test (base games 19,000–19,999) | `resnet` (E2) | `resnet2-b8w96` |
+|---|---:|---:|
+| Policy KL | 0.338 | 0.336 |
+| Top-1 / top-5 | 48.1% / 87.8% | 48.4% / 87.8% |
+| Margin R² (mover) | 0.397 | 0.406 |
+| Ownership accuracy | 72.8% | 72.7% |
+| Search-value R² | – | 0.872 |
+| Brier skill, mover: margin / rank / first | – | 0.366 / 0.378 / 0.328 |
+
+- Validation loss was lowest at step 6,000 (7.2148) and rose to 7.2895 by step 15,000, so the
+  saved checkpoint is the step-6,000 one. On this corpus the arm stops benefiting after about a
+  third of the run.
+- The soft-policy target is nearly uniform on this corpus (every candidate has visits; 0.036 nats
+  from uniform), so that head carries little.
+- Increment over the search's own `root_value` (linear R², 58,726 positions, bootstrap by game):
+  margin head +0.061 [0.051, 0.070] on `score − mean(others)`; utility-margin head
+  +0.072 [0.057, 0.085] on `score − best other`, against +0.035 [0.028, 0.042] for the margin
+  head on that target. The search-value head adds almost nothing (+0.004), as expected of a head
+  trained to reproduce that value.
+- `ml/torch/fuel.py` reproduces the addendum's table for `resnet-g18500-s0` (0.413 / 0.448 / 0.471).
+
+### E6 — the network inside the rollout search (screen in progress)
+
+Implemented as preregistered (`engine-rs/src/net.rs`, `search.rs`; `docs/E6_RUNBOOK.md`).
+Identity gates pass: with no `native.net` block the 8 parity tests pass, a mirror scores 0.00 and
+self-play shards are byte-identical to the previous binary; `native.net` with both new channels
+off plays the same 16 games as the equivalent `native.prior` config on the real protocol-2 server.
+
+Screen (400 seeds from 76,000,000, 7 threads, shared machine), so far:
+
+| Arm | Advantage vs `v4.2-ultra` | First place | Net positions / move | ms/move |
+|---|---|---:|---:|---:|
+| P0 (root prior only) | **+0.88 [0.50, 1.27]** | 31.0% | 1.0 | 81 |
+| P1, V64, V512, PV | not yet read | | | |
+
+P0 is the control. Its 800-seed confirmation on the PC is fixed in the preregistration (seeds
+from 77,100,000). The screen was paused for about 8.5 hours at Paul's request and resumed; the
+driver replays only incomplete chunks.
