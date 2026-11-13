@@ -201,6 +201,7 @@ EOF
       done < "$OUT/selected.txt"
       # Arms first built here are costed now, on the idle machine, before any confirmation game.
       [ -z "$newcost" ] || cost_run cost-confirm 150 $newcost
+      [ -z "$newcost" ] || ( export P4_COST_MIN_OWN=0; cost_run cost-open-confirm 150 $newcost )
       for arm in $cargs; do
         [ "$arm" = base ] && continue
         ratio=$(python3 engine-rs/scripts/p910_report.py "$OUT" --cost-ratio "$arm")

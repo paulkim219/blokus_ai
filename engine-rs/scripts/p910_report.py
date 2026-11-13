@@ -122,7 +122,7 @@ def table(rs):
 def cost_ms(root):
     """{arm: ms ratio to base} from every clean cost file present (own moves 3+; cost-open: 0+)."""
     ratios = {}
-    for stem, min_own in (("cost", 3), ("cost-confirm", 3), ("cost-open", 0)):
+    for stem, min_own in (("cost", 3), ("cost-confirm", 3), ("cost-open", 0), ("cost-open-confirm", 0)):
         path = os.path.join(root, "cost", f"{stem}.csv")
         names_path = os.path.join(root, "cost", f"{stem}.names")
         if not os.path.exists(path):
@@ -134,7 +134,7 @@ def cost_ms(root):
                 per.setdefault(names[int(r["config"])], []).append(float(r["ms"]))
         mean = lambda v: sum(v) / len(v)
         for arm, v in per.items():
-            key = arm if stem != "cost-open" else f"{arm}@open"
+            key = arm if not stem.startswith("cost-open") else f"{arm}@open"
             ratios.setdefault(key, mean(v) / mean(per["base"]))
     return ratios
 
