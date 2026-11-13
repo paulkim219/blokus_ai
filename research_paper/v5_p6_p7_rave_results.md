@@ -167,7 +167,82 @@ all-legal-moves rollout the strong RAVE arm is back at base level); `R6SL7 − R
 <!-- /P67:SCREEN -->
 
 <!-- P67:CONFIRM -->
+## Confirmation
+
+`P3B` and `base` started together on 400 fresh seeds 84,400,000–84,400,399 (5 threads each,
+14:15–14:36, same pinned binary, under `caffeinate`). Measured
+(`python3 engine-rs/scripts/p67_report.py tmp/p67 --confirm`, `tmp/p67/confirm.md`); no game failed:
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | ms/move all | ms/move 3+ | × base (3+) | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.0-p4-ultra unchanged | 400 | -4.73 [-5.28, -4.16] | 17.6% | — | 57.0 | 69.0 | 1.00 | 0/1600 |
+| P3B | P3B re-test: rank reward + quality bonus 0.25, length 0.1 (as screened 2026-11-13 on 83,000,000) | 400 | -4.25 [-4.84, -3.65] | 14.1% | +0.48 [-0.27, +1.23] | 51.4 | 62.0 | 0.90 | 1600/1600 |
+
+- P3B: paired +0.48 [-0.27, +1.23] -> not accepted (lower bound <= 0); clean cost 0.88x base
+NEW BASE: (none)
+
+**Not accepted**: the paired lower bound is below 0. No config becomes the new base, so the direct
+match on 84,800,000–199 was not played (those seeds are unread) and no config was saved.
+
+Descriptive only (post hoc, not a decision; it pools the screen that selected the arm, so it is
+biased upward): `P3B − base` by block was +0.44 [−0.92, +1.87] (100 seeds, 83,000,000, this
+morning), +0.86 [+0.13, +1.58] (400, screen), +0.48 [−0.27, +1.23] (400, confirmation); all 900
+seeds pooled +0.65 [+0.19, +1.14]; the two fresh 84M blocks +0.67 [+0.15, +1.18]. Every block's point
+estimate is positive and the arm is 10–12% cheaper per move, so a small gain (of order +0.5) is
+plausible but is not established under the rule. Settling it would need a new dated entry with a
+larger fresh-seed confirmation (at the confirmation's own estimate, about 800–1,000 seeds).
 <!-- /P67:CONFIRM -->
+
+## Verdict
+
+**Nothing accepted; `v5.0-p4-ultra` stays the base.**
+
+- **P6 RAVE: rejected at the tested settings.** Strong RAVE at every node is harmful,
+  −1.10 [−1.81, −0.37] (`R6S`); weak RAVE −0.34 [−1.05, +0.36] and strong RAVE at the root only
+  −0.26 [−0.99, +0.45] are null; with last-good-reply −0.48 [−1.20, +0.23]; with the all-legal-moves
+  rollout +0.12 [−0.60, +0.85] at 1.91× the cost. No RAVE arm has a positive point estimate except
+  the one that costs 1.9×.
+- **P7 last-good-reply: null**, −0.43 [−1.14, +0.28] (`L7`), 0.96× cost.
+- **P3B: cleared the screen, not confirmed** (+0.86 then +0.48 [−0.27, +1.23]).
+- **P8 subtree reuse: parked.** Reuse would carry over 0.23% of the budget (0.00% on moves 4–8).
+
+Reading (inferred, not measured): on this base the root prior from the P4/P5 fit decides which root
+children are worth visits, and the AMAF statistics, gathered from rollouts that play a random corner
+60% of the time, are a worse guide than that prior. At β ≈ 0.85 they override it and the search
+spreads visits over 88 instead of 51 root children at moves 3–8 (clean run), which costs strength;
+at β ≈ 0.38 the effect is too small to see. The descriptive contrasts point the same way: interior
+RAVE was the more harmful part (`R6SR − R6S` +0.83), and better rollouts (all legal moves, size and
+local weights) removed the harm (`R6SP1L − R6S` +1.22), consistent with AMAF quality being limited
+by the rollout policy. Last-good-reply changes 9–19% of rollout moves and does not move the result.
+
+## Caveats and things I am unsure of
+
+- **One value of `equivalence` (100) and `distanceDecay` (0.5)**; strength was varied only through
+  the AMAF weight (0.05, 0.5). The grid was set from search internals (AMAF counts on 60 positions),
+  not from outcomes. Values between the two, or RAVE with the root's initial-visit count raised so
+  that AMAF cannot override the prior so quickly, were not tried.
+- **Design choices that another reading could change:** RAVE statistics are kept apart and blended
+  (Pentobi adds them into the child's value); the edge taken at a node also gets its AMAF update
+  (k = 0); `n` in β includes the 3 initial visits at the root; LGR is LGR-1 only (no two-move key),
+  "did well" = highest final score (ties count), and the table is cleared each search. I do not
+  think a different reading would turn the strong-RAVE harm into a gain, but that is untested.
+- **Multiple arms.** Seven arms were read at 95% each; one cleared and did not confirm, which is
+  what the confirmation step is for. The descriptive contrasts above are post hoc.
+- **P8 caveat.** The probe looks nodes up by position hash, which misses a next-turn position that
+  the tree reached only through a seat being marked out (a pass); that happens late in games and
+  can only understate the late-game share, which is small either way. The probe reproduced
+  630/630 searched moves, so the trees measured are the ones played.
+- The in-match ms/move columns come from a loaded machine (load 11–14, Docker VM and `serve.py`
+  running, not mine); the clean cost run is the cost figure.
+- I was cut off by a usage limit from about 12:58 to 13:27; the chain ran unattended under
+  `caffeinate` and was not disturbed. The P8 probe ran at 13:27, during the screen.
+
+## Next
+
+P6, P7 and P8 are recorded as tested (rejected, null, parked). The one open item from this run is
+whether P3B's small positive effect is real, which needs a new preregistered, larger fresh-seed test.
+Remaining ports: P9 (opening rules and book), P10 (selection formula), and the section-B ideas.
+
 
 ## P8 — what subtree reuse would carry over (diagnostic, no strength claim)
 
