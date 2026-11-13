@@ -8,6 +8,7 @@ ms/move and games differing from base).
     python3 engine-rs/scripts/p67_report.py tmp/p67 --cost-ratio ARM   # clean-run ms/move ratio ARM / base
     python3 engine-rs/scripts/p67_report.py tmp/p67 --confirm    # confirmation (confirm/p67c-<ARM>) + verdict
     python3 engine-rs/scripts/p67_report.py tmp/p67 --cost       # clean cost table(s)
+    python3 engine-rs/scripts/p67_report.py tmp/p67 --reuse      # P8 diagnostic (reuse/reuse.csv)
 
 Rules (preregistered, research_paper/v6_native_and_learning_preregistered.md, 2026-11-13 "P6/P7"):
 - An arm clears the screen if its paired difference against base has a 95% CI lower bound > 0.
@@ -156,6 +157,27 @@ def confirm(root):
     return winner
 
 
+def reuse(root):
+    """P8 diagnostic: what the previous decision's tree holds along the line actually played."""
+    rs = [r for r in csv.DictReader(open(os.path.join(root, "reuse", "reuse.csv"))) if r["source"] == "search" and r["prev_iterations"]]
+    games = {(r["seed"], r["seat"]) for r in rs}
+    rep = [r for r in rs if r["reproduced"] != "-1"]
+    print(f"{len(games)} games, {len(rs)} searched decisions with a searched previous decision; "
+          f"{sum(r['reproduced'] == '1' for r in rep)}/{len(rep)} reproduced the recorded move")
+    print("| Own moves | Decisions | Prev. iterations | Depth 1 (own move) | Depth 2 | Depth 3 | Depth 4 = next own turn | share of 4,800 | share of prev. iterations | decisions with > 0 | max |")
+    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    f = lambda v: float(v) if v not in ("", None) else 0.0
+    for band, lo, hi in [("4-8", 4, 9), ("9-14", 9, 15), ("15+", 15, 99), ("all", 4, 99)]:
+        b = [r for r in rs if lo <= int(r["own_idx"]) < hi]
+        if not b:
+            continue
+        m = lambda k: sum(f(r[k]) for r in b) / len(b)
+        share = sum(f(r["reusable_visits"]) / f(r["prev_iterations"]) for r in b) / len(b)
+        print(f"| {band} | {len(b)} | {m('prev_iterations'):.0f} | {m('visits_d1'):.0f} | {m('visits_d2'):.1f} | {m('visits_d3'):.2f} | "
+              f"{m('reusable_visits'):.2f} | {m('reusable_visits') / 4800 * 100:.3f}% | {share * 100:.3f}% | "
+              f"{sum(f(r['reusable_visits']) > 0 for r in b)} | {max(f(r['reusable_visits']) for r in b):.0f} |")
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "tmp/p67"
     if "--live" in sys.argv:
@@ -168,6 +190,8 @@ def main():
             print(x if isinstance(x, str) else " ".join([x[0], x[1], *x[2]]))
     elif "--confirm" in sys.argv:
         confirm(root)
+    elif "--reuse" in sys.argv:
+        reuse(root)
     elif "--cost" in sys.argv:
         for arm, ratio in sorted(cost_ms(root).items(), key=lambda kv: kv[1]):
             print(f"{arm}: {ratio:.3f}x base (ms/move, own moves 3+)")
