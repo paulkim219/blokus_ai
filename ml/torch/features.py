@@ -118,6 +118,10 @@ class Encoder:
         visits = torch.tensor(records["visits"].astype(np.float32), device=self.device) * mask
         return footprint, self.piece[moves] * mask, mask, visits
 
+    def seat(self, records: np.ndarray) -> torch.Tensor:
+        """(B,) mover's absolute seat (0 blue … 3 yellow), the model-v2 global input."""
+        return torch.tensor(records["seat"].astype(np.int64), device=self.device)
+
 
 def value_targets(records: np.ndarray, games: dict[int, dict]) -> np.ndarray:
     """(N, 4) final `score − mean(other three)` in relative seat order, in squares."""
@@ -125,6 +129,47 @@ def value_targets(records: np.ndarray, games: dict[int, dict]) -> np.ndarray:
     rel = (records["seat"].astype(np.int64)[:, None] + np.arange(4)[None, :]) % 4
     ordered = np.take_along_axis(scores, rel, axis=1)
     return ordered - (ordered.sum(1, keepdims=True) - ordered) / 3.0
+
+
+UTILITY_SCALE = 12.0  # the search's `sigmoidScale`
+
+
+def game_utilities(scores: np.ndarray, scale: float = UTILITY_SCALE) -> np.ndarray:
+    """(G, 4, 3) per absolute seat [margin, rank, first] from final scores (G, 4).
+
+    margin = sigmoid((s − best other) / scale); rank = fraction of the three opponents beaten, a tie
+    counting ½ (`rank_from` in engine-rs/src/backup.rs); first = 1/k for each of the k seats tied
+    on the top score, else 0.
+    """
+    scores = np.asarray(scores, dtype=np.float64)
+    out = np.zeros((len(scores), 4, 3), dtype=np.float32)
+    top = scores.max(1, keepdims=True)
+    winners = (scores == top).astype(np.float64)
+    for seat in range(4):
+        others = np.delete(scores, seat, axis=1)
+        mine = scores[:, seat : seat + 1]
+        out[:, seat, 0] = 1.0 / (1.0 + np.exp(-(scores[:, seat] - others.max(1)) / scale))
+        out[:, seat, 1] = ((mine > others).sum(1) + 0.5 * (mine == others).sum(1)) / 3.0
+        out[:, seat, 2] = winners[:, seat] / winners.sum(1)
+    return out
+
+
+def utility_targets(records: np.ndarray, games: dict[int, dict]) -> np.ndarray:
+    """(N, 4, 3) utility targets in relative seat order (0 = mover), from each game's final scores."""
+    ids = records["game"].astype(np.int64)
+    unique, inverse = np.unique(ids, return_inverse=True)
+    per_game = game_utilities(np.array([games[int(g)]["scores"] for g in unique], dtype=np.float64))
+    rel = (records["seat"].astype(np.int64)[:, None] + np.arange(4)[None, :]) % 4
+    return np.take_along_axis(per_game[inverse], rel[:, :, None], axis=1)
+
+
+def search_value_targets(records: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The mover's search value (N,) in squares — `root_value`, logit(Q of the best root child) · 12 —
+    and (N,) which records carry one: real searches with at least two candidates (`policy_mask`).
+    Elsewhere the field holds a heuristic score or nothing, and the target is 0 and masked out."""
+    searched = policy_mask(records)
+    value = np.where(searched, records["root_value"].astype(np.float32), 0.0).astype(np.float32)
+    return value, searched
 
 
 def final_owners(records: np.ndarray, placements: Placements) -> dict[int, np.ndarray]:
