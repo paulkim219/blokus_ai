@@ -442,3 +442,74 @@ every descent; `false` (every existing version) is byte-identical.
     under 5% of the budget, building P8 is not worth it on this base (Parked).
   - Unused and unread: 83,100,000 and 83,200,000 (P1–P3); the block 84,220,000–039 (v4.2, 2026-10)
     is avoided. No arm, value or seed is added after the screen is read without a new dated entry.
+- **2026-11-13 15:20 CST, P9/P10 (selection rule, P4 at interior nodes, opening rules), fixed before
+  any screen game.** Read so far: everything in the entries above, including the P6/P7 confirmation
+  (P3B +0.48 [−0.27, +1.23], not accepted) and the descriptive P3B first-place note (paired first
+  place −2.53 pp [−4.03, −1.03] pooled over 900 seeds, more margin and fewer wins). Seen but not read
+  as a result: the liveness run (2 seeds per arm from 85,900,000; only its "games differ from base"
+  count was printed: 8/8 for every arm). Code: commit `484cc18` (`native.selection`,
+  `native.candidates.interiorFull` / `interiorNoWidening` / `interiorInitVisits`, `native.opening`,
+  `examples/p910_probe.rs`); arms in `engine-rs/scripts/p910_configs.py`. Binaries pinned in
+  `tmp/p910/bin/` (`PROVENANCE.txt`, HEAD `484cc18`); pre-change reference `tmp/p910/bin-before/`
+  (= `tmp/p67/bin`, built at `79bfa0b`, whose engine sources equal the parent `54b1a5f`).
+  - **Gates passed before this entry** (`tmp/p910/identity.log`): `cargo test --release` 5 + 2 + 6 + 8
+    + 5 (the 6 new: identity points search like the base on 12 positions; the selection cut-off at 1
+    changes no choice under PUCT, under "priorLog" and with interior expansion; priorLog and interior
+    expansion are live and interior nodes hold every legal move; the centre rule leaves only the most
+    central root moves at own moves 0–2 and nothing changes from own move 3; the rollout rule is live
+    early and inert after 31 pieces; refusals); `npm run native:build && npm run native:test`;
+    `v5.0-p4-ultra` mirror 0.00 with the new binary; identity point `p910-ID` vs `v5.0-p4-ultra`
+    0.00, 80/80 game scores equal to the old binary's mirror; self-play bytes equal (sha256
+    `e834eb15…` / `f788f905…`, the same as P6/P7's); bridge 8/8 games move-for-move equal.
+  - **Grid fixed from search internals and recorded moves only (no game outcome).** Tree shape on 47
+    X1 positions (`tmp/p910/diag/`, `p910_probe shape` / `pentobi`): base mean in-tree depth 3.47
+    (max 7), busy interior nodes (≥ 100 visits) keep 22 candidates and give the top child 17%;
+    Pentobi level 6 (book off, subtree reuse off, same positions) 5.64 (max 23), top child of busy
+    nodes 69%, top root child 52%. Grid of the "priorLog" constant {0.05, 0.1, 0.2, 0.4, 0.8, 1.6},
+    alone and with P4 at interior nodes: alone, 0.1 and 0.2 bracket level 6's top-root-child share
+    (58% / 46%); with interior expansion, 0.2 is the closest tree to level 6's (top root child 47%,
+    half the root visits in 1.9 children as level 6, mean depth 6.1). Opening numbers from Pentobi
+    level 6's own moves in the X1 games (`p910_probe opening`): at own moves 0–2 its move is at the
+    smallest centre distance (our measure) in 100% of 3,600 moves, from own move 3 in under 1%; its
+    moves are ≥ 90% five-square pieces while fewer than 31 pieces are on the board (88% at 31). P4 at
+    interior nodes takes the base's root settings (all legal moves, fitted prior at temperature 1, no
+    widening, 3 initial visits). No number is taken from Pentobi's source.
+  - **Arms** (each `v5.0-p4-ultra` plus the change shown):
+    - `P10A`: `selection` rule priorLog, exploration 0.2, scope all, countOffset 1, cutoff 1.
+    - `P10B`: as `P10A` with exploration 0.1.
+    - `P4I`: `candidates` interiorFull, interiorScorer fitted, interiorNoWidening, interiorInitVisits 3.
+    - `P4IP10A`: `P4I` and `P10A` together (named combination).
+    - `P9A`: `opening` centreMaxOwnMove 3, centreSlack 0, with `search.openingHeuristicMaxOwnMove` 0
+      (named combination: the centre rule cannot act while the shortcut plays own moves 0–2).
+    - `P9B`: `opening` rolloutMinSize 5, rolloutUntilPieces 31.
+    - `O0` (my choice): `search.openingHeuristicMaxOwnMove` 0 alone, the control that separates
+      searching the opening from the centre rule in `P9A`.
+  - **Screen:** each arm and `base` as the lone seat against three Pentobi level-6 seats (budget 300,
+    Pentobi 31.0, book on, one thread), **400 seeds 85,000,000–85,000,399**, 4 games per seed, arms
+    one after another on 10 threads under `caffeinate -i -s -m -w`. Paired difference arm − base by
+    seed, 95% percentile bootstrap. Reported for every arm beside it, not a gate: the paired
+    first-place difference (share of the four rotations won, ties counted as first).
+  - **Selection:** an arm clears if its paired advantage CI lower bound is above 0. Confirmed: the
+    cleared arm with the largest point estimate. If cleared single-mechanism arms (P10: `P10A`/`P10B`;
+    P4I; P9A; P9B; O0) cover two or more mechanisms, also the combination of the best cleared arm of
+    each (an existing arm if one has exactly those changes, else a new config `C-<A>+<B>`) and the best
+    cleared single-mechanism arm, each if not already selected. None clears → no confirmation,
+    reported as a null.
+  - **Cost** (clean run made, `tmp/p910/cost/`: 150 positions, 2 threads, nothing of mine running;
+    ms/move, arm / base, own moves 3+): `P10A` 0.95, `P10B` 0.90, `P4I` 1.54, `P4IP10A` 1.63, `P9B`
+    0.97. For the arms that search the opening the ratio is taken over own moves 0+ (base plays 0–2
+    from the heuristic at almost no cost): `P9A` 1.55, `O0` 1.58. A combination built at selection
+    is costed the same way in the chain before any confirmation game.
+  - **Confirmation:** base and every selected arm started together on **400 fresh seeds
+    85,400,000–85,400,399**; for each selected arm with clean cost ratio R > 1.25 an equal-time arm
+    (`search.iterationScale` 16 / R) plays the same seeds alongside. **Accepted** if the arm's paired
+    advantage CI lower bound is above 0. **New base config** only if accepted, and either R ≤ 1.25 or
+    its equal-time arm's lower bound is also above 0 (the equal-time config is then the one saved),
+    and its paired first-place interval does not lie entirely below 0 (if it does: reported, not
+    saved, the chain stops there; the trade-off is Paul's decision). Among several, the largest
+    confirmation point estimate.
+  - **If a new base:** one seat against three `v5.0-p4-ultra` seats (`blokee-match`, seat-rotated,
+    budget 300) on **200 seeds 85,800,000–85,800,199**, reported, not gated; the config is saved under
+    `engine-rs/configs/` and the tracker's "Current v5.0 line" table updated.
+  - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm, value or seed is
+    added after the screen is read without a new dated entry.
