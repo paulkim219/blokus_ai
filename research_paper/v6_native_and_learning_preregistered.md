@@ -900,3 +900,26 @@ every descent; `false` (every existing version) is byte-identical.
     (fwd − rev)/2 as a descriptive combined reading.
   - No block starts at or after 22:00 CST. Unplayed and unread: 83,100,000; 83,200,000; 84,800,000;
     87,200,000; 87,300,000; 87,500,000; 88,200,000; 88,300,000; 89,900,000.
+- **2026-11-14 17:15 CST, v5.1 round 3, Stage B: is the next seat's windfall a process artefact? (fixed
+  before any game of it).** Read so far: as Stage A (no Stage-A game read). Engine `dfc727e` (pinned
+  `tmp/v51c/bin`) adds to `blokee-pentobi`, off by default: `--gtp-processes per-seat` (each Pentobi seat
+  plays in its own `pentobi-gtp` process; every process is sent every move by `play`, final points are
+  compared across processes) and `--mode pentobi-control` (Pentobi in all four seats: the rotated lone seat
+  in its own process, the other three in one shared process). Identity: with neither used, bridge games in
+  `one-blokee`, `one-pentobi` and `two-two` (2 seeds × `v5.0-ultra`, `v4.2-ultra`) have equal moves and result
+  lines against the round-2 pin (`tmp/v51c/identity/bridge.log`); `cargo test --release` 31 and the npm
+  native build/test pass; search code untouched. Driver `engine-rs/scripts/v51c-stageB.sh` (starts after the
+  Stage-A driver exits), read-out `engine-rs/scripts/v51c_report.py --stageB`.
+  - **B1:** lone `v5.0-ultra` vs three level-6 seats, **200 seeds 90,300,000–90,300,199**, played twice:
+    shared process (today's behaviour) and per-seat processes. **B2:** `pentobi-control`, **200 seeds
+    90,400,000–90,400,199**. Book on, one Pentobi thread, budget 300, 10 threads.
+  - Reported: each seat's score minus the game mean by position relative to the lone seat (own / next /
+    opposite / previous), bootstrap by seed; the paired difference in Blokee's advantage (per-seat − shared);
+    Pentobi ms/move by role.
+  - **Reading rule (fixed now):** the windfall is called a *process artefact* if, in B2, the seat after the
+    own-process seat scores clearly above 0 (95% interval above 0) and/or in B1 the next seat's windfall
+    under per-seat processes is clearly smaller than under the shared process (difference of the two
+    next-seat readings larger than the sum of their half-widths ÷ √2, i.e. roughly non-overlapping); it is
+    called *real* (a property of Blokee's play) if B2's next seat is near 0 (interval includes 0) and B1's
+    next-seat windfall stays with per-seat processes. A paired change in Blokee's advantage whose interval
+    excludes 0 is reported prominently as a benchmark issue.

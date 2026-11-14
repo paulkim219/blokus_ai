@@ -114,9 +114,40 @@ def roles(paths):
         print(f"| `{path}` | {len(by)} | " + " | ".join(cols) + " |")
 
 
+def role_times(path):
+    """Mean Pentobi ms/move by role relative to the lone seat (timing log msBySeat)."""
+    tp = path[: -len(".jsonl")] + ".timing.jsonl"
+    if not os.path.exists(tp):
+        return ""
+    acc = [[] for _ in range(4)]
+    for t in games(tp):
+        i = TURN.index(t["seat"])
+        for k in range(4):
+            acc[k] += t["msBySeat"][TURN[(i + k) % 4]]
+    return " / ".join(f"{sum(v) / len(v):.0f}" if v else "—" for v in acc)
+
+
+def stageB(root):
+    shared, per = os.path.join(root, "b1-shared.jsonl"), os.path.join(root, "b1-perseat.jsonl")
+    control = os.path.join(root, "b2-control.jsonl")
+    have = [p for p in (shared, per, control) if os.path.exists(p)]
+    print("### Score relative to the game mean, by position relative to the lone seat (bootstrap by seed)\n")
+    roles(have)
+    print("\nms/move by role (lone / next / opposite / previous; wall, under match load):")
+    for p in have:
+        print(f"- `{p}`: {role_times(p)}")
+    if os.path.exists(shared) and os.path.exists(per):
+        n, d, f1, f2 = paired(per, shared)
+        print(f"\nPaired, Blokee's advantage per-seat − shared processes, {n} seeds: {fmt_ci(d)}; first place (any) {fmt_ci(f1)} pp, (split) {fmt_ci(f2)} pp")
+        print(arm_line("shared", shared).replace("| shared |", "- shared:"))
+        print(arm_line("per-seat", per).replace("| per-seat |", "- per-seat:"))
+
+
 def main():
     a = sys.argv
-    if a[1] == "--stageA":
+    if a[1] == "--stageB":
+        stageB(a[2])
+    elif a[1] == "--stageA":
         stageA(a[2])
     elif a[1] == "--roles":
         roles(a[2:])
