@@ -542,3 +542,37 @@ every descent; `false` (every existing version) is byte-identical.
     `serve.py` and Docker VM keep running and the load is recorded per arm).
   - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm or seed is added
     after any result is read without a new dated entry.
+- **2026-11-13 22:01 CST, S4 (faster interior-expansion search, identical output; a re-timed base),
+  fixed before any S4 game whose outcome is read.** Read so far: everything in the entries above,
+  including X3. Not games: the profile, the identity checks and the clean cost runs below.
+  - **What changed:** engine commit `7a1f3ad` (profile-guided, decision-identical speed changes; list in
+    `engine-rs/README.md`, "Speed"). Binaries pinned in `tmp/s4/bin` (`PROVENANCE.txt`); the pre-change
+    reference `tmp/s4/bin-before` is byte-identical to the P9/P10 and X3 pins.
+  - **Identity (passed, `tmp/s4/identity.log`):** for `v5.0-p4i-ultra`, `v5.0-p4-ultra` and `v4.2-ultra`:
+    the complete ranked output of 900 searches (300 positions, all seats, own moves 0+, X1 level-6 and X3
+    level-7 games) byte-identical; mirror 0.00 with 80/80 games equal in every seat's score to the old
+    binary's mirror (20 seeds from 80,900,000); self-play (6 games from 80,950,000) shard and games
+    byte-identical; bridge (2 seeds from 80,980,000, level 6) 8/8 games move for move. `cargo test
+    --release` 28/28 (two new: the scorer and the sort against their reference versions, bit for bit).
+  - **Clean cost (`tmp/s4/cost/cost.md`):** 150 X1 positions, own moves 3+, 2 threads, rounds
+    alternating old/new, nothing of mine running (Docker VM and `serve.py` running, not mine; load 2.9–4.0):
+    `v5.0-p4i-ultra` 68.2 → 44.8 ms/move (0.658×), `v5.0-p4-ultra` 0.852×, `v4.2-ultra` 0.857×, every
+    move and iteration count equal.
+  - **Re-timed config (fixed now):** `v5.0-p4i-ultra` with `search.iterationScale` **16** (from 10.383),
+    nothing else changed; to be saved as `engine-rs/configs/v5.0-s4-ultra.json` if accepted. Calibration
+    (`tmp/s4/cost/calib-*`, `verify-*`): new-binary ms/move over the old binary's `v5.0-p4i-ultra` at
+    scales 15–17, linear fit crossing 1.00 at 16.05; verification at 16, three alternating rounds:
+    **0.995×** (1.009 / 0.985 / 0.992). 16 is within the calibration noise of 16.05 and is the round value
+    (4,800 nominal iterations, the P4I equal-iterations setting of P9/P10).
+  - **Confirmation:** the re-timed config (`S4T`) and `v5.0-p4i-ultra` unchanged (`base`), both on the new
+    binary, started together (5 threads each) as the lone seat against three Pentobi level-6 seats
+    (Pentobi 31.0, book on, one thread, budget 300, 4 games per seed), **400 fresh seeds
+    87,000,000–87,000,399**, under `caffeinate -i -s -m -w`. Driver `engine-rs/scripts/s4-run.sh confirm`,
+    read-out `engine-rs/scripts/s4_report.py --confirm tmp/s4`.
+  - **Rule:** **accepted as the new base** if the paired advantage difference `S4T − base` (by seed, 95%
+    percentile bootstrap) has a lower bound above 0 **and** the paired first-place difference interval
+    does not lie entirely below 0. If the advantage clears but first place lies entirely below 0: reported,
+    not saved (Paul's decision). Otherwise not accepted and `v5.0-p4i-ultra` stays the base. Paired
+    first-place difference reported beside the advantage in any case. No other arm.
+  - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm, value or seed is added
+    after any result is read without a new dated entry.
