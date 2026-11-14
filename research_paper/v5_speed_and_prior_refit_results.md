@@ -278,4 +278,68 @@ teacher signal (e.g. level-7 visit distributions rather than its single chosen m
 
 <!-- N11:SCREEN -->
 
+## Stage 4 — S5: config-only screen on the final base
+
+Prereg: the 22:26 CST "S5" entry (commit `ff3ff1a`). The final base after Stages 1 and 3 is
+`v5.0-s4-ultra` (N11 accepted nothing), chosen by the driver (`tmp/s5/FINAL_BASE`). Seven arms, each
+the base plus one existing option (all loaded and searched, none refused by `unsupported()`, none
+dropped). 400 seeds 87,400,000–87,400,399, base then each arm one after another on 10 threads,
+23:10–00:38, pinned `tmp/s4/bin`, under `caffeinate` (master pid chain). No game failed. Measured
+(`tmp/s5/screen.md`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ advantage vs base [95% CI] | Paired Δ first place, pp [95% CI] | ms/move all | ms/move 3+ | × base (3+, in-match) | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.0-s4-ultra.json unchanged | 400 | -2.92 [-3.50, -2.34] | 21.3% | — | — | 58.4 | 70.4 | 1.00 | 0/1600 |
+| IIV1 | native.candidates.interiorInitVisits 1 (base 3) | 400 | -2.43 [-3.02, -1.84] | 21.0% | +0.49 [-0.20, +1.20] | -0.31 [-2.94, +2.25] | 59.0 | 71.0 | 1.01 | 1596/1600 |
+| IIV6 | native.candidates.interiorInitVisits 6 (base 3) | 400 | -3.57 [-4.14, -2.97] | 19.1% | -0.65 [-1.37, +0.08] | -2.25 [-4.62, +0.12] | 58.3 | 70.5 | 1.00 | 1597/1600 |
+| T07 | native.candidates.temperature 0.7 (base 1; root and interior prior) | 400 | -4.74 [-5.30, -4.21] | 15.6% | -1.82 [-2.50, -1.15] * | -5.69 [-8.00, -3.38] * | 60.5 | 73.2 | 1.04 | 1597/1600 |
+| T14 | native.candidates.temperature 1.4 (base 1; root and interior prior) | 400 | -2.65 [-3.26, -2.04] | 21.9% | +0.27 [-0.44, +1.00] | +0.56 [-2.12, +3.19] | 56.7 | 68.4 | 0.97 | 1598/1600 |
+| C08 | search.cPuct 0.8 (base 1.6) | 400 | -3.49 [-4.01, -2.96] | 16.6% | -0.57 [-1.25, +0.13] | -4.75 [-7.31, -2.12] * | 55.7 | 67.2 | 0.95 | 1600/1600 |
+| SHAPE | search.iterationShape x1.5 on own moves 3-8, x0.6423 on 9+ (same expected iterations per game) | 400 | -3.20 [-3.73, -2.66] | 20.5% | -0.27 [-0.90, +0.38] | -0.81 [-3.31, +1.81] | 71.7 | 86.4 | 1.23 | 1594/1600 |
+| RB07 | search.rankBlend 0.7 (base 0.35) | 400 | -3.40 [-3.98, -2.84] | 19.0% | -0.48 [-1.21, +0.23] | -2.31 [-4.81, +0.12] | 58.1 | 70.1 | 1.00 | 1599/1600 |
+
+```
+IIV1: paired +0.490 [-0.198, +1.205] on 400 seeds; first place -0.31 pp [-2.94, +2.25] -> does not clear
+IIV6: paired -0.650 [-1.369, +0.079] on 400 seeds; first place -2.25 pp [-4.62, +0.12] -> does not clear
+T07: paired -1.821 [-2.504, -1.152] on 400 seeds; first place -5.69 pp [-8.00, -3.38] -> does not clear
+T14: paired +0.267 [-0.444, +1.001] on 400 seeds; first place +0.56 pp [-2.12, +3.19] -> does not clear
+C08: paired -0.569 [-1.245, +0.133] on 400 seeds; first place -4.75 pp [-7.31, -2.12] -> does not clear
+SHAPE: paired -0.274 [-0.904, +0.379] on 400 seeds; first place -0.81 pp [-3.31, +1.81] -> does not clear
+RB07: paired -0.480 [-1.214, +0.228] on 400 seeds; first place -2.31 pp [-4.81, +0.12] -> does not clear
+selected: (none) -- no arm's paired CI lower bound is above 0
+```
+
+**S5 is a null: no arm clears, so no cost run and no confirmation** (seeds 87,500,000 unused and
+unread); `v5.0-s4-ultra` stays the base.
+
+- **Sharper prior (temperature 0.7) is clearly harmful**: −1.82 [−2.50, −1.15], first place −5.69 pp
+  [−8.00, −3.38]. The flatter prior (1.4) is null (+0.27 [−0.44, +1.00]).
+- **interiorInitVisits**: 1 points up (+0.49 [−0.20, +1.20], first place −0.31 pp), 6 points down
+  (−0.65 [−1.37, +0.08]); neither clears. Read together with T07/T14 (descriptive, post hoc): the
+  directions that anchor interior children less to the prior are the ones that do not lose.
+- **cPuct 0.8**: −0.57 [−1.25, +0.13], and fewer wins: first place **−4.75 pp [−7.31, −2.12]**.
+- **rankBlend 0.7**: −0.48 [−1.21, +0.23], first place −2.31 pp [−4.81, +0.12]: more weight on rank
+  did not buy wins.
+- **Budget shape (N14)**: −0.27 [−0.90, +0.38]. It did not keep time equal in play: Blokee spent
+  1,259 ms per game against base's 1,025 (1.23×; 86.4 vs 70.4 ms per searched move). The nominal
+  shape assumed equal cost per iteration and no early stops; early moves have more legal moves and stop
+  early less often. So it had more compute than base and still did not gain.
+- The base's own −2.92 [−3.50, −2.34] on these seeds (first place 21.3%) agrees with −3.31 (S4
+  confirmation) and −3.38 (N11 screen) on other seeds.
+
+Twelve arms were read in Stages 3–4 at 95% each; one clear harm (T07) and one clear first-place loss
+(C08), no gain.
+
 <!-- S5 -->
+
+## Summary
+
+| Stage | Result |
+|---|---|
+| 1 — S4 speed | Interior-expansion search 1.52× faster (68.2 → 44.8 ms/move clean), identical output for all three configs. Re-timed base `v5.0-s4-ultra` (`iterationScale` 16, 0.995× the old time) **accepted: +1.30 [+0.62, +2.00]** vs `v5.0-p4i-ultra`; −3.31 vs level 6 |
+| 2 — P8 reuse | 0.65% of the budget (2.7% on own moves 15+): below 5%, parked |
+| 3 — N11 prior re-fit | Offline +0.026 to +0.043 nats per level-7 decision; screen +0.26 / +0.26 / +0.31, none clears: **null** |
+| 4 — S5 config screen | None clears; temperature 0.7 harmful (−1.82), cPuct 0.8 −4.75 pp first place: **null** |
+
+Commits: `aee012d` (identity dump example), `7a1f3ad` (engine), `459993f` (S4 prereg), `1a42ec6`
+(S4 results), `ff3ff1a` (N11 and S5 prereg, scripts, weights), `c14effa` (N11 results), and this one.
