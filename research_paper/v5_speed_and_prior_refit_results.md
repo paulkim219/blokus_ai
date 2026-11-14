@@ -241,6 +241,41 @@ Reading (measured unless marked):
 
 <!-- N11:OFFLINE -->
 
+### Screen (measured)
+
+Prereg: the 22:26 CST "N11" entry (commit `ff3ff1a`, 22:26:0x; the chain started 22:26:02 from the
+same command). Base `v5.0-s4-ultra`; each arm the base with only `native.candidates.model` replaced.
+400 seeds 87,100,000–87,100,399, lone seat against three level-6 seats, base then each arm one after
+another on 10 threads (22:26–23:10), pinned `tmp/s4/bin`, under `caffeinate`. No game failed.
+`python3 engine-rs/scripts/chain_report.py tmp/n11 --screen` (`tmp/n11/screen.md`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ advantage vs base [95% CI] | Paired Δ first place, pp [95% CI] | ms/move all | ms/move 3+ | × base (3+, in-match) | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.0-s4-ultra.json unchanged | 400 | -3.38 [-3.91, -2.82] | 18.7% | — | — | 58.8 | 71.0 | 1.00 | 0/1600 |
+| L7 | (a) prior re-fitted on level-7 decisions only (6 bands, 39 features) | 400 | -3.12 [-3.70, -2.56] | 18.9% | +0.26 [-0.48, +0.98] | +0.25 [-2.06, +2.56] | 58.6 | 70.8 | 1.00 | 1596/1600 |
+| pooled | (b) prior re-fitted on level-6 and level-7 decisions pooled (6 bands) | 400 | -3.12 [-3.70, -2.53] | 20.0% | +0.26 [-0.48, +0.99] | +1.31 [-1.31, +3.88] | 58.4 | 70.4 | 0.99 | 1597/1600 |
+| pooledfine | (c) pooled, one band per own move 3-14 (14 bands) | 400 | -3.06 [-3.63, -2.48] | 19.9% | +0.31 [-0.41, +1.04] | +1.25 [-1.19, +3.69] | 58.5 | 70.6 | 0.99 | 1595/1600 |
+
+```
+L7: paired +0.260 [-0.477, +0.978] on 400 seeds; first place +0.25 pp [-2.06, +2.56] -> does not clear
+pooled: paired +0.256 [-0.482, +0.990] on 400 seeds; first place +1.31 pp [-1.31, +3.88] -> does not clear
+pooledfine: paired +0.311 [-0.406, +1.035] on 400 seeds; first place +1.25 pp [-1.19, +3.69] -> does not clear
+selected: (none) -- no arm's paired CI lower bound is above 0
+```
+
+**N11 is a null at this screen.** All three re-fitted priors point the same small way (+0.26 to
++0.31, first place +0.25 to +1.31 pp) and none has a lower bound above 0, so — as preregistered — no
+confirmation was run and no level-7 benchmark (that was only for an accepted arm); seeds
+87,200,000 and 87,300,000 are unused and unread. `v5.0-s4-ultra` stays the base and is the base of
+S5. In-match ms/move is unchanged (0.99–1.00×): the scorer's cost does not depend on the weights.
+
+Reading (inferred): the offline gains were 0.02–0.04 nats per decision on level-7 moves, against the
+1.4–2.0 that P4/P5's prior added; a playing effect of that size would be a few tenths of a point,
+which is what the screen shows and what 400 seeds cannot resolve (interval half-width ≈ 0.73). The
+level-6 prior is already close to what this feature set can say about level 7; a better prior would
+need a richer model (the interaction diagnostic gained another 0.02 nats only) or a different
+teacher signal (e.g. level-7 visit distributions rather than its single chosen move).
+
 <!-- N11:SCREEN -->
 
 <!-- S5 -->
