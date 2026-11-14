@@ -118,6 +118,13 @@ fn quarters() -> &'static Quarters {
     })
 }
 
+/// S6: `pieces_up_to(k)` for k = 0..=5.
+#[inline(always)]
+fn pieces_up_to_table() -> &'static [u32; 6] {
+    static FITS: OnceLock<[u32; 6]> = OnceLock::new();
+    FITS.get_or_init(|| std::array::from_fn(|k| pieces_up_to(k as u32)))
+}
+
 /* --- Position -------------------------------------------------------------------------------- */
 
 thread_local! {
@@ -258,6 +265,17 @@ impl Position {
         self.out == [1, 1, 1, 1]
     }
 
+    /// S6: squares no placement of `seat` may cover: occupied, or orthogonally next to its own.
+    #[inline(always)]
+    pub fn forbidden(&self, seat: usize) -> Mask {
+        let mut dst = EMPTY;
+        let edge = &self.edge_halo[seat];
+        for w in 0..WORDS {
+            dst[w] = self.occ[w] | edge[w];
+        }
+        dst
+    }
+
     /// `C_i`: empty cells diagonally adjacent to seat i and never orthogonally adjacent.
     #[inline(always)]
     pub fn open_corners(&self, seat: usize) -> Mask {
@@ -332,23 +350,32 @@ impl Position {
             next
         });
         let hand = self.hand[seat];
-        let occ_rows = board_rows(&self.occ);
-        let own_rows = board_rows(&self.own[seat]);
+        // S6: one forbidden window per corner instead of an occupied and an own window. A
+        // placement whose cells lie within 4 squares of the corner touches an own square
+        // orthogonally (`own & edge != 0`, edge unclipped, own zero off the board) exactly when one
+        // of its cells is in the seat's edge halo (orthogonal neighbours of own squares, own
+        // excluded) or is itself own (then occupied), so `(occ & cells) | (own & edge) != 0` is
+        // `(occ | edgeHalo) & cells != 0`.
+        let forbidden_rows = board_rows(&self.forbidden(seat));
         GEN_STAMP.with(|stamp| {
             let mut stamp = stamp.borrow_mut();
             let mut count = 0;
-            let (shapes, cover_shape, cover_list) = (&t.shapes[..], &t.cover_shape[..], &t.cover_list[..]);
+            let (shape_cells, cover_shape, cover_list) = (&t.shape_cells[..], &t.cover_shape[..], &t.cover_list[..]);
             for &cell in &corner_cells[..corners] {
                 let cell = cell as usize;
                 let (cx, cy) = (cell % BOARD_SIZE, cell / BOARD_SIZE);
-                let occ_window = local_window(&occ_rows, cx, cy);
-                let own_window = local_window(&own_rows, cx, cy);
+                let forbidden_window = local_window(&forbidden_rows, cx, cy);
                 // The cover list is piece-major, so walking only the pieces in hand visits the
                 // surviving candidates in the original order. Skipped ids would have failed the
                 // hand test anyway, so leaving them unstamped cannot change any later decision.
                 let base = cell * (PIECE_COUNT + 1);
                 let runs = &t.cover_piece_start[base..base + PIECE_COUNT + 1];
-                let mut bits = hand & ((1 << PIECE_COUNT) - 1);
+                // S6: pieces larger than the free squares reachable from the corner
+                // (`centre_reach`) have no legal placement here. Their ids are left unstamped; each
+                // is illegal on its own cells (it overlaps a forbidden square), so it fails the
+                // test at any other corner too and the output is unchanged.
+                let room = centre_reach(forbidden_window).count_ones().min(5);
+                let mut bits = hand & pieces_up_to_table()[room as usize] & ((1 << PIECE_COUNT) - 1);
                 while bits != 0 {
                     let piece = bits.trailing_zeros() as usize;
                     bits &= bits - 1;
@@ -359,8 +386,7 @@ impl Position {
                             continue;
                         }
                         stamp[id] = generation;
-                        let shape = &shapes[shape_index as usize];
-                        if (occ_window & shape.cells) | (own_window & shape.edge) != 0 {
+                        if forbidden_window & shape_cells[shape_index as usize] != 0 {
                             continue;
                         }
                         out[count] = id as i32;
@@ -404,6 +430,19 @@ impl Position {
     /// Applies `id` for the seat to move and advances the turn. Pair with [`Position::undo`].
     #[inline]
     pub fn apply(&mut self, id: i32) -> Undo {
+        self.apply_impl::<true>(id)
+    }
+
+    /// S6: [`Position::apply`] without maintaining the Zobrist hash, for rollouts, which never read
+    /// it. The hash is wrong until the matching [`Position::undo`], which restores it from the record
+    /// (passes in between XOR turn keys in pairs that their own unwinding cancels).
+    #[inline]
+    pub fn apply_unhashed(&mut self, id: i32) -> Undo {
+        self.apply_impl::<false>(id)
+    }
+
+    #[inline(always)]
+    fn apply_impl<const HASH: bool>(&mut self, id: i32) -> Undo {
         let t = placements();
         let z = zobrist();
         let seat = self.turn;
@@ -432,18 +471,25 @@ impl Position {
         self.hand[seat] &= !(1 << piece);
         self.hand_squares[seat] -= PIECE_SIZES[piece];
         self.played[seat] = 1;
-        for i in t.cell_start[m]..t.cell_start[m + 1] {
-            let key = t.cell_list[i as usize] as usize * SEAT_COUNT + seat;
-            self.hash_lo ^= z.cell_lo[key];
-            self.hash_hi ^= z.cell_hi[key];
+        if HASH {
+            for i in t.cell_start[m]..t.cell_start[m + 1] {
+                let key = t.cell_list[i as usize] as usize * SEAT_COUNT + seat;
+                self.hash_lo ^= z.cell_lo[key];
+                self.hash_hi ^= z.cell_hi[key];
+            }
+            let before = last_key(seat, self.last_piece[seat]);
+            let after = last_key(seat, piece as i32);
+            self.hash_lo ^= z.last_lo[before] ^ z.last_lo[after];
+            self.hash_hi ^= z.last_hi[before] ^ z.last_hi[after];
         }
-        let before = last_key(seat, self.last_piece[seat]);
-        let after = last_key(seat, piece as i32);
-        self.hash_lo ^= z.last_lo[before] ^ z.last_lo[after];
-        self.hash_hi ^= z.last_hi[before] ^ z.last_hi[after];
         self.last_piece[seat] = piece as i32;
         self.ply += 1;
-        self.advance_turn();
+        if HASH {
+            self.advance_turn();
+        } else {
+            let before = self.turn;
+            self.turn = (1..=SEAT_COUNT).map(|step| (before + step) % SEAT_COUNT).find(|&s| self.out[s] == 0).unwrap_or(before);
+        }
         record
     }
 

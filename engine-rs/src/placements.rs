@@ -111,6 +111,9 @@ pub struct PlacementTable {
     pub cover_shape: Vec<u16>,
     /// Distinct (cells, edge halo) shapes in the 11×11 window centred on the cover cell.
     pub shapes: Vec<LocalShape>,
+    /// `shapes[i].cells` alone (S6): the legality test against a forbidden window
+    /// (`occ | edgeHalo[seat]`) reads only the cells.
+    pub shape_cells: Vec<u128>,
 }
 
 /// Side of the local window around a cover cell. A placement covering cell `c` reaches at most 4
@@ -125,6 +128,43 @@ const WINDOW_RADIUS: isize = 5;
 pub struct LocalShape {
     pub cells: u128,
     pub edge: u128,
+}
+
+/// S6: the window squares a legal placement covering the centre square can use: squares not in
+/// `forbidden_window` reachable from the centre in at most 4 orthogonal steps through such squares.
+/// A legal placement's cells avoid the forbidden squares, contain the centre and are orthogonally
+/// connected within at most 5 squares, so they all lie in this set; a piece larger than the set has
+/// no legal placement here. Squares off the board count as free, which only enlarges the set.
+#[inline(always)]
+pub fn centre_reach(forbidden_window: u128) -> u128 {
+    const ALL: u128 = (1u128 << (WINDOW * WINDOW)) - 1;
+    const COL0: u128 = {
+        let mut m = 0u128;
+        let mut r = 0;
+        while r < WINDOW {
+            m |= 1u128 << (r * WINDOW);
+            r += 1;
+        }
+        m
+    };
+    const COL_LAST: u128 = COL0 << (WINDOW - 1);
+    let free = !forbidden_window & ALL;
+    let mut reach = window_bit(0, 0) & free;
+    for _ in 0..4 {
+        reach |= (((reach << 1) & !COL0) | ((reach >> 1) & !COL_LAST) | (reach << WINDOW) | (reach >> WINDOW)) & free;
+    }
+    reach
+}
+
+/// S6: per square count k (0..=128), the pieces of at most k squares.
+pub fn pieces_up_to(k: u32) -> u32 {
+    let mut mask = 0u32;
+    for (piece, &size) in PIECE_SIZES.iter().enumerate() {
+        if size as u32 <= k {
+            mask |= 1 << piece;
+        }
+    }
+    mask
 }
 
 #[inline(always)]
@@ -241,6 +281,7 @@ fn build() -> PlacementTable {
         edge_halo_count: vec![0.0; count],
         cover_shape: Vec::new(),
         shapes: Vec::new(),
+        shape_cells: Vec::new(),
     };
 
     let centre = (BOARD_SIZE as f64 - 1.0) / 2.0;
@@ -367,6 +408,7 @@ fn build() -> PlacementTable {
     for (shape, id) in index {
         shapes[id as usize] = shape;
     }
+    t.shape_cells = shapes.iter().map(|s| s.cells).collect();
     t.shapes = shapes;
     t
 }

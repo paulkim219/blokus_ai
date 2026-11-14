@@ -58,6 +58,8 @@ pub struct Playout {
     lgr: Option<ReplyTable>,
     /// The placement before the rollout's next move (-1 if none); kept only with `lgr`.
     lgr_prev: i32,
+    /// S6: `fits[k]` = the pieces of at most k squares (k = 0..=5).
+    fits: [u32; 6],
 }
 
 impl Playout {
@@ -78,6 +80,7 @@ impl Playout {
             weight_key: [u64::MAX; 3],
             lgr: None,
             lgr_prev: -1,
+            fits: std::array::from_fn(|k| pieces_up_to(k as u32)),
         }
     }
 
@@ -183,9 +186,11 @@ impl Playout {
         let pick = rng.next_int(corners);
         let cell = nth_set_bit(&corners_mask, pick);
         let (cx, cy) = (cell % BOARD_SIZE, cell / BOARD_SIZE);
-        let occ_window = local_window_of_mask(&position.occ, cx, cy);
-        let own_window = local_window_of_mask(&position.own[seat], cx, cy);
-        if self.scan_corner(t, cell, hand, occ_window, own_window, generation, limit, &mut count) {
+        // S6: one forbidden window (`occ | edgeHalo[seat]`) replaces the occupied and own windows
+        // (same test; see `Position::generate_from_corners`).
+        let forbidden = position.forbidden(seat);
+        let forbidden_window = local_window_of_mask(&forbidden, cx, cy);
+        if self.scan_corner(t, cell, hand, forbidden_window, generation, limit, &mut count) {
             corners_used += 1;
             if corners_used >= max_corners {
                 return count;
@@ -193,8 +198,7 @@ impl Playout {
         }
         to_indices(&corners_mask, &mut self.corner_cells);
         self.corner_cells.swap(pick, corners - 1);
-        let occ_rows = board_rows(&position.occ);
-        let own_rows = board_rows(&position.own[seat]);
+        let forbidden_rows = board_rows(&forbidden);
         let mut remaining = corners - 1;
         while remaining > 0 && count < limit {
             let pick = rng.next_int(remaining);
@@ -207,9 +211,8 @@ impl Playout {
             // cell's cover list lies inside the window, so the test decides exactly the same
             // candidates in exactly the same order.
             let (cx, cy) = (cell as usize % BOARD_SIZE, cell as usize / BOARD_SIZE);
-            let occ_window = local_window(&occ_rows, cx, cy);
-            let own_window = local_window(&own_rows, cx, cy);
-            if self.scan_corner(t, cell as usize, hand, occ_window, own_window, generation, limit, &mut count) {
+            let forbidden_window = local_window(&forbidden_rows, cx, cy);
+            if self.scan_corner(t, cell as usize, hand, forbidden_window, generation, limit, &mut count) {
                 corners_used += 1;
                 if corners_used >= max_corners {
                     return count;
@@ -224,7 +227,7 @@ impl Playout {
     /// already stamped in this `generation`) until `limit`; true if it found any.
     #[allow(clippy::too_many_arguments)]
     #[inline(always)]
-    fn scan_corner(&mut self, t: &PlacementTable, cell: usize, hand: u32, occ_window: u128, own_window: u128, generation: u32, limit: usize, count: &mut usize) -> bool {
+    fn scan_corner(&mut self, t: &PlacementTable, cell: usize, hand: u32, forbidden_window: u128, generation: u32, limit: usize, count: &mut usize) -> bool {
         // The same entries in the same order as a nested `while ... && count < limit` scan: the
         // limit is checked before each entry, so stopping right after the entry that reaches it
         // is the same thing.
@@ -232,17 +235,21 @@ impl Playout {
             return false;
         }
         let start = *count;
+        // S6: pieces larger than the free squares reachable from the corner have no legal
+        // placement here (`centre_reach`); leaving them out finds the same placements in the same
+        // order and stamps nothing they would not (only legal placements are stamped).
+        let room = centre_reach(forbidden_window).count_ones().min(5) as usize;
+        let hand = hand & self.fits[room];
         let piece_base = cell * (PIECE_COUNT + 1);
         let runs = &t.cover_piece_start[piece_base..piece_base + PIECE_COUNT + 1];
-        let (shapes, cover_shape, cover_list) = (&t.shapes[..], &t.cover_shape[..], &t.cover_list[..]);
+        let (shape_cells, cover_shape, cover_list) = (&t.shape_cells[..], &t.cover_shape[..], &t.cover_list[..]);
         let mut bits = hand & ((1 << PIECE_COUNT) - 1);
         while bits != 0 {
             let piece = bits.trailing_zeros() as usize;
             bits &= bits - 1;
             let (run_start, run_end) = (runs[piece] as usize, runs[piece + 1] as usize);
             for (&shape_index, &id) in cover_shape[run_start..run_end].iter().zip(&cover_list[run_start..run_end]) {
-                let shape = &shapes[shape_index as usize];
-                if (occ_window & shape.cells) | (own_window & shape.edge) != 0 {
+                if forbidden_window & shape_cells[shape_index as usize] != 0 {
                     continue;
                 }
                 let id = id as usize;
@@ -313,7 +320,7 @@ impl Playout {
             if self.lgr.is_some()
                 && let Some(reply) = self.last_good_reply(position, seat)
             {
-                let undo = position.apply(reply);
+                let undo = position.apply_unhashed(reply);
                 self.steps.push(Step::Move(undo));
                 self.lgr_prev = reply;
                 steps += 1.0;
@@ -360,7 +367,7 @@ impl Playout {
                     }
                 }
             };
-            let undo = position.apply(chosen);
+            let undo = position.apply_unhashed(chosen);
             self.steps.push(Step::Move(undo));
             if self.lgr.is_some() {
                 self.lgr_prev = chosen;
