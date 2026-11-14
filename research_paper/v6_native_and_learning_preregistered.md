@@ -746,3 +746,75 @@ every descent; `false` (every existing version) is byte-identical.
     88,500,000 → 88,700,000), no block started at or after 08:15.
   - Driver `engine-rs/scripts/pkg2-chain.sh` (waits for the running confirmation, reads it out, plays
     this confirmation, applies the final-base rule, then runs `s6d-post.sh`).
+- **2026-11-14 08:45 CST, v5.1 candidates (Stage 1: package constants and a first-place reward term;
+  Stage 2: subtree-reuse diagnostic; Stage 3: benchmark of an accepted v5.1). Fixed before any game of it
+  and after the clean cost run (which is part of the design).** Base: `engine-rs/configs/v5.0-ultra.json`
+  (= `v5.0-pk-ultra`, read −1.50 [−2.08, −0.93] and −2.06 [−2.60, −1.52] on 88,800,000 / 88,400,000).
+  Read so far: everything in `research_paper/v5_package_results.md`; no game on any seed at or above
+  89,000,000 exists in `tmp/` (checked).
+  - **New option R1, `native.reward.firstWeight` f (engine `9a8a515`), default 0 = off, in [0, 1], kind
+    "rank" only.** The rank reward's leading term `rank_i` (fraction of opponents beaten, ties half) is
+    replaced by `(1 − f)·rank_i + f·first_i`, with `first_i` = 1/t when seat i is one of the t seats
+    sharing the highest final score and 0 otherwise (so the first-place unit is shared fairly on ties and
+    sums to 1 over seats). Everything else is unchanged: `+ qualityWeight·tanh(qualitySlope·z_i)
+    − lengthWeight·(rank_i − ½)·tanh(qualitySlope·z_len)`, the length term still on `rank_i`. The new part
+    still runs from 0 (sole last) to 1 (sole first), so the reward's range and the other constants'
+    meaning (and the history bound) are unchanged; it changes only how the unit is spread over places:
+    the step from second to first is worth `(1 − f)/3 + f` against `(1 − f)/3` for each lower step,
+    i.e. `1 + 3f/(1 − f)` times as much. **Levels: f = 0.25 (first-place step worth 2× a lower step)
+    and f = 0.5 (4×)**, chosen as one moderate and one strong tilt towards winning; f = 1 (pure win/loss)
+    would discard the margin information that the rank reward carried last night. Identity with f absent:
+    complete search output on 300 positions × `v5.0-ultra`, `v5.0-s4-ultra`, `v5.0-p4-ultra`,
+    `v4.2-ultra` byte-identical to the S6 pin (`tmp/v51/identity/`, 1,200/1,200); `cargo test --release`
+    (31, with a new unit test) and `npm run native:build && npm run native:test` pass. Binary pinned in
+    `tmp/v51/bin` (`PROVENANCE.txt`, HEAD `9a8a515`).
+  - **Screen arms** (each one change from `v5.0-ultra`; configs from `engine-rs/scripts/v51_configs.py`,
+    groups in brackets): [rave] `R-w025` weight 0.25, `R-w1` weight 1.0, `R-eq30` equivalence 30,
+    `R-eq300` equivalence 300, `R-dd0` distanceDecay 0, `R-dd1` distanceDecay 1.0 — the option is bounded
+    to [0, 1] (an update k moves after the node in a simulation with L moves left counts 1 − d·k/L), so
+    the two arms on either side of 0.5 are its ends: no distance weighting, and weight falling linearly to
+    0 at the simulation's end; [reward] `W-q0` qualityWeight 0, `W-q05` qualityWeight 0.5, `W-f25`
+    firstWeight 0.25, `W-f50` firstWeight 0.5; [selection] `S-x01` priorLog exploration 0.1, `S-x04`
+    exploration 0.4, `S-def` `native.selection` removed (default rule); [other] `O-nolgr`
+    `native.lastGoodReply` removed, `O-iiv1` interiorInitVisits 1.
+  - **Clean cost (measured 08:35–08:38 on a quiet machine, before any game; `tmp/v51/cost/screen-cost.md`;
+    `p4_cost`, 150 recorded positions, own moves 3+, 2 threads, two rounds, the second in reverse
+    order):** × base R-w025 1.017, R-w1 0.965, R-eq30 0.970, R-eq300 0.994, R-dd0 0.983, R-dd1 0.992,
+    W-q0 1.006, W-q05 0.977, W-f25 0.978, W-f50 0.977, S-x01 0.974, S-x04 1.021, S-def 0.931, O-nolgr
+    1.010, O-iiv1 0.939. Every arm is at most 1.10×, so no screen arm needs an equal-time version.
+  - **Compute diagnostics (not candidates):** `D-base` (`v5.0-ultra`), `D-x2` (`iterationScale` 27.056),
+    `D-x05` (6.764), **200 seeds 89,100,000–89,100,199**. Slope b (advantage per doubling) =
+    (Δ(D-x2) − Δ(D-x05)) / 2, paired point estimates against D-base; b+ = max(b, 0).
+  - **Matches:** one Blokee seat vs three Pentobi 31.0 level-6 seats, Classic book, one Pentobi thread,
+    budget 300, 4 seat rotations per seed; advantage = Blokee score − mean of the other three, per seed;
+    paired differences by seed, 95% percentile bootstrap; first place = Blokee among the top scorers.
+    Screen: base then the 15 arms one at a time, then the diagnostics, 10 threads, **400 seeds
+    89,000,000–89,000,399**. Driver `engine-rs/scripts/v51-chain.sh` (self-driving), read-out and rule
+    `engine-rs/scripts/v51_report.py`.
+  - **Selection (replaces last night's rule):** an arm clears if its paired lower bound vs base is above
+    0. A clearing arm with clean cost c ≤ 1.10 competes with its screen point estimate Δ; one with
+    c > 1.10 is represented by `<arm>-ET` (`iterationScale` 13.528 / c) and competes with
+    **Δ_ET = Δ − b+ · log2(c)**, only if Δ_ET > 0. The two competing arms with the largest (expected)
+    point estimates are selected. If the competing arms span two or more groups, a combination `COMBO` is
+    also built from the best competing arm of each group (their changes applied together); its clean cost
+    is measured in the chain after the screen (nothing else running) and if above 1.10 it is confirmed
+    as `COMBO-ET` (13.528 / its cost). At most three arms are confirmed.
+  - **Confirmation:** fresh base arm and the selected arms, **400 seeds 89,200,000–89,200,399**, started
+    together (threads split, 10 in all rounded up), not started at or after 13:45 CST. **Accepted** if the
+    paired lower bound vs base is above 0, the paired first-place interval is not entirely below 0, and
+    the arm is at most 1.10× or an equal-time version. Of the accepted arms the one with the largest
+    confirmation point estimate is saved as **`engine-rs/configs/v5.1-ultra.json`**
+    (`v5.0-ultra.json` is not touched). If none is accepted, nothing is saved. Simplifications (`S-def`,
+    `O-nolgr`) that are null are recorded as "no measurable loss" candidates for a later clean-up, not
+    as v5.1.
+  - **Stage 3 (only if v5.1 is saved; each block only if started before 13:30 CST; descriptive, no
+    gate):** one `v5.1-ultra` seat against three `v5.0-ultra` seats (`blokee-match`, budget 300,
+    default opening randomisation), **200 seeds 89,400,000–89,400,199**; then one `v5.1-ultra` seat against
+    three level-7 seats, **200 seeds 89,300,000–89,300,199** (next to X4's −7.85 [−8.66, −7.03] for
+    `v5.0-ultra` on other seeds). (Order: the head-to-head first, as it is the shorter block.)
+  - **Stage 2 (diagnostic, no matches, no timing):** the share of the iteration budget already present,
+    at the next own turn, in the subtree under the moves actually played, on `v5.0-ultra`, by own-move
+    band, measured as in S4 (`tmp/s4/reuse`), on recorded games; no gate.
+  - Seed blocks reserved here: 89,000,000; 89,100,000; 89,200,000; 89,300,000; 89,400,000. Left
+    unplayed and unread: 83,100,000, 83,200,000, 84,800,000, 87,200,000, 87,300,000, 87,500,000,
+    88,200,000, 88,300,000.
