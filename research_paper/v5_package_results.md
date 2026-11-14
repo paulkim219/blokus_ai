@@ -61,6 +61,42 @@ The package does change the tree: it is deeper and more concentrated than the ba
 shape (depth-5 share 62.5% against 64.3%). Reading: the depth comes from priorLog (without it the tree is
 as shallow as the base), and RAVE pulls it back (without RAVE the tree is much deeper than level 6's).
 
+### Screen (measured; 400 seeds 88,000,000–88,000,399, one arm at a time, 10 threads; `tmp/pkg/screen.md`)
+
+Raw logs `tmp/pkg/screen/pkgs-<arm>.jsonl` (+ `.moves.jsonl`, `.timing.jsonl`). Paired differences by seed,
+95% percentile bootstrap; first place in percentage points. Clean cost from the table above.
+
+| Arm | Advantage vs L6 | First place | Paired Δ vs base | Paired Δ first place vs base | Paired Δ vs PKG | Paired Δ first place vs PKG | Clean cost |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| base (`v5.0-s4-ultra`) | −3.85 [−4.42, −3.28] | 18.6% | — | — | −3.00 [−3.76, −2.26] | −4.56 [−7.19, −1.94] | 1.00 |
+| PKG | −0.84 [−1.43, −0.26] | 23.2% | **+3.00 [+2.25, +3.76]** | **+4.56 [+2.00, +7.19]** | — | — | 2.10 |
+| PKG-ET (equal time) | −3.05 [−3.60, −2.48] | 18.9% | **+0.80 [+0.05, +1.54]** | +0.31 [−2.12, +2.81] | −2.21 [−2.83, −1.53] | −4.25 [−6.69, −1.75] | ≈1 |
+| PKG without RAVE | −3.24 [−3.75, −2.74] | 15.8% | +0.61 [−0.06, +1.29] | −2.88 [−5.19, −0.44] | **−2.40 [−3.09, −1.70]** | −7.44 [−9.88, −4.94] | 1.79 |
+| PKG without priorLog | −1.07 [−1.62, −0.55] | 21.9% | **+2.77 [+2.03, +3.51]** | +3.31 [+0.81, +5.94] | −0.23 [−0.93, +0.47] | −1.25 [−3.75, +1.38] | 2.07 |
+| PKG without all-move rollouts | −1.43 [−2.03, −0.83] | 20.4% | **+2.41 [+1.71, +3.14]** | +1.75 [−0.75, +4.19] | −0.59 [−1.33, +0.13] | −2.81 [−5.38, −0.31] | 1.18 |
+| PKG without rank reward | −2.64 [−3.26, −2.02] | 22.6% | **+1.20 [+0.51, +1.95]** | +3.94 [+1.38, +6.62] | **−1.80 [−2.50, −1.04]** | −0.62 [−3.31, +2.19] | 2.21 |
+| PKG without last-good-reply | −1.04 [−1.61, −0.47] | 22.4% | **+2.81 [+2.13, +3.52]** | +3.75 [+1.44, +6.12] | −0.19 [−0.92, +0.51] | −0.81 [−3.44, +1.88] | 2.14 |
+
+**What each element contributes inside the package** (the "paired Δ vs PKG" column; reading, on the
+screening seeds): the two elements that matter are **RAVE** (removing it costs −2.40 [−3.09, −1.70] and
+−7.4 pp of first place) and the **rank reward** (−1.80 [−2.50, −1.04]). Both were null or harmful when
+tested alone on the older bases (RAVE weight 0.5 at all nodes −1.10; P3B +0.65 pooled but −2.5 pp first
+place). priorLog (−0.23) and last-good-reply (−0.19) read as nothing inside the package; the all-move
+rollout −0.59 [−1.33, +0.13] for 1.8× of the time. So the package works as a system in the sense that
+RAVE and the rank reward, useless alone, carry it once combined with the prior-initialised full tree.
+Caveat: the screen selected nothing yet, and leave-one-out differences are on the same seeds that
+select.
+
+**Selection (preregistered rule, `tmp/pkg/selection.log`):** every arm except PKG without RAVE clears;
+the two largest point estimates, PKG (+3.00) and PKG without last-good-reply (+2.81), go to the
+confirmation on 88,100,000, each with its equal-time version (both cost above 1.25×): base, PKG,
+PKG-ET, PKG-noLGR, PKG-noLGR-ET, started together at 04:02, 2 threads each.
+
+**Amendment (Paul, 04:04; prereg `5322069`, `91bdeab`):** the rule ranked by point estimate and left
+out PKG without all-move rollouts, which keeps most of the gain at 1.18× cost. It is confirmed
+separately on 88,800,000 (base, equal iterations, equal time at `iterationScale` 13.528); final-base
+rule fixed in the amendment. Stage B was dropped (below).
+
 ## Stage C — second speed pass (S6, engine `ad66afb`)
 
 ### Profile (taken under match load, so relative shares only; `tmp/sc/sample-s4-loaded.txt`)
@@ -100,3 +136,10 @@ cap or a first-fit rather than first-corner scan.
 - `tests/s6.rs`: move generation equals brute-force legality on every position of 40 random games;
   `apply_unhashed` + `undo` restores position and hash. `cargo test --release` 30 tests pass;
   `npm run native:build && npm run native:test` pass.
+
+## Stage B — IIV1 replication: preregistered, not played
+
+Preregistered (`d02e16f`): `interiorInitVisits` 1 against the base after Stage A on 88,200,000 and
+88,300,000 (800 seeds). Dropped for tonight by Paul's change of plan at 04:04 (time went to the
+PKG-noROLL confirmation); the master driver was stopped before reaching it. Blocks 88,200,000 and
+88,300,000 are unplayed and unread.
