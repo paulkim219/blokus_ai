@@ -220,7 +220,11 @@ mirror and byte-identical self-play; `research_paper/v5_p4_p5_candidate_generati
   search's simulations (cleared at each search, each sample added before it is standardised); `z_len`
   is the game length in placements standardised the same way. It replaces the value of every finished
   game (rollout end, terminal tree node, all seats sealed; the length term is left out where the
-  packer solved a region, as its piece count is unknown). The truncated-rollout evaluation path
+  packer solved a region, as its piece count is unknown). `firstWeight` f (v5.1 R1, default 0 = off,
+  in [0, 1], kind `"rank"` only) replaces the leading `rank_i` by `(1 − f)·rank_i + f·first_i`, where
+  `first_i` = 1/t if seat i is one of the t seats sharing the highest score and 0 otherwise; that part
+  still runs from 0 to 1, so the other constants keep their scale (the length term still uses `rank_i`).
+  The truncated-rollout evaluation path
   (never reached at `playoutCutoff` 84) keeps the old value.
 - Refused in `unsupported()`: unknown policy or kind, non-finite or out-of-range weights,
   `qualitySlope` ≤ 0, `reward` kind `"rank"` with `native.net` (its value channel uses the old

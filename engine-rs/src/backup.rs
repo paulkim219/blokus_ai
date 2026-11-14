@@ -63,6 +63,13 @@ pub fn rank_from(scores: &[f64; SEAT_COUNT]) -> [f64; SEAT_COUNT] {
     })
 }
 
+/// 1/t for each of the t seats sharing the highest score, 0 for the others (sums to 1).
+pub fn first_from(scores: &[f64; SEAT_COUNT]) -> [f64; SEAT_COUNT] {
+    let top = scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let tied = scores.iter().filter(|&&s| s == top).count() as f64;
+    std::array::from_fn(|seat| if scores[seat] == top { 1.0 / tied } else { 0.0 })
+}
+
 pub fn value_vector(scores: &[f64; SEAT_COUNT], scale: f64, rank_blend: f64, aggregation: Aggregation) -> [f64; SEAT_COUNT] {
     let margins = margins_from(scores, aggregation);
     let ranks = rank_from(scores);
@@ -120,8 +127,14 @@ impl Running {
 /// quantity over this search's simulations, and `z_len` the game length (placements) standardised
 /// the same way. Statistics are cleared at the start of every search; each call adds its sample
 /// before standardising. Weights and slope are config values (`RewardOptions`).
+///
+/// v5.1 R1 (`firstWeight` f > 0): the leading `rank_i` is replaced by `(1 − f)·rank_i + f·first_i`,
+/// `first_i` = 1/t when seat i is one of the t seats sharing the highest score, else 0. That part
+/// still runs from 0 (last alone) to 1 (first alone), so the bonus and length terms keep their
+/// scale; the length term still multiplies `rank_i − ½`. At f = 0 nothing is computed.
 #[derive(Clone, Debug)]
 pub struct RankReward {
+    first_weight: f64,
     quality_weight: f64,
     slope: f64,
     length_weight: f64,
@@ -131,7 +144,12 @@ pub struct RankReward {
 
 impl RankReward {
     pub fn new(quality_weight: f64, slope: f64, length_weight: f64) -> RankReward {
-        RankReward { quality_weight, slope, length_weight, margin: [Running::default(); SEAT_COUNT], length: Running::default() }
+        RankReward { first_weight: 0.0, quality_weight, slope, length_weight, margin: [Running::default(); SEAT_COUNT], length: Running::default() }
+    }
+
+    pub fn with_first_weight(mut self, first_weight: f64) -> RankReward {
+        self.first_weight = first_weight;
+        self
     }
 
     pub fn clear(&mut self) {
@@ -151,6 +169,7 @@ impl RankReward {
             _ => 0.0,
         };
         let total: f64 = scores.iter().sum();
+        let first = if self.first_weight > 0.0 { first_from(scores) } else { [0.0; SEAT_COUNT] };
         std::array::from_fn(|seat| {
             let margin = scores[seat] - (total - scores[seat]) / (SEAT_COUNT as f64 - 1.0);
             let mut quality = 0.0;
@@ -159,7 +178,12 @@ impl RankReward {
                 stats.add(margin);
                 quality = stats.z(margin).map_or(0.0, |z| (self.slope * z).tanh());
             }
-            ranks[seat] + self.quality_weight * quality - self.length_weight * (ranks[seat] - 0.5) * length_term
+            let place = if self.first_weight > 0.0 {
+                (1.0 - self.first_weight) * ranks[seat] + self.first_weight * first[seat]
+            } else {
+                ranks[seat]
+            };
+            place + self.quality_weight * quality - self.length_weight * (ranks[seat] - 0.5) * length_term
         })
     }
 }
@@ -173,6 +197,24 @@ mod tests {
         let mut r = RankReward::new(0.0, 1.0, 0.0);
         let v = r.value(&[3.0, -2.0, 3.0, -10.0], Some(70.0));
         assert_eq!(v, [5.0 / 6.0, 1.0 / 3.0, 5.0 / 6.0, 0.0]);
+    }
+
+    #[test]
+    fn rank_reward_first_weight() {
+        // Zero first weight: exactly the rank.
+        let mut r = RankReward::new(0.0, 1.0, 0.0).with_first_weight(0.0);
+        assert_eq!(r.value(&[3.0, -2.0, 3.0, -10.0], None), [5.0 / 6.0, 1.0 / 3.0, 5.0 / 6.0, 0.0]);
+        // f = 0.5: the two tied leaders share the first-place unit.
+        let mut r = RankReward::new(0.0, 1.0, 0.0).with_first_weight(0.5);
+        let v = r.value(&[3.0, -2.0, 3.0, -10.0], None);
+        let want = [0.5 * 5.0 / 6.0 + 0.25, 0.5 / 3.0, 0.5 * 5.0 / 6.0 + 0.25, 0.0];
+        for s in 0..SEAT_COUNT {
+            assert!((v[s] - want[s]).abs() < 1e-12, "{v:?}");
+        }
+        // A sole winner gets 1, last gets 0, whatever f is.
+        let v = r.value(&[9.0, 1.0, 2.0, 0.0], None);
+        assert_eq!((v[0], v[3]), (1.0, 0.0));
+        assert_eq!(first_from(&[1.0, 1.0, 1.0, 1.0]), [0.25; SEAT_COUNT]);
     }
 
     #[test]

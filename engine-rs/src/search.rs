@@ -259,7 +259,7 @@ impl V12Search {
         let net_options = params.native.as_ref().and_then(|n| n.net.clone());
         let candidates = params.native.as_ref().and_then(|n| n.candidates.clone());
         let reward = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
-            .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight));
+            .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight).with_first_weight(r.first_weight));
         let rollout_local = params.native.as_ref().and_then(|n| n.rollout.as_ref())
             .is_some_and(|r| r.all_moves() && r.local_weight != 0.0);
         let rollout_all = params.native.as_ref().and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves());

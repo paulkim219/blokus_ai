@@ -460,7 +460,8 @@ pub struct RewardOptions {
     /// `qualityWeight · tanh(qualitySlope · z)` with z the seat's margin over the mean opponent
     /// standardised by this search's running mean and deviation, minus
     /// `lengthWeight · (rank − ½) · tanh(qualitySlope · z_len)` with z_len the standardised game
-    /// length (placements).
+    /// length (placements). With `firstWeight` f > 0 the rank term becomes
+    /// `(1 − f)·rank + f·first`, first = 1/t for each of the t seats sharing the top score, else 0.
     #[serde(default = "blend")]
     pub kind: String,
     #[serde(default)]
@@ -469,6 +470,13 @@ pub struct RewardOptions {
     pub quality_slope: f64,
     #[serde(default)]
     pub length_weight: f64,
+    /// v5.1 R1: share of the rank term moved to a first-place indicator (ties shared). 0 is off.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub first_weight: f64,
+}
+
+fn is_zero(x: &f64) -> bool {
+    *x == 0.0
 }
 
 fn blend() -> String {
@@ -591,6 +599,8 @@ impl BitboardParams {
             reject(!(r.quality_weight >= 0.0 && r.quality_weight.is_finite()), "native.reward.qualityWeight must be >= 0");
             reject(!(r.quality_slope > 0.0 && r.quality_slope.is_finite()), "native.reward.qualitySlope must be > 0");
             reject(!(r.length_weight >= 0.0 && r.length_weight.is_finite()), "native.reward.lengthWeight must be >= 0");
+            reject(!(0.0..=1.0).contains(&r.first_weight), "native.reward.firstWeight must be in [0, 1]");
+            reject(r.first_weight > 0.0 && !r.rank(), "native.reward.firstWeight needs kind rank");
             // The E6 value channel and the leaf-material blend mix the old reward's scale into Q.
             reject(r.rank() && native.is_some_and(|n| n.net.is_some()), "native.reward rank with native.net");
             reject(r.rank() && s.leaf_material_blend > 0.0, "native.reward rank with leafMaterialBlend");
