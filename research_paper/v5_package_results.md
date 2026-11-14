@@ -84,13 +84,52 @@ tested alone on the older bases (RAVE weight 0.5 at all nodes −1.10; P3B +0.65
 place). priorLog (−0.23) and last-good-reply (−0.19) read as nothing inside the package; the all-move
 rollout −0.59 [−1.33, +0.13] for 1.8× of the time. So the package works as a system in the sense that
 RAVE and the rank reward, useless alone, carry it once combined with the prior-initialised full tree.
-Caveat: the screen selected nothing yet, and leave-one-out differences are on the same seeds that
-select.
+Caveat: leave-one-out differences are on the same seeds that select.
 
 **Selection (preregistered rule, `tmp/pkg/selection.log`):** every arm except PKG without RAVE clears;
 the two largest point estimates, PKG (+3.00) and PKG without last-good-reply (+2.81), go to the
 confirmation on 88,100,000, each with its equal-time version (both cost above 1.25×): base, PKG,
 PKG-ET, PKG-noLGR, PKG-noLGR-ET, started together at 04:02, 2 threads each.
+
+### Confirmation of the preregistered selection (measured; 400 seeds 88,100,000–88,100,399, five arms started together, 2 threads each; `tmp/pkg/confirm.md`, raw `tmp/pkg/confirm/pkgc-*.jsonl`)
+
+| Arm | Advantage vs L6 | First place | Paired Δ vs base | Paired Δ first place vs base |
+|---|---:|---:|---:|---:|
+| base (`v5.0-s4-ultra`) | −3.60 [−4.18, −3.03] | 18.5% | — | — |
+| PKG (2.10×) | −0.80 [−1.46, −0.19] | 22.8% | +2.80 [+2.06, +3.53] | +4.31 [+1.88, +6.69] |
+| PKG-ET (`iterationScale` 7.609) | −2.30 [−2.86, −1.73] | 19.4% | **+1.31 [+0.61, +2.02]** | +0.94 [−1.50, +3.38] |
+| PKG-noLGR (2.14×) | +0.07 [−0.54, +0.70] | 25.7% | +3.67 [+2.93, +4.44] | +7.19 [+4.50, +9.88] |
+| PKG-noLGR-ET (`iterationScale` 7.469) | −2.33 [−2.89, −1.77] | 19.0% | **+1.28 [+0.58, +2.01]** | +0.50 [−2.00, +2.94] |
+
+Decision (preregistered rule): PKG and PKG-noLGR both hold at equal iterations and at equal time, so
+both are **accepted**; the saved configs are the equal-time ones, and PKG-ET (larger point estimate)
+was the rule's new base, saved as `engine-rs/configs/v5.0-pkg-et-ultra.json`. (PKG-noLGR at equal
+iterations reads +0.87 [+0.12, +1.65] against PKG on these seeds, against +0.19 on the screen seeds;
+descriptive only.) The PKG-noLGR-ET config was not saved
+under its own name (the rule saves one); it is `tmp/pkg/configs/PKG-noLGR-ET.json`.
+
+### PKG-noROLL confirmation (amendment; measured; 400 seeds 88,800,000–88,800,399, three arms together, 3 threads each; `tmp/pkg/confirm2.md`, raw `tmp/pkg/confirm2/pkgr-*.jsonl`)
+
+| Arm | Advantage vs L6 | First place | Paired Δ vs base | Paired Δ first place vs base | Clean cost |
+|---|---:|---:|---:|---:|---:|
+| base (`v5.0-s4-ultra`) | −3.39 [−3.93, −2.84] | 19.8% | — | — | 1.00 |
+| PKG-noROLL (`iterationScale` 16) | −1.75 [−2.33, −1.19] | 19.8% | **+1.64 [+0.89, +2.37]** | +0.06 [−2.50, +2.50] | 1.18 |
+| PKG-noROLL-ET (`iterationScale` 13.528) | −1.50 [−2.08, −0.93] | 20.0% | **+1.89 [+1.15, +2.65]** | +0.25 [−2.50, +3.00] | ≈1 |
+
+Decision (amendment rule): PKG-noROLL-ET holds → **accepted**, saved as
+`engine-rs/configs/v5.0-pk-ultra.json` = `v5.0-s4-ultra` + RAVE (R6S) + priorLog 0.2 + rank reward (P3B)
++ last-good-reply (L7), `iterationScale` 13.528, sampled rollouts.
+
+### Final base (rule fixed in the amendment)
+
+`v5.0-pk-ultra` (PKG-noROLL-ET accepted). It is preferred to the also-accepted `v5.0-pkg-et-ultra` by
+the amendment's rule, not by a head-to-head comparison (the two were never played against each other
+or on the same seeds).
+
+**First place did not move at equal time in any package arm** (measured): PKG-ET +0.31 / +0.94 pp,
+PKG-noLGR-ET +0.50 pp, PKG-noROLL-ET +0.25 pp, every interval spanning 0. The equal-time gain is in
+margin, not in wins (reading: consistent with the rank reward's earlier pattern of more margin, fewer
+wins, here cancelled by the stronger search). At equal iterations the package arms did gain first place.
 
 **Amendment (Paul, 04:04; prereg `5322069`, `91bdeab`):** the rule ranked by point estimate and left
 out PKG without all-move rollouts, which keeps most of the gain at 1.18× cost. It is confirmed
@@ -143,3 +182,50 @@ Preregistered (`d02e16f`): `interiorInitVisits` 1 against the base after Stage A
 88,300,000 (800 seeds). Dropped for tonight by Paul's change of plan at 04:04 (time went to the
 PKG-noROLL confirmation); the master driver was stopped before reaching it. Blocks 88,200,000 and
 88,300,000 are unplayed and unread.
+
+## Stage C — S6 results
+
+- Identity on the final base `v5.0-pk-ultra` through the Stage-A pin and the S6 binary: 300 searches
+  byte-identical (`tmp/s6/identity/base-*.txt`).
+- **Clean cost** (measured on a quiet machine, 05:50, `p4_cost` 150 positions, 2 threads, two alternating
+  rounds; `tmp/s6/cost/`): new / old ms/move on `v5.0-pk-ultra` = **0.8448** (−15.5%), past the 10% line.
+- Re-timed `S6T`: `iterationScale` 13.528 → 16.013; check S6T (new binary) / base (old binary) = 0.971,
+  inside [0.97, 1.03], no correction.
+- **Confirmation** (400 seeds 88,400,000–88,400,399, base and S6T together on the S6 binary;
+  `tmp/s6/confirm.md`, raw `tmp/s6/confirm/s6c-*.jsonl`): base (`v5.0-pk-ultra`) −2.06 [−2.60, −1.52],
+  first place 19.2%; S6T −1.89 [−2.39, −1.38], 19.5%; paired **+0.17 [−0.48, +0.83]**, first place
+  +0.25 pp [−2.06, +2.62]. **Not accepted**; nothing saved.
+- The S6 code change stays in as a pure speed-up (identical output) at the old `iterationScale`:
+  `v5.0-pk-ultra` plays the same moves about 15% faster. Reading of the null re-timing: about 18% more
+  iterations (16.013/13.528) bought nothing measurable on this base, below what the ~+2 per doubling
+  measured on `v5.0-p4i-ultra` would predict (+0.5 for 18%), which this test could not have resolved
+  anyway (interval half-width ±0.65).
+
+## Stage D — X4 benchmark of `v5.0-pk-ultra` (measured, descriptive, no gate; S6 binary; `tmp/x4/`)
+
+| Match (200 seeds each) | `v5.0-pk-ultra` (X4) | First place | `v5.0-p4i-ultra` (X3, other seeds, not paired) |
+|---|---:|---:|---:|
+| 1 × Blokee vs 3 × level 7 (88,600,000) | **−7.85 [−8.66, −7.03]** | 11.3% | −9.72 [−10.54, −8.87], 10.0% |
+| 1 × Blokee vs 3 × level 5 (88,500,000) | **+2.82 [+2.02, +3.62]** | 35.4% | +0.75 [−0.02, +1.48], 31.0% |
+| 1 × level 6 vs 3 × Blokee, Pentobi's advantage (88,700,000) | **+0.26 [−0.67, +1.21]** | 32.5% (Pentobi) | +3.66 [+2.91, +4.43], 41.5% |
+
+Raw logs `tmp/x4/x4-l7.jsonl`, `x4-l5.jsonl`, `x4-rev.jsonl` (+ `.moves`, `.timing`). Reading: the new
+base now clearly beats level 5, is about 2 points closer to level 7 than `v5.0-p4i-ultra` was, and a lone
+level-6 seat no longer gains measurably against three copies of it. Against three level-6 seats it read
+−1.50 / −2.06 on two blocks (88,800,000 equal-time arm; 88,400,000 base arm).
+
+## Seed blocks
+
+Played: 88,000,000 (screen), 88,100,000 (confirmation), 88,800,000 (PKG-noROLL confirmation),
+88,400,000 (S6), 88,600,000, 88,500,000, 88,700,000 (X4). Preregistered and unplayed (Stage B dropped):
+88,200,000, 88,300,000. Untouched and unread: 83,100,000, 83,200,000, 84,800,000, 87,200,000,
+87,300,000, 87,500,000.
+
+## Candidates for a later screen (not run)
+
+- The package without the all-move rollout and also without priorLog and/or without last-good-reply
+  (inside the package −0.23 [−0.93, +0.47] and −0.19 [−0.92, +0.51] on the screen; a smaller package may
+  do as well).
+- RAVE weight and equivalence, never tuned on this tree (RAVE is the element that carries the package).
+- From S6, changes that alter results and need their own test: a smaller rollout move cap, a different
+  corner scan in rollouts.

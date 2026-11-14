@@ -319,8 +319,13 @@ rollouts); no code or constant from Pentobi, every number a config value.
   with `lastGoodReply` (both would bypass it).
 - Refused in `unsupported()`: unknown rule or scope, `exploration` or `countOffset` ≤ 0, `cutoff`
   outside [0, 1], `interiorFull` without the fitted interior scorer, negative `interiorInitVisits`,
-  `selection` (rule `"priorLog"` or a cut-off) with `rave`, `net` or `prior`, `interiorInitVisits`
-  with `rave`, negative opening numbers, `rolloutMinSize` above 5.
+  `selection` (rule `"priorLog"` or a cut-off) with `net` or `prior`, negative opening numbers,
+  `rolloutMinSize` above 5.
+- Package (P12, 2026-11-14): `rave` combines with value-initialised children and with `"priorLog"`.
+  RAVE's β counts a child's initial visits (`initVisits` at the root, `interiorInitVisits` inside) as
+  observations behind Q; `"priorLog"` reads the RAVE-blended Q and keeps its denominator (real visits
+  + k), so AMAF samples move Q, not exploration; the cut-off stays exact. Base config with all of it
+  (sampled rollouts): `configs/v5.0-pk-ultra.json` (`research_paper/v5_package_results.md`).
 - Diagnostics: `examples/p910_probe.rs` (`shape`: tree shape of each config on recorded positions;
   `pentobi`: the same read from Pentobi's `save_tree` and log through GTP; `opening`: Pentobi's
   opening centre distances and piece sizes in recorded games) and `Engine::tree_shape`.
