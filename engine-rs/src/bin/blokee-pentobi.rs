@@ -4,7 +4,11 @@
 //! `--mode one-blokee` puts one Blokee seat against three Pentobi seats; `--mode one-pentobi` one
 //! Pentobi seat against three Blokee seats; `--mode two-two` two Blokee and two Pentobi seats, each
 //! seed six times (every pair of Blokee seats: four adjacent in turn order, two alternating; the
-//! JSONL `seat` is the pair, e.g. "blue+green", with `seats`, `arrangement` and `blokeeAdvantage`). One `pentobi-gtp` process per game plays every Pentobi
+//! JSONL `seat` is the pair, e.g. "blue+green", with `seats`, `arrangement` and `blokeeAdvantage`).
+//! Round 3: `--gtp-processes per-seat` gives every Pentobi seat its own `pentobi-gtp` process (each fed
+//! every move; default `shared`, one process for all Pentobi seats). `--mode pentobi-control` plays
+//! Pentobi in all four seats: the rotated lone seat in its own process, the other three in one shared
+//! process (the JSONL `seat` is the lone seat; `challenger` is "<pentobi>-own-process"). One `pentobi-gtp` process per game plays every Pentobi
 //! colour and receives every Blokee move with `play`. Blokee seats search and choose exactly as the
 //! match harness does (first 8 plies sampled from the top 3). The JSONL is blokee-match's, scored
 //! by Blokee's own rules; score it with `npx tsx scripts/aggregateMatches.ts <out>` only.
@@ -33,7 +37,7 @@
 use blokee::config::BitboardParams;
 use blokee::engine::Engine;
 use blokee::game::{GameOptions, Policy, play_game};
-use blokee::gtp::{Gtp, Mapping, Player, play_bridge_game, ranks, replay_into_gtp};
+use blokee::gtp::{play_bridge_game_multi, Gtp, Mapping, Player, play_bridge_game, ranks, replay_into_gtp};
 use blokee::position::SEAT_COLORS;
 use blokee::rollout_policy::RolloutPolicy;
 use serde_json::json;
@@ -179,13 +183,26 @@ fn main() {
         "one-blokee" => (true, false),
         "one-pentobi" => (false, false),
         "two-two" => (true, true),
-        other => panic!("--mode must be one-blokee, one-pentobi or two-two, not {other}"),
+        "pentobi-control" => (false, false),
+        other => panic!("--mode must be one-blokee, one-pentobi, two-two or pentobi-control, not {other}"),
+    };
+    let control = mode == "pentobi-control";
+    let per_seat = match &arg(&argv, "gtp-processes", "shared")[..] {
+        "shared" => false,
+        "per-seat" => true,
+        other => panic!("--gtp-processes must be shared or per-seat, not {other}"),
     };
     let slots = if two_two { PAIRS.len() } else { 4 };
     let slot_name = move |k: usize| if two_two { pair_name(k) } else { DISPLAY[k].to_string() };
     let blokee_name = arg(&argv, "blokee-name", &stem(&blokee_path));
     let pentobi_name = format!("pentobi-{}-L{}", version.trim_start_matches("Pentobi ").replace(' ', "_"), spec.level);
-    let (challenger_name, champion_name) = if one_blokee { (blokee_name.clone(), pentobi_name.clone()) } else { (pentobi_name.clone(), blokee_name.clone()) };
+    let (challenger_name, champion_name) = if control {
+        (format!("{pentobi_name}-own-process"), pentobi_name.clone())
+    } else if one_blokee {
+        (blokee_name.clone(), pentobi_name.clone())
+    } else {
+        (pentobi_name.clone(), blokee_name.clone())
+    };
     let label = arg(&argv, "label", &format!("{challenger_name}-vs-{champion_name}"));
     let out = arg(&argv, "out", &format!("tmp/x1/{label}.jsonl"));
     let timing_out = format!("{}.timing.jsonl", out.trim_end_matches(".jsonl"));
@@ -256,8 +273,31 @@ fn main() {
                     if two_two {
                         players[PAIRS[display_seat].1] = lone;
                     }
+                    if control {
+                        players = [Player::Gtp; 4];
+                    }
                     let game_started = Instant::now();
-                    let result = spec.spawn(seed).and_then(|mut gtp| play_bridge_game(&mut pool, players, &options(seed), &mut gtp, &mapping, check_legal));
+                    let result = if control || per_seat {
+                        // Process 0 plays the shared seats; the lone control seat, or every Pentobi seat
+                        // with per-seat processes, gets its own.
+                        let mut seat_process = [0usize; 4];
+                        let mut n = 1;
+                        for s in 0..4 {
+                            if matches!(players[s], Player::Gtp) && (per_seat || (control && s == challenger_seat)) {
+                                seat_process[s] = if per_seat { n - 1 } else { 1 };
+                                if per_seat {
+                                    n += 1;
+                                }
+                            }
+                        }
+                        let count = if per_seat { (n - 1).max(1) } else { 2 };
+                        (0..count)
+                            .map(|_| spec.spawn(seed))
+                            .collect::<Result<Vec<_>, _>>()
+                            .and_then(|mut gtps| play_bridge_game_multi(&mut pool, players, &options(seed), &mut gtps, seat_process, &mapping, check_legal))
+                    } else {
+                        spec.spawn(seed).and_then(|mut gtp| play_bridge_game(&mut pool, players, &options(seed), &mut gtp, &mapping, check_legal))
+                    };
                     let record = match result {
                         Ok(r) => r,
                         Err(e) => {

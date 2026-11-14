@@ -381,6 +381,22 @@ pub fn play_bridge_game(
     map: &Mapping,
     check_legal: bool,
 ) -> Result<BridgeRecord, String> {
+    play_bridge_game_multi(pool, players, options, std::slice::from_mut(gtp), [0; SEAT_COUNT], map, check_legal)
+}
+
+/// Round 3 (B): as `play_bridge_game`, with several GTP processes. `seat_process[s]` is the process
+/// that plays GTP seat s (`genmove`, legality checks); every move (Blokee's or a process's) is sent
+/// with `play` to every process that did not make it, so each process sees the whole game. With one
+/// process and `seat_process` all 0 the commands are exactly those of `play_bridge_game`.
+pub fn play_bridge_game_multi(
+    pool: &mut [Engine],
+    players: [Player; SEAT_COUNT],
+    options: &GameOptions,
+    gtps: &mut [Gtp],
+    seat_process: [usize; SEAT_COUNT],
+    map: &Mapping,
+    check_legal: bool,
+) -> Result<BridgeRecord, String> {
     let budget = options.iteration_budget.ok_or("the bridge plays iteration-budgeted searches only")?;
     let mut rng = Rng::new(options.seed);
     let mut opening_rng = Rng::new(options.seed ^ 0x9e37_79b9);
@@ -394,15 +410,16 @@ pub fn play_bridge_game(
         let colour = &map.colour[seat];
         let ours_has_move = state.has_move(seat);
         let at = format!("ply {plies}, seat {seat} (GTP colour {colour})");
+        let own = seat_process[seat];
         if check_legal {
-            let theirs = gtp_legal(gtp, map, seat)?;
+            let theirs = gtp_legal(&mut gtps[own], map, seat)?;
             compare_legal(&state, seat, theirs, &at)?;
             legal_checks += 1;
         }
         let chosen: Option<i32> = match players[seat] {
             Player::Blokee(index) => {
                 if !ours_has_move {
-                    let theirs = gtp_legal(gtp, map, seat)?;
+                    let theirs = gtp_legal(&mut gtps[own], map, seat)?;
                     if !theirs.is_empty() {
                         return Err(format!("pass disagreement at {at}: Blokee has no move, GTP lists {}", theirs.len()));
                     }
@@ -418,13 +435,15 @@ pub fn play_bridge_game(
                     let mv = choose_ranked(&ranked, plies, options, &mut opening_rng)
                         .ok_or_else(|| format!("Blokee returned no move at {at} although it has one"))?;
                     let text = map.to_gtp(mv);
-                    gtp.command(&format!("play {colour} {text}")).map_err(|e| format!("GTP rejected Blokee's move {text} at {at}: {e}"))?;
+                    for gtp in gtps.iter_mut() {
+                        gtp.command(&format!("play {colour} {text}")).map_err(|e| format!("GTP rejected Blokee's move {text} at {at}: {e}"))?;
+                    }
                     Some(mv)
                 }
             }
             Player::Gtp => {
                 let started = Instant::now();
-                let reply = gtp.command(&format!("genmove {colour}")).map_err(|e| format!("genmove failed at {at}: {e}"))?;
+                let reply = gtps[own].command(&format!("genmove {colour}")).map_err(|e| format!("genmove failed at {at}: {e}"))?;
                 let elapsed = started.elapsed().as_secs_f64() * 1000.0;
                 let reply = reply.trim().to_string();
                 if reply.eq_ignore_ascii_case("pass") {
@@ -440,6 +459,11 @@ pub fn play_bridge_game(
                         return Err(format!("GTP played {reply} at {at}, which Blokee holds illegal"));
                     }
                     move_ms[seat].push(elapsed);
+                    for (p, gtp) in gtps.iter_mut().enumerate() {
+                        if p != own {
+                            gtp.command(&format!("play {colour} {reply}")).map_err(|e| format!("process {p} rejected {reply} at {at}: {e}"))?;
+                        }
+                    }
                     Some(mv)
                 }
             }
@@ -460,8 +484,14 @@ pub fn play_bridge_game(
         return Err(format!("game did not finish in {} plies", options.max_plies));
     }
     let scores = state.scores();
-    let points = gtp_points(gtp, map)?;
+    let points = gtp_points(&mut gtps[0], map)?;
     compare_scores(&scores, &points)?;
+    for (p, gtp) in gtps.iter_mut().enumerate().skip(1) {
+        let other = gtp_points(gtp, map)?;
+        if other != points {
+            return Err(format!("process {p} final points {other:?} differ from process 0's {points:?}"));
+        }
+    }
     Ok(BridgeRecord { scores, gtp_points: points, moves, plies, move_ms, legal_checks })
 }
 
