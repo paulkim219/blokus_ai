@@ -576,3 +576,60 @@ every descent; `false` (every existing version) is byte-identical.
     first-place difference reported beside the advantage in any case. No other arm.
   - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm, value or seed is added
     after any result is read without a new dated entry.
+- **2026-11-13 22:26 CST, N11 (the move prior re-fitted on level-7 games), fixed before any N11 game.**
+  Read so far: everything above, including the S4 confirmation (accepted: new base `v5.0-s4-ultra`),
+  and the N11 offline fit (no game outcome used; `tmp/n11/fit/report.md`): on held-out level-7
+  decisions, own moves 3+, mean log-likelihood current −3.131, (a) level 7 only −3.105, (b) pooled
+  −3.105, (c) pooled with one band per own move 3–14 −3.088; held-out level 6: −2.918 / −2.933 / −2.926 /
+  −2.913. Train and held-out agree within 0.01 (capacity-limited), hence variant (c).
+  - **Base:** `engine-rs/configs/v5.0-s4-ultra.json`, binary `tmp/s4/bin` (S4 pin).
+  - **Arms** (each the base with only `native.candidates.model` replaced; weights committed with this
+    entry): `L7` = `ml/n11-prior-weights-L7.json`; `pooled` = `ml/n11-prior-weights-pooled.json`;
+    `pooledfine` = `ml/n11-prior-weights-pooled-fine.json`. All load and search (liveness on 2
+    positions, outcome-free).
+  - **Screen:** base, then each arm, one after another, 10 threads, as the lone seat against three
+    Pentobi level-6 seats (Pentobi 31.0, book on, one thread, budget 300, 4 games per seed), **400 seeds
+    87,100,000–87,100,399**. Paired difference arm − base by seed (95% percentile bootstrap); paired
+    first-place difference reported beside every arm.
+  - **Selection:** an arm clears if its paired advantage lower bound is above 0; the cleared arm with
+    the largest point estimate is confirmed; none clears → no confirmation (a null).
+  - **Cost:** the selected arm's clean ms/move against base (`p4_cost`, 150 X1 positions, own moves 3+,
+    2 threads), measured in the chain after the screen; above 1.25× an equal-time arm (`iterationScale`
+    / ratio) plays the confirmation seeds alongside and must also clear.
+  - **Confirmation:** base and the selected arm started together on **400 fresh seeds
+    87,200,000–87,200,399**. **Accepted** if the paired advantage lower bound is above 0 and the paired
+    first-place interval does not lie entirely below 0 (advantage clears but first place entirely below
+    0: reported, not saved). An accepted arm is saved as `engine-rs/configs/v5.0-n11-ultra.json` and
+    becomes the base for S5.
+  - **If accepted, a reported benchmark (no gate):** the accepted arm and base, started together, as the
+    lone seat against three Pentobi **level-7** seats, **200 seeds 87,300,000–87,300,199**.
+  - Driver: `engine-rs/scripts/n11-s5-master.sh` → `screen-chain.sh tmp/n11`; read-out
+    `chain_report.py`. Unused and unread, left alone: 83,100,000, 83,200,000, 84,800,000.
+- **2026-11-13 22:26 CST, S5 (config-only screen on the final base; Stage 4), fixed before any S5 game.**
+  Read so far: as the N11 entry. Rationale: interior expansion changed the regime (deeper tree, compute
+  pays again), so settings that were null on the old base may not be null now.
+  - **Base:** the final base after N11, chosen by the driver without reading anything else: the
+    accepted N11 config (`v5.0-n11-ultra`) if any, else `v5.0-s4-ultra`. Binary `tmp/s4/bin`.
+  - **Arms** (each the base plus one change; existing options only, no engine change; all seven load
+    and search on the current base, so none is refused by `unsupported()`):
+    `IIV1` `native.candidates.interiorInitVisits` 1; `IIV6` the same at 6 (base 3);
+    `T07` `native.candidates.temperature` 0.7; `T14` 1.4 (base 1; the fitted prior's softmax temperature
+    at the root and interior nodes); `C08` `search.cPuct` 0.8 (base 1.6);
+    `SHAPE` `search.iterationShape` ×1.5 on own moves 3–8 and ×0.6423 on own moves 9+ (tracker N14):
+    from X3's 800 lone-seat games of `v5.0-p4i-ultra` against level 6, a seat makes on average 1.00
+    decision at each own move 3–10 and 0.99, 0.98, 0.97, 0.93, 0.84, 0.68, 0.50, 0.31, 0.14, 0.04 at
+    11–20, so 1.5 × 6 + 0.6423 × 8.386 = 14.386 = the flat total (nominal iterations; forced, packer and early-stopped
+    searches make the realised total differ, which the clean cost run reports);
+    `RB07` `search.rankBlend` 0.7 (base 0.35), read with its first-place share.
+  - **Screen:** base and the seven arms (eight in all), one after another, 10 threads, settings as N11,
+    **400 seeds 87,400,000–87,400,399**.
+  - **Selection, cost, confirmation:** as N11 (paired lower bound above 0 clears; best point estimate
+    confirmed; equal-time arm if clean cost > 1.25×), confirmation on **400 fresh seeds
+    87,500,000–87,500,399** with base concurrent; **accepted** if the lower bound is above 0 and the
+    first-place interval is not entirely below 0; saved as `engine-rs/configs/v5.0-s5-ultra.json`.
+    No level-7 benchmark. The paired first-place difference is reported for every arm.
+  - Driver: the same master script runs S5 right after N11 (`screen-chain.sh tmp/s5`). Seed blocks
+    87,100,000 to 87,500,000 verified unused (nothing in `tmp/` at or above 86,500,000 except X3's
+    86,900,000 identity block and S4's 87,000,000). Unused and unread, left alone: 83,100,000,
+    83,200,000, 84,800,000. No arm, value or seed is added after any result is read without a new
+    dated entry.
