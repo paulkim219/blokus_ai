@@ -158,6 +158,33 @@ def confirm(root):
     print(f"NEW BASE: {best}")
 
 
+def confirm2(root):
+    """Amendment 2026-11-14 04:10: PKG-noROLL confirmation on 88,800,000 (ROOT/confirm2/pkgr-<ARM>)."""
+    stem = lambda a: os.path.join(root, "confirm2", f"pkgr-{a}")
+    rs = list(arm_rows(stem, ["PKG-noROLL", "PKG-noROLL-ET"], changes=changes(root)))
+    print(table(rs, stem, ref="PKG-noROLL", c=costs(root)))
+    print()
+    by = {r["arm"]: r for r in rs}
+    held = {}
+    for arm in ["PKG-noROLL", "PKG-noROLL-ET"]:
+        r = by.get(arm)
+        if not r or not r["paired"]:
+            print(f"- {arm}: incomplete")
+            held[arm] = False
+            continue
+        held[arm], text = verdict_line(r)
+        print(f"- {arm}: {text} -> {'holds' if held[arm] else 'does not hold'}")
+    if held["PKG-noROLL-ET"]:
+        print("VERDICT: ACCEPTED (PKG-noROLL-ET holds; saved as v5.0-pk-ultra)")
+        print("NEW BASE: PKG-noROLL-ET")
+    elif held["PKG-noROLL"]:
+        print("VERDICT: holds at equal iterations only; nothing saved")
+        print("NEW BASE: (none)")
+    else:
+        print("VERDICT: NOT ACCEPTED")
+        print("NEW BASE: (none)")
+
+
 def rep(root):
     """Stage B: pool the two blocks (distinct seeds) per arm and read the 800-seed paired difference."""
     pooled = os.path.join(root, "pooled")
@@ -193,7 +220,7 @@ def main():
         print(__doc__)
         return
     root = a[2]
-    {"--screen": screen, "--select": select, "--cost": cost, "--confirm": confirm, "--rep": rep}[a[1]](root)
+    {"--screen": screen, "--select": select, "--cost": cost, "--confirm": confirm, "--confirm2": confirm2, "--rep": rep}[a[1]](root)
 
 
 if __name__ == "__main__":

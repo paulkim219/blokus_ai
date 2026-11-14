@@ -718,3 +718,31 @@ every descent; `false` (every existing version) is byte-identical.
     200 seeds each, one block at a time, in this order: three **level-7** seats **88,600,000–88,600,199**;
     three **level-5** seats **88,500,000–88,500,199**; reverse, one level-6 seat against three of ours,
     **88,700,000–88,700,199**. Blocks not started by 08:15 are left unplayed and reported.
+- **2026-11-14 04:10 CST, amendment (Paul's change of plan after the Package screen): PKG-noROLL
+  confirmation, Stage B dropped, final-base rule.** Fixed before any game of it. Read so far: the full
+  Package screen on 88,000,000 (`tmp/pkg/screen.md`); nothing of the 88,100,000 confirmation (started
+  04:02, still playing) has been read.
+  - **Why:** the screen showed that the all-legal-moves rollout carries almost all of the package's cost
+    and little of its gain: PKG-noROLL +2.41 [+1.71, +3.14] vs base at 1.18× clean cost, against PKG
+    +3.00 [+2.25, +3.76] at 2.10× (PKG-noROLL vs PKG −0.59 [−1.33, +0.13]). The preregistered
+    selection (the two cleared arms with the largest point estimates) took PKG and PKG-noLGR, both at
+    about 2.1×, and left the cheap arm out. This entry adds a confirmation of it; it changes nothing in
+    the running 88,100,000 confirmation, whose preregistered verdicts stand.
+  - **Stage B (IIV1 replication) is dropped for tonight:** preregistered, not played; blocks
+    88,200,000 and 88,300,000 stay unplayed and unread. (The master driver was stopped by hand at 04:05
+    after the confirmation blocks had started; they keep running and are read out by the new driver
+    with the same read-out and rule.)
+  - **PKG-noROLL confirmation:** fresh **400 seeds 88,800,000–88,800,399**, three arms started
+    together (3 threads each), same match settings and Stage-A pin (`tmp/pkg/bin`): `base`
+    (`v5.0-s4-ultra`), `PKG-noROLL` (equal iterations, `iterationScale` 16), `PKG-noROLL-ET`
+    (`iterationScale` 16 / 1.1827 = 13.528, the measured clean cost). Standing rule: an arm holds if its
+    paired advantage lower bound vs base is above 0 and its paired first-place interval is not entirely
+    below 0. Because the base has always been kept at equal time, the config saved is the equal-time
+    one: **if `PKG-noROLL-ET` holds it is accepted and saved as `engine-rs/configs/v5.0-pk-ultra.json`;**
+    if only `PKG-noROLL` holds, that is reported and nothing is saved.
+  - **Final base:** `v5.0-pk-ultra` if accepted; else the config the 88,100,000 confirmation saves
+    under its preregistered rule if that is `PKG-ET` or `PKG-noLGR-ET`; else `v5.0-s4-ultra`. Then S6
+    (Stage C) and X4 (Stage D) on that base exactly as in the S6/X4 entry (88,400,000; 88,600,000 →
+    88,500,000 → 88,700,000), no block started at or after 08:15.
+  - Driver `engine-rs/scripts/pkg2-chain.sh` (waits for the running confirmation, reads it out, plays
+    this confirmation, applies the final-base rule, then runs `s6d-post.sh`).
