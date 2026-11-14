@@ -325,7 +325,8 @@ rollouts); no code or constant from Pentobi, every number a config value.
   RAVE's β counts a child's initial visits (`initVisits` at the root, `interiorInitVisits` inside) as
   observations behind Q; `"priorLog"` reads the RAVE-blended Q and keeps its denominator (real visits
   + k), so AMAF samples move Q, not exploration; the cut-off stays exact. Base config with all of it
-  (sampled rollouts): `configs/v5.0-pk-ultra.json` (`research_paper/v5_package_results.md`).
+  (sampled rollouts): `configs/v5.0-ultra.json` (named 2026-11-14; identical to
+  `configs/v5.0-pk-ultra.json`, the id its matches were logged under; `research_paper/v5_package_results.md`).
 - Diagnostics: `examples/p910_probe.rs` (`shape`: tree shape of each config on recorded positions;
   `pentobi`: the same read from Pentobi's `save_tree` and log through GTP; `opening`: Pentobi's
   opening centre distances and piece sizes in recorded games) and `Engine::tree_shape`.

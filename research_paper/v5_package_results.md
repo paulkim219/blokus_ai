@@ -131,7 +131,7 @@ PKG-noLGR-ET +0.50 pp, PKG-noROLL-ET +0.25 pp, every interval spanning 0. The eq
 margin, not in wins (reading: consistent with the rank reward's earlier pattern of more margin, fewer
 wins, here cancelled by the stronger search). At equal iterations the package arms did gain first place.
 
-**Amendment (Paul, 04:04; prereg `5322069`, `91bdeab`):** the rule ranked by point estimate and left
+**Amendment (supervising Claude session, not Paul, 04:04; prereg `5322069`, `91bdeab`):** the rule ranked by point estimate and left
 out PKG without all-move rollouts, which keeps most of the gain at 1.18× cost. It is confirmed
 separately on 88,800,000 (base, equal iterations, equal time at `iterationScale` 13.528); final-base
 rule fixed in the amendment. Stage B was dropped (below).
@@ -179,7 +179,7 @@ cap or a first-fit rather than first-corner scan.
 ## Stage B — IIV1 replication: preregistered, not played
 
 Preregistered (`d02e16f`): `interiorInitVisits` 1 against the base after Stage A on 88,200,000 and
-88,300,000 (800 seeds). Dropped for tonight by Paul's change of plan at 04:04 (time went to the
+88,300,000 (800 seeds). Dropped for tonight by the supervising session's change of plan at 04:04 (time went to the
 PKG-noROLL confirmation); the master driver was stopped before reaching it. Blocks 88,200,000 and
 88,300,000 are unplayed and unread.
 

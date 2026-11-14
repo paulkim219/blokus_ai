@@ -17,6 +17,12 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
 - Experimental configs before a version is named use ids like `v5.0-p4`; the tier suffix
   (`-ultra`) follows the existing convention.
 
+- **Named 2026-11-14 (Paul): `v5.0-ultra` = `engine-rs/configs/v5.0-ultra.json`**, a byte-for-byte
+  copy of `v5.0-pk-ultra.json` (interior expansion + RAVE + priorLog selection + rank reward +
+  last-good-reply, sampled rollouts, equal time; engine `ad66afb` or later). The next clear
+  improvement over it, by the acceptance rule, is **v5.1**. New candidates are measured against
+  `v5.0-ultra`.
+
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
 before each run.
@@ -44,7 +50,7 @@ before each run.
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 7 (40 seeds) | −15.66 [−17.18, −14.10] | 3.1% |
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 9 (16 games, stopped; descriptive) | −25.10 [−32.50, −17.71] | 0% |
 
-**Current v5.0 line (2026-11-14, after P12; `engine-rs/configs/v5.0-pk-ultra.json`):**
+**`v5.0-ultra` (named 2026-11-14; `engine-rs/configs/v5.0-ultra.json`, identical to `v5.0-pk-ultra.json`, the id the matches below were logged under):**
 
 `v5.0-s4-ultra` + RAVE (weight 0.5, equivalence 100, decay 0.5, all nodes) + priorLog selection
 (exploration 0.2) + rank reward with quality bonus (P3B) + last-good-reply (L7), sampled rollouts, at
@@ -275,7 +281,8 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-13 23:10 — N11 (prior re-fit on level 7; prereg `ff3ff1a`): offline gains small (0.026 nats/decision for a level-7 fit, 0.043 with per-move bands; the level-6 prior already transfers). Screen on `v5.0-s4-ultra`, 400 seeds from 87,100,000: L7 +0.26 [−0.48, +0.98], pooled +0.26 [−0.48, +0.99], pooled-fine +0.31 [−0.41, +1.04]; none clears, no confirmation, no level-7 benchmark (87,200,000 and 87,300,000 unused, unread). Null. S5 (config screen on `v5.0-s4-ultra`, 400 seeds from 87,400,000) started automatically after it.
 - 2026-11-14 00:39 — S5 (config-only screen on `v5.0-s4-ultra`, prereg `ff3ff1a`), 400 seeds from 87,400,000: no arm clears; prior temperature 0.7 harmful (−1.82 [−2.50, −1.15]), `cPuct` 0.8 loses first place (−4.75 pp), `interiorInitVisits` 1 best point estimate (+0.49 [−0.20, +1.20]); budget shape (N14) −0.27 at 1.23× time. No confirmation (87,500,000 unused, unread). `v5.0-s4-ultra` stays the base.
 - 2026-11-14 04:20 — Package (P12; prereg `d02e16f`, engine `18e9149`): RAVE with value-initialised interior children and priorLog on the RAVE-blended value made configurable (identity 1,200/1,200). Screen on `v5.0-s4-ultra`, 400 seeds from 88,000,000: PKG +3.00 [+2.25, +3.76] at 2.10× cost, PKG-ET +0.80 [+0.05, +1.54], PKG-noROLL +2.41 [+1.71, +3.14] at 1.18×; RAVE and the rank reward carry the package (−2.40 and −1.80 when removed), priorLog and LGR read as nothing inside it. Confirmation of PKG and PKG-noLGR (with equal-time arms) on 88,100,000 running; amendment (`5322069`) adds PKG-noROLL on 88,800,000 and drops Stage B (IIV1, 88,200,000/88,300,000 unplayed). S6 speed pass built (`ad66afb`, identical output, ~19% faster under load); clean re-timing and X4 run after on the final base.
-- 2026-11-14 05:30 — P12 confirmation, 88,100,000 (prereg `d02e16f`): PKG +2.80 / PKG-ET +1.31 [+0.61, +2.02]; PKG-noLGR +3.67 / -ET +1.28 [+0.58, +2.01]; both accepted at equal time, saved `v5.0-pkg-et-ultra`. Stage B (IIV1) dropped by Paul's amendment (`5322069`); 88,200,000 and 88,300,000 unplayed.
+- 2026-11-14 05:30 — P12 confirmation, 88,100,000 (prereg `d02e16f`): PKG +2.80 / PKG-ET +1.31 [+0.61, +2.02]; PKG-noLGR +3.67 / -ET +1.28 [+0.58, +2.01]; both accepted at equal time, saved `v5.0-pkg-et-ultra`. Stage B (IIV1) dropped by the supervising session's amendment (`5322069`); 88,200,000 and 88,300,000 unplayed.
 - 2026-11-14 05:50 — Amendment confirmation PKG-noROLL, 88,800,000: equal iterations +1.64 [+0.89, +2.37], equal time +1.89 [+1.15, +2.65]; accepted. **New base `v5.0-pk-ultra`.**
 - 2026-11-14 06:12 — S6 (prereg `74911d3`): clean 0.845× on `v5.0-pk-ultra`; re-timed S6T vs base on 88,400,000 +0.17 [−0.48, +0.83]: not accepted; the code stays as a pure speed-up.
 - 2026-11-14 07:06 — X4 of `v5.0-pk-ultra`: level 7 −7.85, level 5 +2.82, reverse (Pentobi level 6 vs three of ours) +0.26 [−0.67, +1.21]. Unread and unplayed: 83,100,000, 83,200,000, 84,800,000, 87,200,000, 87,300,000, 87,500,000, 88,200,000, 88,300,000.
+- 2026-11-14 08:35 — Paul names the current base **`v5.0-ultra`** (`engine-rs/configs/v5.0-ultra.json`, a copy of `v5.0-pk-ultra.json`); the next accepted improvement will be v5.1.

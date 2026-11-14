@@ -718,7 +718,7 @@ every descent; `false` (every existing version) is byte-identical.
     200 seeds each, one block at a time, in this order: three **level-7** seats **88,600,000–88,600,199**;
     three **level-5** seats **88,500,000–88,500,199**; reverse, one level-6 seat against three of ours,
     **88,700,000–88,700,199**. Blocks not started by 08:15 are left unplayed and reported.
-- **2026-11-14 04:04 CST, amendment (Paul's change of plan after the Package screen): PKG-noROLL
+- **2026-11-14 04:04 CST, amendment (the supervising Claude session's change of plan after the Package screen; Paul was not consulted): PKG-noROLL
   confirmation, Stage B dropped, final-base rule.** Fixed before any game of it. Read so far: the full
   Package screen on 88,000,000 (`tmp/pkg/screen.md`); nothing of the 88,100,000 confirmation (started
   04:02, still playing) has been read.
