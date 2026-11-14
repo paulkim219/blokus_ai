@@ -718,7 +718,7 @@ every descent; `false` (every existing version) is byte-identical.
     200 seeds each, one block at a time, in this order: three **level-7** seats **88,600,000–88,600,199**;
     three **level-5** seats **88,500,000–88,500,199**; reverse, one level-6 seat against three of ours,
     **88,700,000–88,700,199**. Blocks not started by 08:15 are left unplayed and reported.
-- **2026-11-14 04:10 CST, amendment (Paul's change of plan after the Package screen): PKG-noROLL
+- **2026-11-14 04:04 CST, amendment (Paul's change of plan after the Package screen): PKG-noROLL
   confirmation, Stage B dropped, final-base rule.** Fixed before any game of it. Read so far: the full
   Package screen on 88,000,000 (`tmp/pkg/screen.md`); nothing of the 88,100,000 confirmation (started
   04:02, still playing) has been read.
@@ -729,7 +729,7 @@ every descent; `false` (every existing version) is byte-identical.
     about 2.1×, and left the cheap arm out. This entry adds a confirmation of it; it changes nothing in
     the running 88,100,000 confirmation, whose preregistered verdicts stand.
   - **Stage B (IIV1 replication) is dropped for tonight:** preregistered, not played; blocks
-    88,200,000 and 88,300,000 stay unplayed and unread. (The master driver was stopped by hand at 04:05
+    88,200,000 and 88,300,000 stay unplayed and unread. (The master driver was stopped by hand at 04:03
     after the confirmation blocks had started; they keep running and are read out by the new driver
     with the same read-out and rule.)
   - **PKG-noROLL confirmation:** fresh **400 seeds 88,800,000–88,800,399**, three arms started

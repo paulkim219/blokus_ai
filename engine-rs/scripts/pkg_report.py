@@ -159,7 +159,7 @@ def confirm(root):
 
 
 def confirm2(root):
-    """Amendment 2026-11-14 04:10: PKG-noROLL confirmation on 88,800,000 (ROOT/confirm2/pkgr-<ARM>)."""
+    """Amendment 2026-11-14 04:04: PKG-noROLL confirmation on 88,800,000 (ROOT/confirm2/pkgr-<ARM>)."""
     stem = lambda a: os.path.join(root, "confirm2", f"pkgr-{a}")
     rs = list(arm_rows(stem, ["PKG-noROLL", "PKG-noROLL-ET"], changes=changes(root)))
     print(table(rs, stem, ref="PKG-noROLL", c=costs(root)))

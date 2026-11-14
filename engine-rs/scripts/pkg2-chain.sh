@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Amendment 2026-11-14 04:10 (research_paper/v6_native_and_learning_preregistered.md): after the
+# Amendment 2026-11-14 04:04 (research_paper/v6_native_and_learning_preregistered.md): after the
 # 88,100,000 package confirmation (started by pkg-master.sh, whose master was stopped by hand so that
 # Stage B does not run), read it out; confirm PKG-noROLL on 88,800,000; apply the final-base rule; then
 # Stage C and D (s6d-post.sh) on that base.
