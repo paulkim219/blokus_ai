@@ -818,3 +818,64 @@ every descent; `false` (every existing version) is byte-identical.
   - Seed blocks reserved here: 89,000,000; 89,100,000; 89,200,000; 89,300,000; 89,400,000. Left
     unplayed and unread: 83,100,000, 83,200,000, 84,800,000, 87,200,000, 87,300,000, 87,500,000,
     88,200,000, 88,300,000.
+- **2026-11-14 13:20 CST, v5.1 round 2 (Stage 1: replication on 800 seeds; Stage 2: two-against-two
+  parity diagnostic; Stage 3: rollout cost at equal time). Arms and rules set by the supervising session's
+  brief; fixed here before any game of it and after the Stage-1 clean cost run.** Read so far: everything in
+  `research_paper/v5_1_candidates_results.md` (round 1). No game on any seed at or above 89,500,000 exists.
+  Engine `82977fe` (pinned `tmp/v51b/bin`, `PROVENANCE.txt`) adds, both off by default: the bridge's
+  `--mode two-two` and `native.rollout.epsCap` (R2). Identity: complete search output on 300 positions ×
+  `v5.0-ultra`, `v5.0-s4-ultra`, `v5.0-p4-ultra`, `v4.2-ultra` byte-identical to the S6 pin
+  (`tmp/v51b/identity/`); bridge games in `one-blokee` and `one-pentobi`, 2 seeds × 4 configs, move
+  sequences and result lines equal to the round-1 pin (`tmp/v51b/identity/bridge.log`); `cargo test --release`
+  31 pass; `npm run native:build && npm run native:test` pass.
+  - **Common:** one Blokee seat vs three Pentobi 31.0 level-6 seats (Classic book, one thread), budget 300,
+    4 rotations per seed; advantage and paired differences by seed, 95% percentile bootstrap; first place =
+    the Blokee seat among the top scorers. Driver `engine-rs/scripts/v51b-chain.sh` (self-driving), configs
+    `engine-rs/scripts/v51b_configs.py`, read-outs `engine-rs/scripts/v51b_report.py`. No match block starts at
+    or after 17:30 CST.
+  - **Stage 1 — replication, no selection.** Base `v5.0-ultra` (`iterationScale` 13.528) and three arms.
+    Clean cost (measured 13:12–13:14, quiet machine; `p4_cost`, 150 positions, own moves 3+, 2 threads, two
+    rounds; `tmp/v51b/rep/cost/`): `IIV1` (interiorInitVisits 1) 0.931×, `X04` (priorLog exploration 0.4)
+    1.020×, `COMBO` (interiorInitVisits 1 + exploration 0.4 + RAVE weight 1.0 + qualityWeight 0.5) 0.951×.
+    Arms outside [0.97, 1.03] are played at equal time: **`IIV1-ET` at `iterationScale` 14.529**
+    (13.528 / 0.9311) and **`COMBO-ET` at 14.224** (13.528 / 0.9511); **`X04` is played as itself (13.528)**.
+    Check round (two rounds): IIV1-ET 0.996×, COMBO-ET 0.991×, X04 1.027×, all inside [0.97, 1.03], no
+    correction. Played: base, IIV1-ET, X04, COMBO-ET, one at a time, 10 threads, **400 seeds
+    89,500,000–89,500,399, then 400 seeds 89,600,000–89,600,399**. **Rule (on the 800 pooled seeds):
+    accepted if the paired lower bound vs base is above 0 and the paired first-place interval is not entirely
+    below 0.** The accepted arm with the largest pooled point estimate is saved as
+    `engine-rs/configs/v5.1-ultra.json` and is the base for Stage 3. Per-block readings are reported,
+    descriptive.
+  - **Stage 2 — parity diagnostic (not a candidate test).** Two `v5.0-ultra` seats and two level-6 seats per
+    game, all six seat pairs per seed (four adjacent in turn order: blue+green, green+purple,
+    purple+yellow, yellow+blue; two alternating: blue+purple, green+yellow), **200 seeds
+    89,700,000–89,700,199** (1,200 games). Reported: mean of our two seats' scores minus the mean of
+    Pentobi's two, averaged per seed, bootstrap by seed; our seats' share of first place (a shared first
+    place split evenly), against the 50% par; alternating and adjacent separately; wall ms/move for both
+    engines. No gate.
+  - **Stage 3 — rollout cost at equal time.** Base = the config after Stage 1 (`v5.1-ultra` if saved, else
+    `v5.0-ultra`). What the options do (from `playout.rs`): `playoutMoveCap` is the number of legal
+    placements a sampled rollout move collects (from one random own corner) before choosing;
+    `playoutCorners` is how many productive corners are scanned before stopping (1 today); `playoutCutoff`
+    is the number of rollout plies after which the rollout stops and the position is scored by the
+    heuristic evaluation instead of the final score — at 84 it never binds (a rollout cannot have more than
+    84 placements plus 4 passes from any position past the opening), so a longer cutoff changes nothing and
+    is not played; a shorter one truncates rollouts (and, with the rank reward, mixes the evaluation's scale
+    into Q). Arms (5 + base): `CAP6` (cap 6), `CAP24` (cap 24), `CUT32` (cutoff 32), `COR2` (corners 2),
+    and from the S6 list `EPS4` = R2 `native.rollout.epsCap` 4 (the ε-branch, taken with probability
+    `playoutEps` 0.6, is drawn before the scan and then collects only 4 placements to pick from uniformly;
+    the policy branch keeps 12). A quick 20-position probe (not the measurement) suggested CUT32 costs ~2×
+    and COR2 ~1.2×, the others ~1×. **Every arm is re-timed**: clean cost c measured in the chain after
+    Stage 2 with nothing else running (two rounds), `<arm>-ET` at the base's `iterationScale` / c; check
+    round, and one correction (× 1/check) for an arm outside [0.97, 1.03]. Screen: base and the five -ET
+    arms, **400 seeds 89,800,000–89,800,399**. **Standing rule:** an arm clears if its paired lower bound is
+    above 0; the clearing arm with the largest point estimate is confirmed with a fresh base arm (started
+    together) on **400 seeds 89,900,000–89,900,399**, accepted if the paired lower bound is above 0 and the
+    first-place interval is not entirely below 0. Saved as `engine-rs/configs/v5.2-cand-ultra.json` if
+    Stage 1 produced `v5.1-ultra`, otherwise as `engine-rs/configs/v5.1-ultra.json`.
+  - **Extra (only if this chain saves `v5.1-ultra`):** one `v5.1-ultra` seat vs three `v5.0-ultra` seats
+    (`blokee-match`, 200 seeds 89,400,000–89,400,199; started before 17:30), then one `v5.1-ultra` seat vs
+    three level-7 seats (200 seeds 89,300,000–89,300,199; started only before 17:05 so it ends by 18:00).
+  - Seed blocks reserved here: 89,500,000; 89,600,000; 89,700,000; 89,800,000; 89,900,000 (and 89,300,000 /
+    89,400,000 for the conditional extra). Left unplayed and unread: 83,100,000, 83,200,000, 84,800,000,
+    87,200,000, 87,300,000, 87,500,000, 88,200,000, 88,300,000.
