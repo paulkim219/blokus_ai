@@ -50,6 +50,22 @@ before each run.
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 7 (40 seeds) | −15.66 [−17.18, −14.10] | 3.1% |
 | 1 × `v4.2-ultra` vs 3 × Pentobi level 9 (16 games, stopped; descriptive) | −25.10 [−32.50, −17.71] | 0% |
 
+**`v5.1-ultra` (accepted 2026-11-14 14:43 by the preregistered round-2 rule; `engine-rs/configs/v5.1-ultra.json`):**
+
+`v5.0-ultra` with interiorInitVisits 1, priorLog exploration 0.4, RAVE weight 1.0 and reward qualityWeight 0.5,
+at equal time (`iterationScale` 14.224 = 13.528 / 0.9511). `research_paper/v5_1_candidates_results.md`, round 2.
+
+| Match | Result | First place |
+|---|---|---:|
+| paired vs `v5.0-ultra`, 800 seeds (89,500,000 + 89,600,000) | **+0.58 [+0.06, +1.11]** (blocks +1.15 / +0.02) | paired +0.31 pp [−1.53, +2.19] |
+| 1 × `v5.1-ultra` vs 3 × level 6, 800 seeds (same) | −1.19 [−1.61, −0.79] (`v5.0-ultra` −1.78 [−2.16, −1.38]) | 20.6% (20.3%) |
+| same, 400 seeds 89,800,000 (round-2 Stage-3 base arm) | −0.78 [−1.40, −0.13] | 22.6% |
+| 1 × `v5.1-ultra` vs 3 × `v5.0-ultra` (`blokee-match`, 200 seeds, 89,400,000) | −0.53 [−1.40, +0.40] | 26.5% |
+| 1 × `v5.1-ultra` vs 3 × level 7 (200 seeds, 89,300,000) | −6.88 [−7.69, −6.02] (`v5.0-ultra` X4: −7.85, other seeds) | 12.5% |
+| 2 × `v5.0-ultra` + 2 × level 6, all six seat pairs (200 seeds, 89,700,000; parity diagnostic) | ours − Pentobi's −0.91 [−1.56, −0.28]; alternating −3.91, adjacent +0.58 | our share 44.3% (par 50%) |
+
+Caveat (reading): the two 400-seed blocks disagree (+1.15 / +0.02), and the direct match against `v5.0-ultra` reads −0.53. The gain is small and uncertain; a further fresh block would show whether it holds.
+
 **`v5.0-ultra` (named 2026-11-14; `engine-rs/configs/v5.0-ultra.json`, identical to `v5.0-pk-ultra.json`, the id the matches below were logged under):**
 
 `v5.0-s4-ultra` + RAVE (weight 0.5, equivalence 100, decay 0.5, all nodes) + priorLog selection
@@ -166,6 +182,7 @@ Source paths are under `~/src/pentobi` (tag `v31.0`).
 | N14 | **Spend the budget where the search is unsure**: more iterations on a seat's moves 3–8 | D1: the search reproduces its own move only 39–50% of the time there, and that is where the positional damage starts | **Tested** 2026-11-14 (config-only, S5): null | ×1.5 on own moves 3–8, ×0.6423 on 9+ on `v5.0-s4-ultra`: −0.27 [−0.90, +0.38], using 1.23× the Blokee time per game (the nominal equal-total shape was not equal in time). Earlier: the v3.5 iteration curve was worth +1.00 [0.43, 1.58] vs flat |
 | N15 | **Stop rollouts early when the outcome is decided** (all remaining seats sealed → exact packer; score bounds) | Cheaper late-game simulations, so more of them | Proposed (with N3) | |
 | N16 | **First-place term in the rank reward** (`native.reward.firstWeight`, R1) | The package's gains came as score margin, not first places | **Tested** 2026-11-14: null, not added (option kept, off by default) | On `v5.0-ultra`, 400 seeds from 89,000,000: f = 0.25 +0.30 [−0.44, +1.03], first place +1.00 pp [−1.81, +3.88]; f = 0.5 −0.24 [−0.92, +0.45], +0.81 pp. `research_paper/v5_1_candidates_results.md` |
+| N17 | **Rollout cost trade-offs at equal time** (`playoutMoveCap` 6/24, `playoutCutoff` 32, `playoutCorners` 2, new `native.rollout.epsCap` 4) | Compute is worth +2.1 per doubling, so cheaper rollouts could pay | **Tested** 2026-11-14 on `v5.1-ultra`: none clears, nothing added (`epsCap` kept, off) | 400 seeds 89,800,000, all re-timed to equal time: cap 6 −0.33, cap 24 −0.18, epsCap 4 −0.55 (null); corners 2 −1.00 [−1.75, −0.26]; cutoff 32 −5.26 (costs 2.1×, as the truncation runs the heuristic evaluation). `research_paper/v5_1_candidates_results.md` |
 
 Already tried and closed in the old tree, listed so they are not re-proposed by accident: implicit
 max^n backups (null at α 0.10 and 0.20, v4 report §9.4), a learned leaf value *replacing* rollouts
@@ -288,3 +305,4 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-14 07:06 — X4 of `v5.0-pk-ultra`: level 7 −7.85, level 5 +2.82, reverse (Pentobi level 6 vs three of ours) +0.26 [−0.67, +1.21]. Unread and unplayed: 83,100,000, 83,200,000, 84,800,000, 87,200,000, 87,300,000, 87,500,000, 88,200,000, 88,300,000.
 - 2026-11-14 08:35 — Paul names the current base **`v5.0-ultra`** (`engine-rs/configs/v5.0-ultra.json`, a copy of `v5.0-pk-ultra.json`); the next accepted improvement will be v5.1.
 - 2026-11-14 12:12 — v5.1 candidates (prereg `9683198`; engine `9a8a515` adds `native.reward.firstWeight`, identical output when off). Screen of 15 one-change arms on `v5.0-ultra`, 400 seeds from 89,000,000 (base −1.94): only RAVE weight 1.0 cleared (+0.73 [+0.01, +1.46]). Its confirmation on 89,200,000 read +0.10 [−0.62, +0.88]: **not accepted, no v5.1**. Measured: quality weight 0 −3.61 (the quality bonus is load-bearing), priorLog exploration 0.1 −1.22. First-place weight 0.25/0.5, RAVE equivalence 30/300, decay 0/1, quality 0.5, exploration 0.4 and IIV1 were null. Compute diagnostic (89,100,000, 200 seeds): ×2 iterations +2.05 [+1.14, +2.96], ×0.5 −2.11, about **+2.1 per doubling**, so the curve has not flattened. Clean-up candidates with no measurable loss: default selection (+0.30, 0.93× cost), LGR off (−0.38). P8 re-measured on `v5.0-ultra`: 1.04% of the budget, still parked. Stage 3 not run. 89,300,000 and 89,400,000 are unplayed. `research_paper/v5_1_candidates_results.md`.
+- 2026-11-14 16:50 — v5.1 round 2 (prereg `44efd90`; engine `82977fe` adds the bridge's `--mode two-two` and `native.rollout.epsCap`, identical when off). Stage 1, the 800-seed replication on 89,500,000 + 89,600,000: COMBO-ET (interiorInitVisits 1 + exploration 0.4 + RAVE weight 1.0 + quality 0.5, equal time at `iterationScale` 14.224) **+0.58 [+0.06, +1.11]** (blocks +1.15 / +0.02; first place +0.31 pp). **Accepted: `v5.1-ultra`**. IIV1-ET +0.03 and X04 −0.20 were null. Stage 2 parity (two of ours + two level-6 seats, six pairs, 200 seeds 89,700,000): −0.91 [−1.56, −0.28], 44.3% of first places; alternating −3.91, adjacent +0.58. Stage 3 rollout cost at equal time (base `v5.1-ultra`, 89,800,000): no arm clears (cutoff 32 −5.26, corners 2 −1.00, others null), no confirmation, 89,900,000 unplayed. Extra blocks: `v5.1-ultra` vs 3 × level 7 −6.88 [−7.69, −6.02]; vs 3 × `v5.0-ultra` −0.53 [−1.40, +0.40]. `research_paper/v5_1_candidates_results.md`.
