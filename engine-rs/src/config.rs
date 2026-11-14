@@ -439,6 +439,11 @@ pub struct RolloutOptions {
     /// Extra count for a local square that is also one of the mover's own open corners.
     #[serde(default)]
     pub local_own_extra: f64,
+    /// R2 (sampled rollouts only): draw the ε-branch before the corner scan and, when it is taken,
+    /// collect at most `epsCap` placements (instead of `playoutMoveCap`) to pick from uniformly.
+    /// 0 (default) leaves the rollout exactly as before.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub eps_cap: f64,
 }
 
 fn sampled() -> String {
@@ -590,6 +595,8 @@ impl BitboardParams {
             reject(!matches!(r.policy.as_str(), "sampled" | "all"), "native.rollout.policy must be sampled or all");
             reject(!(r.size_weight.is_finite() && r.local_weight.is_finite()), "native.rollout weights must be finite");
             reject(!(r.local_own_extra >= 0.0 && r.local_own_extra.is_finite()), "native.rollout.localOwnExtra must be >= 0");
+            reject(!(r.eps_cap >= 0.0 && r.eps_cap <= 64.0 && r.eps_cap.fract() == 0.0), "native.rollout.epsCap must be a whole number in [0, 64]");
+            reject(r.eps_cap > 0.0 && r.all_moves(), "native.rollout.epsCap needs policy sampled");
             // The weight table is indexed by integer counts and exponentiated once per search; keep
             // every weight inside a range where exp() cannot overflow (5 squares × 2 counts).
             reject(r.size_weight.abs() > 20.0 || r.local_weight.abs() > 20.0 || r.local_own_extra > 20.0, "native.rollout weights out of range (|w| <= 20)");

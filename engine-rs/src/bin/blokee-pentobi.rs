@@ -2,7 +2,9 @@
 //!
 //! Seat-rotated like `blokee-match`: each seed four times, the lone challenger once in every seat.
 //! `--mode one-blokee` puts one Blokee seat against three Pentobi seats; `--mode one-pentobi` one
-//! Pentobi seat against three Blokee seats. One `pentobi-gtp` process per game plays every Pentobi
+//! Pentobi seat against three Blokee seats; `--mode two-two` two Blokee and two Pentobi seats, each
+//! seed six times (every pair of Blokee seats: four adjacent in turn order, two alternating; the
+//! JSONL `seat` is the pair, e.g. "blue+green", with `seats`, `arrangement` and `blokeeAdvantage`). One `pentobi-gtp` process per game plays every Pentobi
 //! colour and receives every Blokee move with `play`. Blokee seats search and choose exactly as the
 //! match harness does (first 8 plies sampled from the top 3). The JSONL is blokee-match's, scored
 //! by Blokee's own rules; score it with `npx tsx scripts/aggregateMatches.ts <out>` only.
@@ -44,6 +46,13 @@ use std::time::Instant;
 
 /// `PLAYER_COLORS` — the display order the TS harness rotates the challenger through.
 const DISPLAY: [&str; 4] = ["blue", "yellow", "purple", "green"];
+/// `--mode two-two`: the Blokee seat pairs (indices into SEAT_COLORS, i.e. turn order).
+const PAIRS: [(usize, usize, &str); 6] =
+    [(0, 1, "adjacent"), (1, 2, "adjacent"), (2, 3, "adjacent"), (3, 0, "adjacent"), (0, 2, "alternating"), (1, 3, "alternating")];
+
+fn pair_name(k: usize) -> String {
+    format!("{}+{}", SEAT_COLORS[PAIRS[k].0], SEAT_COLORS[PAIRS[k].1])
+}
 
 fn arg(argv: &[String], name: &str, fallback: &str) -> String {
     argv.iter().position(|a| a == &format!("--{name}")).and_then(|i| argv.get(i + 1)).cloned().unwrap_or(fallback.to_string())
@@ -166,11 +175,14 @@ fn main() {
 
     let seeds: u32 = arg(&argv, "seeds", "10").parse().unwrap();
     let mode = arg(&argv, "mode", "one-blokee");
-    let one_blokee = match &mode[..] {
-        "one-blokee" => true,
-        "one-pentobi" => false,
-        other => panic!("--mode must be one-blokee or one-pentobi, not {other}"),
+    let (one_blokee, two_two) = match &mode[..] {
+        "one-blokee" => (true, false),
+        "one-pentobi" => (false, false),
+        "two-two" => (true, true),
+        other => panic!("--mode must be one-blokee, one-pentobi or two-two, not {other}"),
     };
+    let slots = if two_two { PAIRS.len() } else { 4 };
+    let slot_name = move |k: usize| if two_two { pair_name(k) } else { DISPLAY[k].to_string() };
     let blokee_name = arg(&argv, "blokee-name", &stem(&blokee_path));
     let pentobi_name = format!("pentobi-{}-L{}", version.trim_start_matches("Pentobi ").replace(' ', "_"), spec.level);
     let (challenger_name, champion_name) = if one_blokee { (blokee_name.clone(), pentobi_name.clone()) } else { (pentobi_name.clone(), blokee_name.clone()) };
@@ -201,15 +213,15 @@ fn main() {
         }
     }
     let assignments: Vec<(u32, usize)> = (0..seeds)
-        .flat_map(|i| (0..4).map(move |seat| (seed_base + i, seat)))
-        .filter(|(seed, seat)| !done.contains(&(*seed, DISPLAY[*seat].to_string())))
+        .flat_map(|i| (0..slots).map(move |seat| (seed_base + i, seat)))
+        .filter(|(seed, seat)| !done.contains(&(*seed, slot_name(*seat))))
         .collect();
     eprintln!(
         "{label}: {mode}, {} at level {}, {} of {} games to play ({} already in {out}), {threads} threads, budget {budget}",
         version,
         spec.level,
         assignments.len(),
-        seeds * 4,
+        seeds as usize * slots,
         done.len()
     );
 
@@ -235,11 +247,15 @@ fn main() {
                         break;
                     }
                     let (seed, display_seat) = assignments[i];
-                    let color = DISPLAY[display_seat];
-                    let challenger_seat = SEAT_COLORS.iter().position(|c| *c == color).unwrap();
+                    let pair_label = if two_two { pair_name(display_seat) } else { String::new() };
+                    let color: &str = if two_two { &pair_label } else { DISPLAY[display_seat] };
+                    let challenger_seat = if two_two { PAIRS[display_seat].0 } else { SEAT_COLORS.iter().position(|c| *c == color).unwrap() };
                     let (lone, rest) = if one_blokee { (Player::Blokee(0), Player::Gtp) } else { (Player::Gtp, Player::Blokee(0)) };
                     let mut players = [rest; 4];
                     players[challenger_seat] = lone;
+                    if two_two {
+                        players[PAIRS[display_seat].1] = lone;
+                    }
                     let game_started = Instant::now();
                     let result = spec.spawn(seed).and_then(|mut gtp| play_bridge_game(&mut pool, players, &options(seed), &mut gtp, &mapping, check_legal));
                     let record = match result {
@@ -266,13 +282,28 @@ fn main() {
                         }
                     }
                     let challenger_secs: f64 = record.move_ms[challenger_seat].iter().sum::<f64>() / 1000.0;
-                    let line = json!({
+                    let ours = |s: usize| matches!(players[s], Player::Blokee(_));
+                    let pair_advantage = (0..4).filter(|&s| ours(s)).map(|s| record.scores[s]).sum::<f64>() / 2.0
+                        - (0..4).filter(|&s| !ours(s)).map(|s| record.scores[s]).sum::<f64>() / 2.0;
+                    let line = if two_two {
+                        let (a, b, kind) = PAIRS[display_seat];
+                        json!({
+                            "seed": seed, "seat": color, "seats": [SEAT_COLORS[a], SEAT_COLORS[b]], "arrangement": kind,
+                            "scores": scores, "winner": winner, "label": label, "challenger": challenger_name, "champion": champion_name,
+                            "blokeeAdvantage": pair_advantage,
+                            "blokeeMoves": record.move_ms[a].len() + record.move_ms[b].len(),
+                            "blokeeSeconds": ((record.move_ms[a].iter().sum::<f64>() + record.move_ms[b].iter().sum::<f64>()) / 1000.0 * 1000.0).round() / 1000.0,
+                            "pentobiLevel": spec.level,
+                        })
+                    } else {
+                        json!({
                         "seed": seed, "seat": color, "scores": scores, "winner": winner,
                         "label": label, "challenger": challenger_name, "champion": champion_name,
                         "challengerMoves": record.move_ms[challenger_seat].len(),
                         "challengerSeconds": (challenger_secs * 1000.0).round() / 1000.0,
                         "pentobiLevel": spec.level,
-                    });
+                    })
+                    };
                     let round = |v: &Vec<f64>| v.iter().map(|x| (x * 10.0).round() / 10.0).collect::<Vec<f64>>();
                     let timing_line = json!({
                         "seed": seed, "seat": color, "label": label,
@@ -292,13 +323,17 @@ fn main() {
                         });
                         writeln!(moves_log.lock().unwrap(), "{moves_line}").unwrap();
                     }
-                    let others: f64 = DISPLAY.iter().filter(|c| **c != color).map(|c| score_of(c)).sum::<f64>() / 3.0;
                     let mut t = tally.lock().unwrap();
-                    t.0.push(score_of(color) - others);
+                    if two_two {
+                        t.0.push(pair_advantage);
+                    } else {
+                        let others: f64 = DISPLAY.iter().filter(|c| **c != color).map(|c| score_of(c)).sum::<f64>() / 3.0;
+                        t.0.push(score_of(color) - others);
+                    }
                     t.1.extend(blokee_ms);
                     t.2.extend(pentobi_ms);
                     let n = t.0.len();
-                    if n % 4 == 0 || n == total {
+                    if n % slots == 0 || n == total {
                         let elapsed = started.elapsed().as_secs_f64() / 60.0;
                         eprintln!(
                             "{n}/{total} games, challenger advantage {:+.2} (progress only), ms/move blokee {:.0} pentobi {:.0}, {elapsed:.1} min, ETA {:.0} min",

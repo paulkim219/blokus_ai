@@ -226,6 +226,10 @@ mirror and byte-identical self-play; `research_paper/v5_p4_p5_candidate_generati
   still runs from 0 to 1, so the other constants keep their scale (the length term still uses `rank_i`).
   The truncated-rollout evaluation path
   (never reached at `playoutCutoff` 84) keeps the old value.
+- `rollout.epsCap` (R2, sampled rollouts only, default 0 = off): the ε-branch is drawn before the
+  corner scan, and when it is taken at most `epsCap` placements are collected (instead of
+  `playoutMoveCap`) and one is picked uniformly; the policy branch is unchanged. Cheaper rollouts,
+  more biased exploration moves.
 - Refused in `unsupported()`: unknown policy or kind, non-finite or out-of-range weights,
   `qualitySlope` ≤ 0, `reward` kind `"rank"` with `native.net` (its value channel uses the old
   reward's scale) or with `leafMaterialBlend` > 0.

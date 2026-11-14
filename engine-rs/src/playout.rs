@@ -310,6 +310,8 @@ impl Playout {
             let mask = (0..PIECE_COUNT).filter(|&p| PIECE_SIZES[p] as f64 >= o.rollout_min_size).fold(0u32, |m, p| m | (1 << p));
             (mask, o.rollout_until_pieces)
         });
+        // R2: ε-branch drawn before the scan, with its own (smaller) candidate cap. 0 is off.
+        let eps_cap = params.native.as_ref().and_then(|n| n.rollout.as_ref()).map_or(0, |r| r.eps_cap as usize).min(CANDIDATE_BUFFER);
         if let Some(options) = all_moves {
             self.play_all_moves(options, position, cutoff, rng);
             steps = cutoff;
@@ -333,9 +335,11 @@ impl Playout {
                 }
                 None => u32::MAX,
             };
-            let mut count = self.sample_moves(position, seat, cap, max_corners, considered, rng);
+            let explore_first = if eps_cap > 0 { Some(rng.next_f64() < epsilon) } else { None };
+            let limit = if explore_first == Some(true) { eps_cap.min(cap) } else { cap };
+            let mut count = self.sample_moves(position, seat, limit, max_corners, considered, rng);
             if count == 0 && considered != u32::MAX {
-                count = self.sample_moves(position, seat, cap, max_corners, u32::MAX, rng);
+                count = self.sample_moves(position, seat, limit, max_corners, u32::MAX, rng);
             }
             if count == 0 {
                 let turn = position.turn;
@@ -345,7 +349,7 @@ impl Playout {
                 steps += 1.0;
                 continue;
             }
-            let chosen = if count == 1 || rng.next_f64() < epsilon {
+            let chosen = if count == 1 || explore_first.unwrap_or_else(|| rng.next_f64() < epsilon) {
                 self.candidates[rng.next_int(count)]
             } else {
                 match policy {
