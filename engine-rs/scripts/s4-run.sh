@@ -26,7 +26,7 @@ CSEED_BASE=${CSEED_BASE:-87000000}
 PENTOBI=${PENTOBI:-$HOME/src/pentobi-build/pentobi_gtp/pentobi-gtp}
 BOOK=${BOOK:-$HOME/src/pentobi/opening_books/book_classic.blksgf}
 CFG=engine-rs/configs
-CONFIGS="v5.0-p4i-ultra v5.0-p4-ultra v4.2-ultra"
+CONFIGS=${CONFIGS:-"v5.0-p4i-ultra v5.0-p4-ultra v4.2-ultra"}  # S6 reuses identity/cost with its own list
 BIN=$OUT/bin
 BEFORE=$OUT/bin-before
 SUMMARY=$OUT/summary.txt
@@ -75,10 +75,11 @@ case "${1:-}" in
     # 1. Every search's complete ranked output (moves, visits, value bits), 300 positions (all seats,
     #    own moves 0+; X1 level-6 games and X3 level-7 games), three configs.
     F=tmp/d1/x1-l6a.moves.jsonl,tmp/x3/x3-l7-p4i.moves.jsonl
-    "$BEFORE/s4_identity" "$I/dump-before.txt" 150 10 $F $CFG/v5.0-p4i-ultra.json $CFG/v5.0-p4-ultra.json $CFG/v4.2-ultra.json 2>/dev/null
-    "$BIN/s4_identity" "$I/dump-after.txt" 150 10 $F $CFG/v5.0-p4i-ultra.json $CFG/v5.0-p4-ultra.json $CFG/v4.2-ultra.json 2>/dev/null
+    idc=""; for c in $CONFIGS; do idc="$idc $CFG/$c.json"; done
+    "$BEFORE/s4_identity" "$I/dump-before.txt" 150 10 $F $idc 2>/dev/null
+    "$BIN/s4_identity" "$I/dump-after.txt" 150 10 $F $idc 2>/dev/null
     if cmp -s "$I/dump-before.txt" "$I/dump-after.txt"; then
-      echo "dump: $(wc -l < "$I/dump-after.txt") searches (300 positions x 3 configs), byte-identical ($(grep -c ' Search ' "$I/dump-after.txt") tree searches)"
+      echo "dump: $(wc -l < "$I/dump-after.txt") searches (300 positions x $(echo $CONFIGS | wc -w | tr -d " ") configs), byte-identical ($(grep -c ' Search ' "$I/dump-after.txt") tree searches)"
     else
       echo "dump: DIFFERS"; cmp "$I/dump-before.txt" "$I/dump-after.txt"
     fi

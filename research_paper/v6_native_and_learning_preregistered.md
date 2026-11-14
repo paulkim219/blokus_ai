@@ -692,3 +692,29 @@ every descent; `false` (every existing version) is byte-identical.
   - Seed blocks 88,000,000 to 88,300,000 verified unused (no log in `tmp/` holds a seed at or above
     88,000,000). Unused and unread, left alone: 83,100,000, 83,200,000, 84,800,000, 87,200,000,
     87,300,000, 87,500,000.
+- **2026-11-14 02:30 CST, S6 (Stage C: second speed pass, identical output) and X4 (Stage D:
+  benchmark of the final base), fixed before any of their games and before the clean cost run.**
+  Read so far: as the Package entry (no package or IIV1 game read yet).
+  - **S6 engine (`ad66afb`):** in the rollout's corner scan and in move generation, one forbidden
+    window (`occ | edgeHalo[seat]`) replaces the occupied and own windows (same test); pieces larger
+    than the free squares reachable from the corner in 4 steps are skipped (they have no legal
+    placement there); sampled rollouts apply moves without maintaining the Zobrist hash (undo restores
+    it). Identity: 1,200/1,200 complete search outputs equal to the Stage-A pin for `v5.0-s4-ultra`,
+    `v5.0-p4i-ultra`, `v5.0-p4-ultra`, `v4.2-ultra` (`tmp/s6/identity/`), plus mirrors, self-play bytes
+    and bridge games as in S4 (`tmp/s6/identity.log`); `tests/s6.rs` checks generation against
+    brute-force legality. Profile taken under match load (relative shares only): rollout corner scan
+    `sample_moves` 46% of the worker, prior scoring 17%.
+  - **Procedure (driver `engine-rs/scripts/s6d-post.sh`, after `pkg-master.sh`, nothing else of ours
+    running):** base = the base after Stages A and B. (1) Identity of that base through both binaries
+    (300 positions); if it differs, Stage C stops. (2) Clean ms/move, own moves 3+, old vs new binary,
+    `p4_cost` 150 positions, 2 threads, two alternating rounds; ratio r = new / old. (3) Only if
+    r ≤ 0.90: `S6T` = base with `iterationScale` × 1/r (3 decimals); check S6T (new binary) against base
+    (old binary), two alternating rounds; if outside [0.97, 1.03], one correction × 1/check.
+    (4) Confirmation: base and S6T on the new binary, started together, 5 threads each, **400 seeds
+    88,400,000–88,400,399** vs three level-6 seats. **Accepted** if paired lower bound above 0 and
+    first-place interval not entirely below 0; saved as `engine-rs/configs/v5.0-s6-ultra.json`.
+    No game is started at or after 08:15 CST.
+  - **X4 (descriptive, no gate):** the final base (S6T if accepted, else the base after A/B), lone seat,
+    200 seeds each, one block at a time, in this order: three **level-7** seats **88,600,000–88,600,199**;
+    three **level-5** seats **88,500,000–88,500,199**; reverse, one level-6 seat against three of ours,
+    **88,700,000–88,700,199**. Blocks not started by 08:15 are left unplayed and reported.
