@@ -64,8 +64,8 @@ spreads them over 18 of its 22 candidates with 17% on the top one. Level 6's tre
 5.6, up to 23; 64% of the root's visits reach depth 5) because its busy interior nodes concentrate:
 of 94 candidates they visit 6 and give the top one 69%. **The selection rule alone barely deepens our
 tree** (P10A depth 3.6, P10B 3.9): it concentrates the root (top child 46% / 58%) but interior nodes
-stay 24-wide and flat, since their first-play value is the parent mean for every unvisited child and
-their priors (hand ordering at temperature 6) are nearly uniform. **Interior expansion is what
+stay 24-wide and flat (inferred cause: their first-play value is the parent mean for every unvisited
+child and their priors, hand ordering at temperature 6, are close to uniform). **Interior expansion is what
 deepens it** (P4I 4.6, depth 5 at 51%; busy nodes' top child 46%), because value initialisation gives
 low-prior children a low starting value. **Together** (P4IP10A) the tree is about as deep as level
 6's (6.1 mean, max 22; 72% at depth 5; PV 1,685 / 936 / 484 / 276 against level 6's 3,751 / 1,867 /
@@ -219,7 +219,159 @@ interior node scores all its legal moves with the fitted model and selection sca
 priorLog arms are cheaper because more concentrated trees stop early more often (fewer iterations).
 
 <!-- P910:SCREEN -->
+## Screen
+
+400 seeds 85,000,000–85,000,399, each arm as the lone seat against three Pentobi level-6 seats
+(1,600 games per arm), arms one after another on 10 threads, 15:18–16:52, pinned binary
+`tmp/p910/bin/blokee-pentobi`, under `caffeinate -i -s -m -w <chain pid>`. Measured
+(`python3 engine-rs/scripts/p910_report.py tmp/p910`, `tmp/p910/screen.md`). Paired Δ is arm − base
+on the same seeds, 95% percentile bootstrap by seed; `*` marks an interval excluding 0. No game failed
+(1,600/1,600 per arm, no failure files). In-match ms/move is from a loaded machine (load 11–17); the
+clean run above is the cost figure.
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ advantage vs base [95% CI] | Paired Δ first place, pp [95% CI] | ms/move all | ms/move 3+ | × base (3+, in-match) | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.0-p4-ultra unchanged | 400 | -4.74 [-5.31, -4.16] | 17.5% | — | — | 58.7 | 71.0 | 1.00 | 0/1600 |
+| P10A | P10 selection rule priorLog, exploration 0.2, all nodes, cut-off 1 | 400 | -5.51 [-6.07, -4.98] | 14.9% | -0.77 [-1.48, -0.06] * | -2.56 [-4.81, -0.19] * | 57.2 | 69.3 | 0.98 | 1586/1600 |
+| P10B | P10 selection rule priorLog, exploration 0.1, all nodes, cut-off 1 | 400 | -6.23 [-6.80, -5.69] | 12.6% | -1.49 [-2.24, -0.78] * | -4.94 [-7.19, -2.75] * | 52.7 | 64.0 | 0.90 | 1594/1600 |
+| P4I | P4 at interior nodes: all legal moves, fitted prior, no widening, 3 initial visits | 400 | -3.23 [-3.75, -2.68] | 18.6% | +1.51 [+0.81, +2.24] * | +1.06 [-1.31, +3.56] | 87.3 | 105.3 | 1.48 | 1599/1600 |
+| P4IP10A | P4I and P10A together (exploration 0.2) | 400 | -4.25 [-4.78, -3.69] | 17.7% | +0.50 [-0.28, +1.28] | +0.19 [-2.25, +2.56] | 95.4 | 115.3 | 1.63 | 1600/1600 |
+| P9A | P9A: opening searched (shortcut off) with the centre rule on own moves 0-2, slack 0 | 400 | -6.64 [-7.22, -6.04] | 14.1% | -1.90 [-2.75, -1.05] * | -3.44 [-5.75, -0.94] * | 86.4 | 76.7 | 1.08 | 1600/1600 |
+| P9B | P9B: rollouts play 5-square pieces only while fewer than 31 pieces are on the board | 400 | -5.13 [-5.72, -4.55] | 15.4% | -0.39 [-1.06, +0.29] | -2.12 [-4.44, +0.31] | 59.0 | 71.5 | 1.01 | 1593/1600 |
+| O0 | control for P9A: opening searched (shortcut off), no centre rule | 400 | -6.24 [-6.82, -5.69] | 15.9% | -1.50 [-2.33, -0.67] * | -1.56 [-3.81, +0.88] | 83.1 | 71.6 | 1.01 | 1600/1600 |
+
+Selection (preregistered rule; `tmp/p910/selection.log`):
+
+```
+P10A: paired -0.773 [-1.482, -0.059] on 400 seeds; first place -2.56 pp [-4.81, -0.19] -> does not clear
+P10B: paired -1.487 [-2.236, -0.776] on 400 seeds; first place -4.94 pp [-7.19, -2.75] -> does not clear
+P4I: paired +1.511 [+0.814, +2.242] on 400 seeds; first place +1.06 pp [-1.31, +3.56] -> clears the screen
+P4IP10A: paired +0.496 [-0.284, +1.275] on 400 seeds; first place +0.19 pp [-2.25, +2.56] -> does not clear
+P9A: paired -1.899 [-2.747, -1.048] on 400 seeds; first place -3.44 pp [-5.75, -0.94] -> does not clear
+P9B: paired -0.392 [-1.060, +0.288] on 400 seeds; first place -2.12 pp [-4.44, +0.31] -> does not clear
+O0: paired -1.501 [-2.330, -0.673] on 400 seeds; first place -1.56 pp [-3.81, +0.88] -> does not clear
+selected: P4I (cleared, largest point estimate +1.511)
+```
+
+Only one mechanism cleared, so no combination arm was built. `P4I`'s clean cost ratio is 1.54 > 1.25,
+so the equal-time arm `P4I-ET` (`search.iterationScale` 16 / 1.541 = 10.383) played the confirmation
+seeds alongside, as preregistered.
+
+**Descriptive contrasts between screen arms** (post hoc, same seeds, not decisions):
+`P4IP10A − P4I` −1.02 [−1.67, −0.36] (first place −0.88 pp [−3.06, +1.38]): the selection rule
+costs strength on top of interior expansion too, although it makes the tree deeper (6.1 vs 4.6).
+`P10B − P10A` −0.71 [−1.40, −0.01]: the more concentrated setting is the worse one. `P9A − O0`
+−0.40 [−1.17, +0.38]: the centre rule adds nothing measurable to searching the opening; searching the
+opening itself (`O0`) is harmful, −1.50 [−2.33, −0.67] against the heuristic.
 <!-- /P910:SCREEN -->
 
 <!-- P910:CONFIRM -->
+## Confirmation
+
+`base`, `P4I` and `P4I-ET` started together on 400 fresh seeds 85,400,000–85,400,399 (3 threads
+each, 16:52–17:34, same pinned binary, under `caffeinate`). Measured
+(`python3 engine-rs/scripts/p910_report.py tmp/p910 --confirm`, `tmp/p910/confirm.md`); no game failed:
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ advantage vs base [95% CI] | Paired Δ first place, pp [95% CI] | ms/move all | ms/move 3+ | × base (3+, in-match) | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.0-p4-ultra unchanged | 400 | -4.99 [-5.57, -4.43] | 16.8% | — | — | 58.3 | 70.5 | 1.00 | 0/1600 |
+| P4I | P4 at interior nodes: all legal moves, fitted prior, no widening, 3 initial visits | 400 | -3.13 [-3.67, -2.60] | 20.3% | +1.86 [+1.20, +2.54] * | +3.56 [+1.31, +5.88] * | 87.8 | 105.8 | 1.50 | 1600/1600 |
+| P4I-ET | P4I at equal time: search.iterationScale 16 -> 10.383 (16 / 1.541) | 400 | -4.12 [-4.68, -3.56] | 18.6% | +0.88 [+0.18, +1.56] * | +1.81 [-0.56, +4.19] | 60.0 | 72.5 | 1.03 | 1600/1600 |
+
+- P4I: paired +1.86 [+1.20, +2.54] -> ACCEPTED at equal iterations (lower bound > 0); first place +3.56 pp [+1.31, +5.88]; clean cost 1.54x base > 1.25; equal-time arm +0.88 [+0.18, +1.56] * HOLDS: P4I-ET: P4I-ET eligible as the new base
+NEW BASE: P4I-ET
+
+- **`P4I` is accepted at equal iterations**: +1.86 [+1.20, +2.54], first place +3.56 pp [+1.31, +5.88].
+- Its clean cost is 1.54× base, so by the preregistered rule it becomes the base only through its
+  equal-time arm, which holds: **`P4I-ET` +0.88 [+0.18, +1.56]**, first place +1.81 pp [−0.56, +4.19]
+  (interval not entirely below 0, so the first-place condition does not block it).
+- Descriptive (post hoc): `P4I-ET − P4I` on the same seeds −0.99 [−1.57, −0.37]: about half of the
+  equal-iterations gain is bought with the extra time.
+
+**Saved as the new base: the equal-time config**, `engine-rs/configs/v5.0-p4i-ultra.json` (=
+`tmp/p910/configs/p910-P4I-ET.json`): `v5.0-p4-ultra` plus `native.candidates` `interiorFull` true,
+`interiorScorer` "fitted", `interiorNoWidening` true, `interiorInitVisits` 3, and
+`search.iterationScale` 10.383 (from 16). The equal-iterations setting (`p910-P4I`, iterationScale 16)
+is the same mechanism given about 1.5× the time per move; it is recorded here and in the tracker, not
+saved as a config.
+
+Clean cost of the saved config (measured after the chain, `tmp/p910/cost-et/cost-et.md`, same 150
+positions, 2 threads, nothing else of mine running; load 6–11 decaying after the chain, so absolute
+ms are higher than in the first cost run): base 83.8 ms/move, `P4I` 127.4 (1.52×), **`P4I-ET` 84.4
+(1.01×)** with 2,469 iterations against base's 3,916. Its tree (`tmp/p910/shape/et.md`, 47 positions):
+
+| Config | Pos. | Simulations | Root visits | Tree depth mean / max | Root children with a visit | Root children for 50% / 90% | Top root child share | PV visits: d1 / d2 / d3 / d4 / d6 | Visits at depth 3 / 4 / 5 / 6 (share of root) | Interior nodes | Edges per interior node | Visited edges per interior node | Nodes ≥100 visits: count, edges, visited, top share | ms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| p910-P4I-ET | 47 | 2550 | 2550 | 4.42 / 16 | 32 of 284 | 2.2 / 9.1 | 0.43 | 1046 / 504 / 220 / 97 / 20.2 | 85.7% / 67.6% / 45.5% / 25.2% | 937 | 232.0 | 2.5 | 12.5, 226, 15.9, 0.46 | 76 |
+
+At equal time the tree is still deeper than base's (mean depth 4.42 vs 3.47; visits at depth 5 46%
+vs 10% of the root's; busy interior nodes give the top child 46% vs 17%) on 2,550 simulations instead
+of 3,963.
+
+## Direct match
+
+`P4I-ET` (as saved) as one seat against three `v5.0-p4-ultra` seats (`blokee-match`, seat-rotated,
+budget 300) on 200 seeds 85,800,000–85,800,199 (800 games), 17:34–17:39, reported, not gated
+(`tmp/p910/match/match-p910-P4I-ET.txt`):
+
+```
+Advantage (score − mean of the three v5.0-p4-ultra seats): 1.56 [95% CI 0.92, 2.25]
+First place: 35.6% (par 25%), sole wins 25.8%
+Mean score: -8.78 (opponents -10.33), squares placed 79.25 / 89
+Per-seat advantage: blue 1.61  yellow -1.39  purple 1.44  green 4.57
+```
+
+## Verdict
+
+**P4 at interior nodes is accepted; `v5.0-p4i-ultra` (its equal-time form) is the new base.**
+Against Pentobi level 6, measured: −4.12 [−4.68, −3.56] with first place 18.6% on the confirmation
+seeds, where `v5.0-p4-ultra` scored −4.99 [−5.57, −4.43] and 16.8% (paired +0.88 [+0.18, +1.56]); at
+equal iterations (1.5× the time) −3.13 [−3.67, −2.60], 20.3%. Directly against `v5.0-p4-ultra`
++1.56 [0.92, 2.25], first place 35.6%.
+
+- **P10 (selection rule): rejected at the tested settings.** priorLog 0.2 −0.77 [−1.48, −0.06], 0.1
+  −1.49 [−2.24, −0.78], both with fewer wins (−2.56 / −4.94 pp); with interior expansion +0.50
+  [−0.28, +1.28] against base and −1.02 [−1.67, −0.36] against interior expansion alone. The cut-off is
+  exact (a speed device) and is not the issue.
+- **P9 (opening rules): rejected.** The centre rule needs the opening searched; searching it is
+  harmful (`O0` −1.50 [−2.33, −0.67]) and the centre rule does not repair it (`P9A` −1.90 [−2.75,
+  −1.05]; `P9A − O0` −0.40, null). Large pieces early in rollouts: null, −0.39 [−1.06, +0.29], first
+  place −2.12 pp [−4.44, +0.31].
+
+Reading (inferred, not measured). The hypothesis was that Pentobi's selection rule and its interior
+treatment make its tree deep and that depth is part of the gap. The measurements split it: interior
+expansion with value initialisation gains (+1.9 at equal iterations, +0.9 at equal time) and deepens
+the tree; the selection rule deepens it further (to Pentobi-like depth) and loses. So depth as such is
+not what pays; what pays is plausibly better use of each interior visit: the fitted prior (fitted on
+level 6's own moves, i.e. a model of the opponents) chooses among *all* the opponent's replies and
+value initialisation lets the search ignore the bad ones, where the base's 24-move hand-ordered
+shortlist with a flat first-play value spreads visits over 18 replies, often missing the one Pentobi
+plays. Concentrating harder at the root (priorLog) costs strength, consistent with S2's `cPuct` 0.8
+null and P6's finding that overriding the root prior's spread hurts; the more concentrated setting is
+the worse one, and the rule also lowers first place.
+
+## Caveats and things I am unsure of
+
+- **Seven arms read at 95% each**; one cleared and it confirmed on fresh seeds at both equal
+  iterations and equal time, which is what the confirmation step is for. The contrasts between arms are
+  post hoc.
+- **The equal-time scale comes from one clean cost run** (1.541; the second run after the chain gave
+  1.52, and the saved config measured 1.01×). The in-match ratio during the confirmation was 1.03.
+- **Pentobi comparison.** Book off and subtree reuse off, one seed, 47 positions; Pentobi searched
+  about 7,300 simulations per position against our ~4,000, so absolute visit counts are not
+  comparable, the shares are. In matches Pentobi plays with reuse and the book on.
+- **Design choices another reading could change:** the interior initial value follows the node's
+  running mean (Pentobi fixes it at expansion); interior nodes are still initialised on their second
+  visit at every depth (Pentobi raises the expansion threshold with depth); the priorLog grid was
+  chosen by matching level 6's tree shape, not by strength, and only {0.1, 0.2} were played;
+  `countOffset` 1 at nodes without value initialisation; the history term was kept unchanged under
+  priorLog. A different grid (larger constants, which the shape grid shows approach base) was not
+  played.
+- **P9A's cost** is measured over own moves 0+ because it adds three searches per game; its result
+  was harmful regardless of cost.
+- The in-match ms/move columns come from a loaded machine (load 11–17, Docker VM and `serve.py`
+  running, not mine).
+- I was cut off by a usage limit after the confirmation started (about 16:53 to 17:53); the chain ran
+  unattended under `caffeinate` through confirmation and the direct match and was not disturbed. The
+  clean cost and tree-shape runs of the saved config were made after the chain, at 17:53–17:58.
 <!-- /P910:CONFIRM -->
