@@ -879,3 +879,24 @@ every descent; `false` (every existing version) is byte-identical.
   - Seed blocks reserved here: 89,500,000; 89,600,000; 89,700,000; 89,800,000; 89,900,000 (and 89,300,000 /
     89,400,000 for the conditional extra). Left unplayed and unread: 83,100,000, 83,200,000, 84,800,000,
     87,200,000, 87,300,000, 87,500,000, 88,200,000, 88,300,000.
+- **2026-11-14 17:10 CST, v5.1 round 3, Stage A: replication of `v5.1-ultra` (fixed before any game of
+  it; arms and seeds set by the supervising session's brief).** Read so far: everything in
+  `research_paper/v5_1_candidates_results.md` (rounds 1–2), and the supervising session's role split of
+  existing logs (the seat moving after the lone Blokee seat scores about +2.9 relative to the game mean).
+  No game on any seed at or above 90,000,000 exists in `tmp/` (checked). Binary: the round-2 pin
+  `tmp/v51b/bin` (engine `82977fe`; no engine change since). Configs `engine-rs/configs/v5.0-ultra.json`
+  and `v5.1-ultra.json`, copied to `tmp/v51c/A/`. Driver `engine-rs/scripts/v51c-stageA.sh`, read-out
+  `engine-rs/scripts/v51c_report.py --stageA`.
+  - Lone seat vs three Pentobi 31.0 level-6 seats (book, one thread, budget 300, 4 rotations per seed),
+    `v5.0-ultra` then `v5.1-ultra`, **400 seeds 90,000,000–90,000,399**, then the same on **90,100,000–
+    90,100,399**, 10 threads, one arm at a time. Reported: the fresh 800 seeds alone and pooled with the
+    round-2 800 (1,600 seeds), paired by seed `v5.1 − v5.0` with 95% bootstrap, first place both as "among
+    the top scorers" and split on ties. The primary reading is the fresh 800-seed paired difference; the
+    1,600-seed pooled one is reported next to it. No gate, no config renamed or deleted whatever the
+    result.
+  - Direct matches (`blokee-match`, budget 300, default opening randomisation), **400 seeds 90,200,000–
+    90,200,399**: one `v5.1-ultra` vs three `v5.0-ultra`, then one `v5.0-ultra` vs three `v5.1-ultra` on
+    the same seeds. Reported: the lone seat's advantage and first place in each, and per seed
+    (fwd − rev)/2 as a descriptive combined reading.
+  - No block starts at or after 22:00 CST. Unplayed and unread: 83,100,000; 83,200,000; 84,800,000;
+    87,200,000; 87,300,000; 87,500,000; 88,200,000; 88,300,000; 89,900,000.
