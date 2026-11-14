@@ -1191,10 +1191,17 @@ impl V12Search {
                 q
             } else {
                 // P6: blend in the edge's AMAF mean. `n` is the count behind Q: the child's visits,
-                // plus the virtual visits of a value-initialised root child.
+                // plus the virtual visits of a value-initialised child (root: `initVisits`; interior:
+                // `interiorInitVisits`, package 2026-11-14).
                 let r = self.rave.as_ref().unwrap();
                 let child_n = if child == NONE { 0.0 } else { self.nodes[child as usize].visits };
-                let n = if init_value { child_n + n0 } else { child_n };
+                let n = if init_value {
+                    child_n + n0
+                } else if interior_init {
+                    child_n + n0_interior
+                } else {
+                    child_n
+                };
                 let [sum, weight] = node.amaf[index];
                 let amaf_mean = sum / weight;
                 let amaf_q = if invert { 1.0 - amaf_mean } else { amaf_mean };

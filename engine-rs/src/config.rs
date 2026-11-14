@@ -626,9 +626,8 @@ impl BitboardParams {
             }
             reject(c.interior_full && !c.interior_fitted(), "native.candidates.interiorFull needs interiorScorer fitted");
             reject(!(c.interior_init_visits >= 0.0 && c.interior_init_visits.is_finite()), "native.candidates.interiorInitVisits must be >= 0");
-            // RAVE's β counts the root's virtual visits only; it is not defined for interior ones.
-            let interior_init = c.interior_init_visits > 0.0;
-            reject(interior_init && native.and_then(|n| n.rave.as_ref()).is_some_and(|r| r.on()), "native.candidates.interiorInitVisits with native.rave");
+            // With RAVE, β counts a value-initialised child's virtual visits as observations behind Q,
+            // at the root (`initVisits`) and at interior nodes (`interiorInitVisits`) alike (package, 2026-11-14).
         }
         if let Some(sel) = native.and_then(|n| n.selection.as_ref()) {
             reject(!matches!(sel.rule.as_str(), "puct" | "priorLog"), "native.selection.rule must be puct or priorLog");
@@ -636,10 +635,11 @@ impl BitboardParams {
             reject(!(sel.exploration > 0.0 && sel.exploration.is_finite()), "native.selection.exploration must be > 0");
             reject(!(sel.count_offset > 0.0 && sel.count_offset.is_finite()), "native.selection.countOffset must be > 0");
             reject(!(0.0..=1.0).contains(&sel.cutoff), "native.selection.cutoff must be in [0, 1]");
-            // RAVE blends Q with its own count, and the E6 value channel / learned prior add counts to
-            // the root; the new denominator is not defined against them.
+            // With RAVE the rule reads the RAVE-blended Q, and its denominator stays the count behind the
+            // edge's own estimate (real visits + k): AMAF samples move Q, not exploration (package,
+            // 2026-11-14). The cut-off stays exact (it compares the blended Q with the same bound). The
+            // E6 value channel / learned prior add counts to the root; the rule is not defined there.
             let changes = sel.prior_log() || sel.cutoff > 0.0;
-            reject(changes && native.and_then(|n| n.rave.as_ref()).is_some_and(|r| r.on()), "native.selection with native.rave");
             reject(changes && native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.selection with native.net or native.prior");
         }
         if let Some(o) = native.and_then(|n| n.opening.as_ref()) {

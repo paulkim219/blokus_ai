@@ -87,6 +87,33 @@ fn interior() -> Vec<(&'static str, Value)> {
     ]
 }
 
+/// Interior expansion + RAVE + the all-moves rollout + rank reward + last-good-reply (the package
+/// without its selection rule, which each case adds).
+fn package() -> Vec<(&'static str, Value)> {
+    let mut v = interior();
+    v.push(("native.rave", json!({"weight": 0.5, "equivalence": 100.0, "distanceDecay": 0.5, "scope": "all"})));
+    v.push(("native.rollout", json!({"policy": "all", "sizeWeight": 1.3995, "localWeight": 0.7185, "localOwnExtra": 0.6515})));
+    v.push(("native.reward", json!({"kind": "rank", "qualityWeight": 0.25, "qualitySlope": 1.0, "lengthWeight": 0.1})));
+    v.push(("native.lastGoodReply", json!({"enabled": true, "forget": true})));
+    v
+}
+
+#[test]
+fn package_is_live_and_rave_reaches_interior_edges() {
+    let mut base = engine(config(&interior()));
+    let mut pkg = engine(config(&{ let mut v = package(); v.push(prior_log(0.2, 1.0)); v }));
+    let mut differ = 0;
+    for (i, (state, moves)) in positions(6, 5150, 16, 30).iter().enumerate() {
+        let a = search(&mut base, state, moves, 60 + i as u32, 20);
+        let b = search(&mut pkg, state, moves, 60 + i as u32, 20);
+        assert!(!b.is_empty());
+        differ += (a != b) as usize;
+        let stats = pkg.root_edge_stats().unwrap();
+        assert!(stats.iter().any(|s| s.1 > 0.0), "root AMAF statistics");
+    }
+    assert!(differ >= 4, "package differs from interior expansion alone: {differ}");
+}
+
 fn prior_log(c: f64, cutoff: f64) -> (&'static str, Value) {
     ("native.selection", json!({"rule": "priorLog", "exploration": c, "scope": "all", "countOffset": 1.0, "cutoff": cutoff}))
 }
@@ -115,6 +142,8 @@ fn exact_cutoff_changes_no_choice() {
         (vec![prior_log(0.2, 0.0)], vec![prior_log(0.2, 1.0)]),
         ({ let mut v = interior(); v.push(prior_log(0.4, 0.0)); v }, { let mut v = interior(); v.push(prior_log(0.4, 1.0)); v }),
         (interior(), { let mut v = interior(); v.push(("native.selection", json!({"rule": "puct", "cutoff": 1.0}))); v }),
+        // Package (2026-11-14): with RAVE blended into Q the cut-off is still exact.
+        ({ let mut v = package(); v.push(prior_log(0.2, 0.0)); v }, { let mut v = package(); v.push(prior_log(0.2, 1.0)); v }),
     ];
     for (k, (off, on)) in cases.iter().enumerate() {
         let mut a = engine(config(off));
@@ -214,8 +243,12 @@ fn unsupported_combinations_are_refused() {
     assert!(refused(&[("native.selection", json!({"rule": "priorLog", "scope": "leaves"}))]));
     assert!(refused(&[("native.selection", json!({"rule": "priorLog", "countOffset": 0.0}))]));
     assert!(refused(&[("native.selection", json!({"rule": "puct", "cutoff": 1.5}))]));
-    assert!(refused(&[prior_log(0.2, 1.0), ("native.rave", json!({"weight": 0.5}))]));
-    assert!(refused(&[("native.candidates.interiorInitVisits", json!(3.0)), ("native.rave", json!({"weight": 0.5}))]));
+    // Package (2026-11-14): priorLog and value-initialised interior children work with RAVE.
+    assert!(!refused(&[prior_log(0.2, 1.0), ("native.rave", json!({"weight": 0.5}))]));
+    let mut pkg = interior();
+    pkg.push(prior_log(0.2, 1.0));
+    pkg.push(("native.rave", json!({"weight": 0.5, "equivalence": 100.0, "distanceDecay": 0.5, "scope": "all"})));
+    assert!(!refused(&pkg));
     assert!(refused(&[("native.opening", json!({"centreSlack": -1.0}))]));
     assert!(refused(&[("native.opening", json!({"rolloutMinSize": 6.0}))]));
     assert!(refused(&[("native.opening", json!({"rolloutMinSize": 5.0, "rolloutUntilPieces": 31.0})), ("native.rollout", json!({"policy": "all", "sizeWeight": 1.0}))]));
