@@ -180,6 +180,8 @@ pub struct V12Search {
     path_edges: Vec<usize>,
     path_undos: Vec<Undo>,
     generate_buffer: Vec<i32>,
+    /// Round 3 D1: the next seat's legal placements (only with `nextPressure`).
+    pressure_buffer: Vec<i32>,
     tier1_scores: Vec<f64>,
     scratch_moves: Vec<i32>,
     scratch_scores: Vec<f64>,
@@ -259,7 +261,7 @@ impl V12Search {
         let net_options = params.native.as_ref().and_then(|n| n.net.clone());
         let candidates = params.native.as_ref().and_then(|n| n.candidates.clone());
         let reward = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
-            .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight).with_first_weight(r.first_weight));
+            .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight).with_first_weight(r.first_weight).with_next_weight(r.next_weight));
         let rollout_local = params.native.as_ref().and_then(|n| n.rollout.as_ref())
             .is_some_and(|r| r.all_moves() && r.local_weight != 0.0);
         let rollout_all = params.native.as_ref().and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves());
@@ -335,6 +337,7 @@ impl V12Search {
             path_edges: Vec::new(),
             path_undos: Vec::new(),
             generate_buffer: vec![0; MAX_MOVES],
+            pressure_buffer: Vec::new(),
             tier1_scores: vec![0.0; MAX_MOVES],
             scratch_moves: vec![0; MAX_MOVES],
             scratch_scores: vec![0.0; MAX_MOVES],
@@ -582,6 +585,9 @@ impl V12Search {
             let ctx = PriorContext::new(position, seat, &recent);
             let mut scores = vec![0.0; moves.len()];
             c.model.as_ref().expect("interiorFull without a model").score(&ctx, &moves, &mut scores);
+            if c.next_pressure != 0.0 {
+                next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
+            }
             sort_by_score(&mut moves, &mut scores);
             let mut priors = vec![0.0; moves.len()];
             softmax_priors(&scores, c.temperature, &mut priors);
@@ -623,6 +629,9 @@ impl V12Search {
             let recent = self.path_recent();
             let ctx = PriorContext::new(position, seat, &recent);
             c.model.as_ref().unwrap().score(&ctx, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            if c.next_pressure != 0.0 {
+                next_pressure(position, seat, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept], c.next_pressure, &mut self.pressure_buffer);
+            }
             sort_by_score(&mut self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
             let shortlist = kept.min(s.node_shortlist as usize);
             let mut priors = vec![0.0; shortlist];
@@ -665,6 +674,9 @@ impl V12Search {
         if c.root_fitted() {
             let ctx = PriorContext::new(position, seat, &self.root_recent);
             c.model.as_ref().expect("fitted root scorer without a model").score(&ctx, &moves, &mut scores);
+            if c.next_pressure != 0.0 {
+                next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
+            }
             temperature = c.temperature;
         } else {
             // Today's ordering over every legal move: tier-1 order first so the split term's budget
@@ -1736,4 +1748,43 @@ fn interleave_pieces(moves: &mut [i32], scores: &mut [f64]) {
 pub fn evaluate_position(context: &mut EvalContext, position: &Position, params: &BitboardParams, phase: Phase) -> [f64; SEAT_COUNT] {
     refresh_context(context, position, false);
     evaluate(context, position, params, phase)
+}
+
+/// Round 3 D1 (`native.candidates.nextPressure`): adds `weight · z` to each candidate's fitted score,
+/// z the standardised pressure of the move on the next seat still in the game (the sum over the move's
+/// cells of how many of that seat's legal placements cover the cell).
+fn next_pressure(position: &Position, seat: usize, moves: &[i32], scores: &mut [f64], weight: f64, buffer: &mut Vec<i32>) {
+    let Some(next) = (1..SEAT_COUNT).map(|k| (seat + k) % SEAT_COUNT).find(|&s| position.out[s] == 0 && position.hand[s] != 0) else {
+        return;
+    };
+    if buffer.len() < MAX_MOVES {
+        buffer.resize(MAX_MOVES, 0);
+    }
+    let n = position.generate_moves(next, buffer, usize::MAX);
+    if n == 0 || moves.len() < 2 {
+        return;
+    }
+    let t = placements();
+    let mut count = [0u16; CELL_COUNT];
+    for &mv in &buffer[..n] {
+        let m = mv as usize;
+        for i in t.cell_start[m]..t.cell_start[m + 1] {
+            count[t.cell_list[i as usize] as usize] += 1;
+        }
+    }
+    let pressure: Vec<f64> = moves
+        .iter()
+        .map(|&mv| {
+            let m = mv as usize;
+            (t.cell_start[m]..t.cell_start[m + 1]).map(|i| count[t.cell_list[i as usize] as usize] as f64).sum()
+        })
+        .collect();
+    let k = pressure.len() as f64;
+    let mean = pressure.iter().sum::<f64>() / k;
+    let sd = (pressure.iter().map(|p| (p - mean) * (p - mean)).sum::<f64>() / k).sqrt();
+    if sd > 0.0 {
+        for (s, p) in scores.iter_mut().zip(&pressure) {
+            *s += weight * (p - mean) / sd;
+        }
+    }
 }

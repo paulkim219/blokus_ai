@@ -478,6 +478,10 @@ pub struct RewardOptions {
     /// v5.1 R1: share of the rank term moved to a first-place indicator (ties shared). 0 is off.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub first_weight: f64,
+    /// Round 3 D2: weight of the next seat in turn order in the rank term (the other two weigh 1;
+    /// the rank stays in [0, 1]). 0 (default) is off, i.e. every opponent weighs 1.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub next_weight: f64,
 }
 
 fn is_zero(x: &f64) -> bool {
@@ -533,6 +537,11 @@ pub struct CandidateOptions {
     /// Softmax temperature over fitted scores (the fit is at temperature 1).
     #[serde(default = "one")]
     pub temperature: f64,
+    /// Round 3 D1: added to every fitted score (root and interior): `nextPressure · z`, z the move's
+    /// pressure on the next seat to move (sum over its cells of how many of that seat's legal
+    /// placements cover the cell) standardised over the node's candidates. 0 (default) is off.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub next_pressure: f64,
     /// The fitted model (`ml/v5-prior-weights.json`), inline so a config is self-contained.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<PriorModel>,
@@ -608,6 +617,8 @@ impl BitboardParams {
             reject(!(r.length_weight >= 0.0 && r.length_weight.is_finite()), "native.reward.lengthWeight must be >= 0");
             reject(!(0.0..=1.0).contains(&r.first_weight), "native.reward.firstWeight must be in [0, 1]");
             reject(r.first_weight > 0.0 && !r.rank(), "native.reward.firstWeight needs kind rank");
+            reject(!(r.next_weight >= 0.0 && r.next_weight <= 10.0), "native.reward.nextWeight must be in [0, 10]");
+            reject(r.next_weight > 0.0 && !r.rank(), "native.reward.nextWeight needs kind rank");
             // The E6 value channel and the leaf-material blend mix the old reward's scale into Q.
             reject(r.rank() && native.is_some_and(|n| n.net.is_some()), "native.reward rank with native.net");
             reject(r.rank() && s.leaf_material_blend > 0.0, "native.reward rank with leafMaterialBlend");

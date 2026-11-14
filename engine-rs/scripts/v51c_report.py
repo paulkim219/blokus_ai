@@ -95,6 +95,43 @@ def stageA(root):
               "(positive = v5.1 better; the lone seat's advantage measured from both sides).")
 
 
+def role_values(path):
+    by = {}
+    for g in games(path):
+        if "+" in g["seat"]:
+            continue
+        i = TURN.index(g["seat"])
+        mean = sum(g["scores"].values()) / 4
+        by.setdefault(g["seed"], []).append([g["scores"][TURN[(i + k) % 4]] - mean for k in range(4)])
+    by = {k: v for k, v in by.items() if len(v) == 4}
+    return [bootstrap([sum(r[k] for r in v) / 4 for v in by.values()]) for k in range(4)]
+
+
+def verdictB(root):
+    """The Stage-B reading rule fixed in the prereg. Prints VERDICT (REAL / ARTEFACT / UNCLEAR) and PERSEAT."""
+    shared, per = os.path.join(root, "b1-shared.jsonl"), os.path.join(root, "b1-perseat.jsonl")
+    control = os.path.join(root, "b2-control.jsonl")
+    if not all(os.path.exists(p) for p in (shared, per, control)):
+        print("VERDICT: UNCLEAR (incomplete)")
+        print("PERSEAT: no")
+        return
+    ns, np_, nc = role_values(shared)[1], role_values(per)[1], role_values(control)[1]
+    hs, hp = (ns[2] - ns[1]) / 2, (np_[2] - np_[1]) / 2
+    shrinks = ns[0] - np_[0] > (hs + hp) / 2 ** 0.5
+    control_windfall = nc[1] > 0
+    print(f"next seat: shared {fmt_ci(ns)}, per-seat {fmt_ci(np_)} (clearly smaller: {shrinks}); control next {fmt_ci(nc)} (above 0: {control_windfall})")
+    if control_windfall or shrinks:
+        v = "ARTEFACT"
+    elif nc[1] <= 0 <= nc[2] and np_[1] > 0:
+        v = "REAL"
+    else:
+        v = "UNCLEAR"
+    n, d, _, _ = paired(per, shared)
+    print(f"Blokee advantage per-seat - shared: {fmt_ci(d)} on {n} seeds")
+    print(f"VERDICT: {v}")
+    print(f"PERSEAT: {'yes' if d[1] > 0 or d[2] < 0 else 'no'}")
+
+
 def roles(paths):
     """Score relative to the game mean by turn-order position relative to the reference seat (the lone
     seat, `seat`), bootstrap by seed."""
@@ -145,7 +182,9 @@ def stageB(root):
 
 def main():
     a = sys.argv
-    if a[1] == "--stageB":
+    if a[1] == "--verdictB":
+        verdictB(a[2])
+    elif a[1] == "--stageB":
         stageB(a[2])
     elif a[1] == "--stageA":
         stageA(a[2])

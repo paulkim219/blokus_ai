@@ -63,6 +63,26 @@ pub fn rank_from(scores: &[f64; SEAT_COUNT]) -> [f64; SEAT_COUNT] {
     })
 }
 
+/// Round 3 D2: as `rank_from`, with the next seat in turn order weighing `next` and the others 1.
+pub fn weighted_rank_from(scores: &[f64; SEAT_COUNT], next: f64) -> [f64; SEAT_COUNT] {
+    std::array::from_fn(|seat| {
+        let (mut beaten, mut total) = (0.0, 0.0);
+        for other in 0..SEAT_COUNT {
+            if other == seat {
+                continue;
+            }
+            let w = if other == (seat + 1) % SEAT_COUNT { next } else { 1.0 };
+            total += w;
+            if scores[seat] > scores[other] {
+                beaten += w;
+            } else if scores[seat] == scores[other] {
+                beaten += 0.5 * w;
+            }
+        }
+        beaten / total
+    })
+}
+
 /// 1/t for each of the t seats sharing the highest score, 0 for the others (sums to 1).
 pub fn first_from(scores: &[f64; SEAT_COUNT]) -> [f64; SEAT_COUNT] {
     let top = scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -134,6 +154,7 @@ impl Running {
 /// scale; the length term still multiplies `rank_i − ½`. At f = 0 nothing is computed.
 #[derive(Clone, Debug)]
 pub struct RankReward {
+    next_weight: f64,
     first_weight: f64,
     quality_weight: f64,
     slope: f64,
@@ -144,7 +165,12 @@ pub struct RankReward {
 
 impl RankReward {
     pub fn new(quality_weight: f64, slope: f64, length_weight: f64) -> RankReward {
-        RankReward { first_weight: 0.0, quality_weight, slope, length_weight, margin: [Running::default(); SEAT_COUNT], length: Running::default() }
+        RankReward { next_weight: 0.0, first_weight: 0.0, quality_weight, slope, length_weight, margin: [Running::default(); SEAT_COUNT], length: Running::default() }
+    }
+
+    pub fn with_next_weight(mut self, next_weight: f64) -> RankReward {
+        self.next_weight = next_weight;
+        self
     }
 
     pub fn with_first_weight(mut self, first_weight: f64) -> RankReward {
@@ -160,7 +186,7 @@ impl RankReward {
     /// `length`: the game's length in placements, or None where it is not known (sealed regions
     /// solved by the packer), which leaves the length term out and the length statistics alone.
     pub fn value(&mut self, scores: &[f64; SEAT_COUNT], length: Option<f64>) -> [f64; SEAT_COUNT] {
-        let ranks = rank_from(scores);
+        let ranks = if self.next_weight > 0.0 { weighted_rank_from(scores, self.next_weight) } else { rank_from(scores) };
         let length_term = match length {
             Some(l) if self.length_weight > 0.0 => {
                 self.length.add(l);
@@ -197,6 +223,14 @@ mod tests {
         let mut r = RankReward::new(0.0, 1.0, 0.0);
         let v = r.value(&[3.0, -2.0, 3.0, -10.0], Some(70.0));
         assert_eq!(v, [5.0 / 6.0, 1.0 / 3.0, 5.0 / 6.0, 0.0]);
+    }
+
+    #[test]
+    fn weighted_rank() {
+        let s = [3.0, -2.0, 3.0, -10.0];
+        assert_eq!(weighted_rank_from(&s, 1.0), rank_from(&s));
+        // Seat 1 beats only seat 3 (its previous seat), next (seat 2) weighs 3: 1 / (3 + 1 + 1).
+        assert!((weighted_rank_from(&s, 3.0)[1] - 0.2).abs() < 1e-12);
     }
 
     #[test]
