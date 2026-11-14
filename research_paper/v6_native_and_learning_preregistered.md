@@ -513,3 +513,32 @@ every descent; `false` (every existing version) is byte-identical.
     `engine-rs/configs/` and the tracker's "Current v5.0 line" table updated.
   - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm, value or seed is
     added after the screen is read without a new dated entry.
+- **2026-11-13 18:40 CST, X3 (where `v5.0-p4i-ultra` stands), fixed before any game.** Read so far:
+  everything in the entries above, including the P9/P10 confirmation and direct match. X3 is X2's
+  benchmark for the new base `engine-rs/configs/v5.0-p4i-ultra.json`: **descriptive, no gate; nothing
+  is accepted or rejected and no config changes as a result.** Pinned binary `tmp/x3/bin/blokee-pentobi`,
+  built from HEAD `9e767d7` (engine sources unchanged since `484cc18`), byte-identical to
+  `tmp/p910/bin/blokee-pentobi` (sha256 `d925c533…`). Before the first X3 game, an identity check: the
+  pinned binary and `tmp/p910/bin` play `v5.0-p4-ultra` (and `v5.0-p4i-ultra`) as the lone seat
+  against level 6 on seeds 86,900,000–002 and must agree move for move; those games' outcomes are not
+  read. Driver `engine-rs/scripts/x3-run.sh`, read-out `engine-rs/scripts/x3_report.py` (both committed
+  with this entry). Settings as X2: Pentobi 31.0, Classic book on, one thread per process, budget 300,
+  4 games per seed (lone seat rotated), 10 game threads, **arms strictly one after another** in the
+  order below, under `caffeinate -i -s -m -w`.
+  - **Level 5:** lone `v5.0-p4i-ultra` against three level-5 seats, 200 seeds 86,000,000–86,000,199;
+    `v5.0-p4-ultra` on the same seeds as the paired control.
+  - **Reverse:** one level-6 seat against three `v5.0-p4i-ultra` seats, 200 seeds 86,200,000–86,200,199.
+  - **Compute against level 6:** lone seat, 200 seeds 86,300,000–86,300,199, three arms on the same
+    seeds: `v5.0-p4i-ultra` as saved (`iterationScale` 10.383, equal time to `v5.0-p4-ultra`); the same
+    with `iterationScale` 16 (equal iterations, about 1.5× the time); and with `iterationScale` 32
+    (about 3× the time).
+  - **Level 7:** lone `v5.0-p4i-ultra` against three level-7 seats, 200 seeds 86,100,000–86,100,199;
+    `v5.0-p4-ultra` on the same seeds as the paired control.
+  - **Read for every arm:** the lone seat's advantage with a 95% percentile bootstrap by seed,
+    first-place share (ties count as first), ms/move for both engines (all moves and own moves 3+).
+    Paired advantage and paired first-place differences by seed (95% bootstrap) for level 5 and level
+    7 (`p4i` − `p4`) and for the compute arms (16 − saved, 32 − saved, 32 − 16). ms/move is quoted only
+    for arms that ran with no other job of ours overlapping (the chain is sequential; the unrelated
+    `serve.py` and Docker VM keep running and the load is recorded per arm).
+  - Unused and unread, left alone: 83,100,000, 83,200,000 and 84,800,000. No arm or seed is added
+    after any result is read without a new dated entry.
