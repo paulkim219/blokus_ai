@@ -633,3 +633,62 @@ every descent; `false` (every existing version) is byte-identical.
     86,900,000 identity block and S4's 87,000,000). Unused and unread, left alone: 83,100,000,
     83,200,000, 84,800,000. No arm, value or seed is added after any result is read without a new
     dated entry.
+- **2026-11-14 02:05 CST, Package (Stage A: the Pentobi elements together on `v5.0-s4-ultra`), fixed
+  before any package game.** Read so far: every result through S5 (`85217fb`); nothing at or above
+  seed 88,000,000 has been played or read.
+  - **Question:** the Pentobi elements were each null or harmful alone; do they work as one system
+    (prior-initialised children, RAVE values, a selection rule for them, rollout and reward matched)?
+  - **Engine change (commit before this entry's games; byte-identical for `v5.0-s4-ultra`,
+    `v5.0-p4i-ultra`, `v5.0-p4-ultra`, `v4.2-ultra`: 1,200/1,200 complete search outputs equal to the S4
+    pin, `tmp/pkg/identity/`).** Two refusals lifted, one formula extended, no new option:
+    (1) RAVE with value-initialised interior children: β = ñ/(ñ + n + n·ñ/equivalence) now counts the
+    child's `interiorInitVisits` virtual visits in n, exactly as it already counted `initVisits` at the
+    root (prior initial value = k pseudo-observations, AMAF samples weight·W, real visits; unvisited
+    children under no widening thus start at the prior value blended with AMAF). (2) priorLog selection
+    with RAVE: the rule reads the RAVE-blended Q; its denominator stays real visits + k, so AMAF samples
+    move Q but not exploration. Reason: exploration 0.2 was chosen (P10) to match level 6's tree shape
+    with that denominator; counting AMAF samples there (as Pentobi's single pooled count does) would be
+    a different, untuned exploration level. The cut-off (1, exact) compares the blended Q with the same
+    bound and stays exact (test `exact_cutoff_changes_no_choice`, new package case). Considered and
+    not changed: under the rank reward a node mean can fall slightly below 0, which would invert the
+    prior's order in the initial values at that node; left as is (it arises only at near-zero means).
+  - **Settings (all from earlier screens, none tuned on these seeds):** RAVE weight 0.5, equivalence
+    100, distance decay 0.5, scope all (R6S); selection priorLog exploration 0.2, count offset 1,
+    cut-off 1 (P10A); rollout "all" size 1.3995 / local 0.7185 / own extra 0.6515 (P1L); reward rank,
+    quality 0.25, slope 1, length 0.1 (P3B); last-good-reply enabled with forgetting (L7). No value
+    had to change for the pieces to fit.
+  - **Clean cost (measured before any game, `p4_cost`, 150 X1 positions, own moves 3+, 2 threads,
+    nothing of ours running; `tmp/pkg/cost/`):** × base: PKG 2.103, no RAVE 1.792, no priorLog 2.075,
+    no all-move rollout 1.183, no rank reward 2.208, no last-good-reply 2.142.
+  - **Screen arms** (`tmp/pkg/configs`, `tmp/pkg/manifest.json`): `base` (`v5.0-s4-ultra`); `PKG`
+    (everything, equal iterations); `PKG-ET` (everything, `iterationScale` 16 / 2.1029 = 7.609);
+    leave-one-out at equal iterations `PKG-noRAVE`, `PKG-noSEL`, `PKG-noROLL`, `PKG-noREW`, `PKG-noLGR`.
+    Equal-time versions of the leave-one-out arms with cost above 1.25 are written now from the same
+    measurement (`-ET`, `iterationScale` 16 / cost) and play only if their arm is confirmed.
+  - **Screen:** one arm at a time, 10 threads, lone seat vs three Pentobi 31.0 level-6 seats, book on,
+    budget 300, 4 rotations per seed, **400 seeds 88,000,000–88,000,399**. Binary pinned in
+    `tmp/pkg/bin`. Reported per arm: advantage, first place, paired difference from base and from PKG
+    (the latter descriptive: what each element contributes inside the package).
+  - **Selection:** an arm clears if its paired advantage lower bound vs base is above 0; the (at most)
+    two cleared arms with the largest point estimates go to confirmation; none → null, no confirmation.
+  - **Confirmation:** base, the selected arm(s) and, for a selected arm with cost above 1.25, its
+    equal-time version, started together, **400 fresh seeds 88,100,000–88,100,399**. Accepted if paired
+    lower bound above 0 and first-place interval not entirely below 0; with cost above 1.25 the
+    equal-time version must also have lower bound above 0 (and first place not entirely below 0) and is
+    the config saved, as `engine-rs/configs/v5.0-<arm>-ultra.json`. Two accepted: the saved config with
+    the larger confirmation point estimate is the new base.
+  - **Tree shape (descriptive):** `p910_probe shape` for base and PKG on the P9/P10 positions.
+  - Driver `engine-rs/scripts/pkg-master.sh`, read-out `engine-rs/scripts/pkg_report.py`.
+- **2026-11-14 02:05 CST, IIV1 replication (Stage B), fixed before any of its games.** S5 read IIV1
+  (`interiorInitVisits` 1) +0.49 [−0.20, +1.20] on 87,400,000 (first place −0.31 pp); those seeds do not
+  count here. Base: the base after Stage A as the driver leaves it (`tmp/pkg/FINAL_BASE`; if
+  `interiorInitVisits` there is not 3 the driver stops and the base reverts to `v5.0-s4-ultra` by
+  hand, reported). Arms base and IIV1 (base with `interiorInitVisits` 1), one at a time, 10 threads,
+  same match settings, **400 seeds 88,200,000–88,200,399 and 400 seeds 88,300,000–88,300,399**,
+  analysed as one 800-seed paired sample. **Accepted** if the paired lower bound over the 800 seeds is
+  above 0 and the paired first-place interval is not entirely below 0 (saved as
+  `engine-rs/configs/v5.0-iiv1-ultra.json`). No equal-time arm (fewer initial visits do not change the
+  iteration count). Same driver, after Stage A.
+  - Seed blocks 88,000,000 to 88,300,000 verified unused (no log in `tmp/` holds a seed at or above
+    88,000,000). Unused and unread, left alone: 83,100,000, 83,200,000, 84,800,000, 87,200,000,
+    87,300,000, 87,500,000.

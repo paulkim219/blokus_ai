@@ -1,0 +1,177 @@
+{
+ "PKG": {
+  "change": "package: base (interior expansion) + RAVE (weight 0.5, equivalence 100, decay 0.5, all nodes; R6S) + priorLog selection (exploration 0.2, cut-off 1; P10A) + all-legal-moves rollout (P1L) + rank reward + quality 0.25, length 0.1 (P3B) + last-good-reply with forgetting (L7)",
+  "set": {
+   "native.rave": {
+    "weight": 0.5,
+    "equivalence": 100.0,
+    "distanceDecay": 0.5,
+    "scope": "all"
+   },
+   "native.selection": {
+    "rule": "priorLog",
+    "exploration": 0.2,
+    "scope": "all",
+    "countOffset": 1.0,
+    "cutoff": 1.0
+   },
+   "native.rollout": {
+    "policy": "all",
+    "sizeWeight": 1.3995,
+    "localWeight": 0.7185,
+    "localOwnExtra": 0.6515
+   },
+   "native.reward": {
+    "kind": "rank",
+    "qualityWeight": 0.25,
+    "qualitySlope": 1.0,
+    "lengthWeight": 0.1
+   },
+   "native.lastGoodReply": {
+    "enabled": true,
+    "forget": true
+   }
+  }
+ },
+ "PKG-noRAVE": {
+  "change": "PKG without RAVE (weight 0.5, equivalence 100, decay 0.5, all nodes; R6S)",
+  "set": {
+   "native.selection": {
+    "rule": "priorLog",
+    "exploration": 0.2,
+    "scope": "all",
+    "countOffset": 1.0,
+    "cutoff": 1.0
+   },
+   "native.rollout": {
+    "policy": "all",
+    "sizeWeight": 1.3995,
+    "localWeight": 0.7185,
+    "localOwnExtra": 0.6515
+   },
+   "native.reward": {
+    "kind": "rank",
+    "qualityWeight": 0.25,
+    "qualitySlope": 1.0,
+    "lengthWeight": 0.1
+   },
+   "native.lastGoodReply": {
+    "enabled": true,
+    "forget": true
+   }
+  }
+ },
+ "PKG-noSEL": {
+  "change": "PKG without priorLog selection (exploration 0.2, cut-off 1; P10A)",
+  "set": {
+   "native.rave": {
+    "weight": 0.5,
+    "equivalence": 100.0,
+    "distanceDecay": 0.5,
+    "scope": "all"
+   },
+   "native.rollout": {
+    "policy": "all",
+    "sizeWeight": 1.3995,
+    "localWeight": 0.7185,
+    "localOwnExtra": 0.6515
+   },
+   "native.reward": {
+    "kind": "rank",
+    "qualityWeight": 0.25,
+    "qualitySlope": 1.0,
+    "lengthWeight": 0.1
+   },
+   "native.lastGoodReply": {
+    "enabled": true,
+    "forget": true
+   }
+  }
+ },
+ "PKG-noROLL": {
+  "change": "PKG without all-legal-moves rollout (P1L)",
+  "set": {
+   "native.rave": {
+    "weight": 0.5,
+    "equivalence": 100.0,
+    "distanceDecay": 0.5,
+    "scope": "all"
+   },
+   "native.selection": {
+    "rule": "priorLog",
+    "exploration": 0.2,
+    "scope": "all",
+    "countOffset": 1.0,
+    "cutoff": 1.0
+   },
+   "native.reward": {
+    "kind": "rank",
+    "qualityWeight": 0.25,
+    "qualitySlope": 1.0,
+    "lengthWeight": 0.1
+   },
+   "native.lastGoodReply": {
+    "enabled": true,
+    "forget": true
+   }
+  }
+ },
+ "PKG-noREW": {
+  "change": "PKG without rank reward + quality 0.25, length 0.1 (P3B)",
+  "set": {
+   "native.rave": {
+    "weight": 0.5,
+    "equivalence": 100.0,
+    "distanceDecay": 0.5,
+    "scope": "all"
+   },
+   "native.selection": {
+    "rule": "priorLog",
+    "exploration": 0.2,
+    "scope": "all",
+    "countOffset": 1.0,
+    "cutoff": 1.0
+   },
+   "native.rollout": {
+    "policy": "all",
+    "sizeWeight": 1.3995,
+    "localWeight": 0.7185,
+    "localOwnExtra": 0.6515
+   },
+   "native.lastGoodReply": {
+    "enabled": true,
+    "forget": true
+   }
+  }
+ },
+ "PKG-noLGR": {
+  "change": "PKG without last-good-reply with forgetting (L7)",
+  "set": {
+   "native.rave": {
+    "weight": 0.5,
+    "equivalence": 100.0,
+    "distanceDecay": 0.5,
+    "scope": "all"
+   },
+   "native.selection": {
+    "rule": "priorLog",
+    "exploration": 0.2,
+    "scope": "all",
+    "countOffset": 1.0,
+    "cutoff": 1.0
+   },
+   "native.rollout": {
+    "policy": "all",
+    "sizeWeight": 1.3995,
+    "localWeight": 0.7185,
+    "localOwnExtra": 0.6515
+   },
+   "native.reward": {
+    "kind": "rank",
+    "qualityWeight": 0.25,
+    "qualitySlope": 1.0,
+    "lengthWeight": 0.1
+   }
+  }
+ }
+}
