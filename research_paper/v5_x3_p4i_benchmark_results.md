@@ -1,6 +1,6 @@
 # X3 — where `v5.0-p4i-ultra` stands against Pentobi
 
-Run on the Mac, 2026-11-13 from 18:41 CST. Descriptive benchmark of the new base
+Run on the Mac, 2026-11-13 18:41–20:44 CST. Descriptive benchmark of the new base
 `engine-rs/configs/v5.0-p4i-ultra.json` (`v5.0-p4-ultra` plus P4 at interior nodes, at equal time),
 **no gate: nothing is accepted or rejected and no config changes as a result.** Design: the 18:40 CST
 "X3" entry of 2026-11-13 in `research_paper/v6_native_and_learning_preregistered.md` (commit
@@ -30,10 +30,20 @@ plays 0–2 from the opening heuristic; Pentobi mostly from its book).
 | Opponent | Seeds | `v5.0-p4i-ultra` | First place | `v5.0-p4-ultra`, same seeds | First place | Paired Δ advantage | Paired Δ first place |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Level 5 | 200 (86,000,000–199) | **+0.75 [−0.02, +1.48]** | 31.0% | −0.77 [−1.59, +0.09] | 26.6% | **+1.52 [+0.54, +2.46]** | +4.38 pp [+0.38, +8.25] |
-| Level 7 | 200 (86,100,000–199) | *running* | | | | | |
+| Level 7 | 200 (86,100,000–199) | **−9.72 [−10.54, −8.87]** | 10.0% | −9.99 [−10.95, −9.09] | 10.5% | +0.28 [−0.79, +1.32] | −0.50 pp [−3.12, +2.00] |
 
-ms/move (measured, in-match): level 5 `v5.0-p4i-ultra` 56.8 all / 68.1 (3+), `v5.0-p4-ultra` 55.4 /
-66.6; Pentobi level 5 9.5 / 9.3 and 9.4 / 9.2.
+ms/move (measured, in-match, all / 3+): level 5: `v5.0-p4i-ultra` 56.8 / 68.1, `v5.0-p4-ultra` 55.4 /
+66.6; Pentobi level 5 9.5 / 9.3 and 9.4 / 9.2. Level 7: `v5.0-p4i-ultra` 62.0 / 75.7, `v5.0-p4-ultra`
+60.7 / 74.2; Pentobi level 7 591.2 / 651.4 and 587.9 / 647.5. The level-7 arms ran 19:12–19:58 and
+19:58–20:43; their games' moves are recorded (`tmp/x3/x3-l7-*.moves.jsonl`) as further level-7
+teacher data.
+
+- **Level 5: the gain shows.** +1.52 [+0.54, +2.46] paired, with more wins (+4.4 pp); the config is now
+  slightly ahead of level 5 on these seeds (+0.75, interval just touching 0; first place 31%).
+- **Level 7: no measurable gain.** +0.28 [−0.79, +1.32] paired, first place unchanged. Both configs
+  lose by about 10 (X2 read −10.90 for `v5.0-p4-ultra` on other seeds). Against level 6 the same
+  change gave +0.88 [+0.18, +1.56] at equal time (P9/P10 confirmation), so a gain of that size at
+  level 7 is not excluded by this interval; a gain like level 5's (+1.5) is near its upper end.
 <!-- /X3:LADDER -->
 
 ## Reverse: one Pentobi level-6 seat against three `v5.0-p4i-ultra` seats
@@ -83,10 +93,6 @@ would explain why the same doubling is worth more here. Note the cost: at `itera
 Blokee spends 202 ms per searched move against level 6's 60, i.e. about 3.3× Pentobi's time, and is
 still behind.
 
-## Level 7
-
-*Running at the time of writing; filled in below when the chain finishes.*
-
 ## Summary
 
 | Match (lone seat first) | Seeds | Result | First place |
@@ -95,7 +101,13 @@ still behind.
 | `v5.0-p4i-ultra` vs 3 × level 6 (compute block, as saved) | 200 | −4.39 [−5.25, −3.57] | 17.2% |
 | same at `iterationScale` 16 / 32 | 200 | −3.64 [−4.41, −2.89] / −1.62 [−2.42, −0.82] | 18.1% / 25.0% |
 | level 6 vs 3 × `v5.0-p4i-ultra` | 200 | +3.66 [+2.91, +4.43] for Pentobi | 41.5% |
-| `v5.0-p4i-ultra` vs 3 × level 7 | 200 | *running* | |
+| `v5.0-p4i-ultra` vs 3 × level 7 | 200 | −9.72 [−10.54, −8.87]; paired vs `v5.0-p4-ultra` +0.28 [−0.79, +1.32] | 10.0% (paired −0.50 pp [−3.12, +2.00]) |
+
+Reading (inferred). P4 at interior nodes, at equal time, helps clearly against level 5, by about +0.9
+against level 6 (P9/P10), not measurably against level 7, and makes Blokee a harder field for a lone
+level-6 seat. More time per move now converts into strength (+2.8 for 2.8× the time against level 6),
+which X2 did not show for the old config. The configs remain about 4 points behind level 6 at equal
+time and about 10 behind level 7.
 
 ## Caveats
 
