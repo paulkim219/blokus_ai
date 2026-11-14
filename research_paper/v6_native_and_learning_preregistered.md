@@ -923,3 +923,37 @@ every descent; `false` (every existing version) is byte-identical.
     called *real* (a property of Blokee's play) if B2's next seat is near 0 (interval includes 0) and B1's
     next-seat windfall stays with per-seat processes. A paired change in Blokee's advantage whose interval
     excludes 0 is reported prominently as a benchmark issue.
+- **2026-11-14 17:25 CST, v5.1 round 3, Stage D: options aimed at the next seat's windfall (fixed before any
+  game of it, and before any Stage-A or Stage-B game has been read).** Runs only if the Stage-B reading
+  rule (fixed in the Stage-B entry; coded as `engine-rs/scripts/v51c_report.py --verdictB`) returns
+  **REAL**; otherwise not played. Uses per-seat Pentobi processes if Stage B's paired change in Blokee's
+  advantage (per-seat − shared) has an interval excluding 0, else the shared process.
+  - **What Stage C showed (measured on existing logs, `tmp/v51c/C/stageC.md`; `examples/c_moves.rs`):** in
+    the lone-seat log (`v5.0-ultra` vs three level-6 seats, 800 seeds) during the middle game (plies
+    8–27), a Blokee placement removes **33.8 ± 0.6** of the next seat's legal placements (−6.0%), a Pentobi
+    placement removes **40.0 ± 0.5** of its (Pentobi) next seat's (−7.4%); on the opposite seat 16.1 vs
+    21.0, on the previous seat 29.7 vs 31.5. The two-two log shows the same (Blokee → next 29.1 / 35.6,
+    Pentobi → next 34.1 / 41.7 for a Blokee / Pentobi target). Attach points the move occupies are the same
+    (0.40 vs 0.39 per move), so the difference is in placements removed near the next seat's frontier, not
+    in corner covering. Blokee's own gain per move is also smaller (+49.4 vs +54.3 own legal
+    placements). The next seat's reply covers Blokee's new attach points no more often than another
+    Pentobi seat's (0.13 vs 0.14). Reading: Blokee leaves its successor more room than Pentobi does.
+  - **Options (engine `9e2df31`, pinned `tmp/v51c/binD`; both off by default; identity: complete search
+    output on 300 positions × 4 configs byte-identical to the S6 pin, `cargo test` 32, npm native pass):**
+    **D1 `native.candidates.nextPressure` w** adds `w · z` to every fitted prior score (root and interior),
+    z = the move's pressure on the next seat still playing (sum over the move's cells of how many of that
+    seat's legal placements cover the cell), standardised over the node's candidates — it steers the
+    search's attention towards moves that cut the next seat's placements. **D2 `native.reward.nextWeight` v**
+    makes the next seat in turn order weigh v (others 1) in the rank term of the reward — it makes beating
+    the successor worth more in every seat's value (the max^n tree models every seat this way).
+  - **Arms (base `v5.0-ultra`):** `NP05` (w 0.5), `NP10` (w 1.0), `NW2` (v 2), `NW3` (v 3)
+    (`engine-rs/scripts/v51c_dconfigs.py`). Clean cost measured in the chain after Stage B with nothing else
+    running (`p4_cost`, 150 positions, two rounds); an arm outside [0.97, 1.03] is played at equal time
+    (`iterationScale` 13.528 / c), check round, one correction. Screen: base + the four arms, lone seat vs
+    three level-6 seats, **400 seeds 90,500,000–90,500,399**. Standing rule: an arm clears if its paired lower
+    bound vs base is above 0; the clearing arm with the largest point estimate is confirmed with a fresh base
+    arm (started together) on **400 seeds 90,600,000–90,600,399**, accepted if the paired lower bound is above
+    0 and the paired first-place interval is not entirely below 0; saved as
+    `engine-rs/configs/v5.2-cand-ultra.json` (naming left to the supervising session). The role table (own /
+    next / opposite / previous) is reported for every arm. Driver `engine-rs/scripts/v51c-stageD.sh`
+    (starts after the Stage-B driver exits). No block starts at or after 22:00 CST.
