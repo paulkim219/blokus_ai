@@ -165,6 +165,33 @@ pub fn local_window(rows: &[u32; BOARD_SIZE], cx: usize, cy: usize) -> u128 {
     window
 }
 
+/// Row `y` of `mask` as `board_rows` computes it.
+#[inline(always)]
+fn board_row(mask: &Mask, y: usize) -> u32 {
+    let bit = y * BOARD_SIZE;
+    let (word, shift) = (bit >> 5, bit & 31);
+    let lo = mask[word] as u64;
+    let hi = if word + 1 < WORDS { mask[word + 1] as u64 } else { 0 };
+    (((lo | (hi << 32)) >> shift) & 0xfffff) as u32
+}
+
+/// S4: `local_window(&board_rows(mask), cx, cy)`, reading only the rows the window covers.
+#[inline(always)]
+pub fn local_window_of_mask(mask: &Mask, cx: usize, cy: usize) -> u128 {
+    let mut window = 0u128;
+    let y_start = cy as isize - WINDOW_RADIUS;
+    for r in 0..WINDOW {
+        let y = y_start + r as isize;
+        if !(0..BOARD_SIZE as isize).contains(&y) {
+            continue;
+        }
+        let row = board_row(mask, y as usize) as u64;
+        let bits = ((row << WINDOW_RADIUS) >> cx) & ((1 << WINDOW) - 1);
+        window |= (bits as u128) << (r * WINDOW);
+    }
+    window
+}
+
 fn build() -> PlacementTable {
     let slots = PIECE_COUNT * 8;
     let mut base = vec![-1i32; slots];

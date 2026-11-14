@@ -56,6 +56,21 @@ The two changes that mattered beyond the port itself, both decision-identical:
   against a few hundred translation-invariant shapes instead of 13-word board masks;
 - the territory BFS expands whole layers as 7×u64 bitboards.
 
+S4 (2026-11-13, `research_paper/v5_speed_and_prior_refit_results.md`), also decision-identical
+(every search's ranked output bit for bit, games move for move against the previous binary;
+`tests/s4.rs` checks the two rewritten kernels against their reference versions):
+
+- the fitted prior's scorer adds a per-band, per-placement static prefix (features 0–22) and visits
+  only the board words a placement touches (`PriorModel::score`; `score_reference` is the old one);
+- `sort_by_score` sorts packed integer keys (same permutation as the stable comparator sort);
+- `shift_into`'s column masks are built once instead of on every shift;
+- selection skips untouched edges once a bound on all of them is below the best score, and scores
+  untouched edges from stored per-edge factors (`1.0·cPuct·p`, `sqrt(p/p_max)`) with the same bits;
+- the leaf's endgame gate computes only each seat's reach (`compute_reach`), not the full
+  territory map;
+- the rollout draws its first corner as the n-th set bit without listing every corner, and the
+  cover-list scans (rollout and move generation) iterate the pieces in hand by bit.
+
 ## Binaries
 
 ```bash

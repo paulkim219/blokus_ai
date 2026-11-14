@@ -337,6 +337,7 @@ impl Position {
         GEN_STAMP.with(|stamp| {
             let mut stamp = stamp.borrow_mut();
             let mut count = 0;
+            let (shapes, cover_shape, cover_list) = (&t.shapes[..], &t.cover_shape[..], &t.cover_list[..]);
             for &cell in &corner_cells[..corners] {
                 let cell = cell as usize;
                 let (cx, cy) = (cell % BOARD_SIZE, cell / BOARD_SIZE);
@@ -346,18 +347,19 @@ impl Position {
                 // surviving candidates in the original order. Skipped ids would have failed the
                 // hand test anyway, so leaving them unstamped cannot change any later decision.
                 let base = cell * (PIECE_COUNT + 1);
-                for piece in 0..PIECE_COUNT {
-                    if hand & (1 << piece) == 0 {
-                        continue;
-                    }
-                    let run = t.cover_piece_start[base + piece] as usize..t.cover_piece_start[base + piece + 1] as usize;
-                    for i in run {
-                        let id = t.cover_list[i] as usize;
+                let runs = &t.cover_piece_start[base..base + PIECE_COUNT + 1];
+                let mut bits = hand & ((1 << PIECE_COUNT) - 1);
+                while bits != 0 {
+                    let piece = bits.trailing_zeros() as usize;
+                    bits &= bits - 1;
+                    let (run_start, run_end) = (runs[piece] as usize, runs[piece + 1] as usize);
+                    for (&shape_index, &id) in cover_shape[run_start..run_end].iter().zip(&cover_list[run_start..run_end]) {
+                        let id = id as usize;
                         if stamp[id] == generation {
                             continue;
                         }
                         stamp[id] = generation;
-                        let shape = &t.shapes[t.cover_shape[i] as usize];
+                        let shape = &shapes[shape_index as usize];
                         if (occ_window & shape.cells) | (own_window & shape.edge) != 0 {
                             continue;
                         }

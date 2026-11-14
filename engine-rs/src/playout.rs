@@ -162,20 +162,40 @@ impl Playout {
             return position.generate_moves(seat, &mut self.candidates, limit);
         }
         let corners_mask = position.open_corners(seat);
-        let corners = to_indices(&corners_mask, &mut self.corner_cells);
+        let corners = popcount(&corners_mask) as usize;
         if corners == 0 {
             return 0;
         }
         let t = placements();
         let hand = position.hand[seat] & considered;
-        let occ_rows = board_rows(&position.occ);
-        let own_rows = board_rows(&position.own[seat]);
         let mut count = 0usize;
         let mut corners_used = 0usize;
         self.generation = self.generation.wrapping_add(1);
         let generation = self.generation;
+        if limit == 0 {
+            return 0;
+        }
 
-        let mut remaining = corners;
+        // S4: the first corner is drawn without listing every corner or building all board rows
+        // (the same draw: `to_indices` lists the set bits in ascending order, so the drawn entry is
+        // the `pick`-th set bit). The list and the rows are built only if another corner is needed,
+        // with the drawn corner swapped to the end exactly as the loop below does.
+        let pick = rng.next_int(corners);
+        let cell = nth_set_bit(&corners_mask, pick);
+        let (cx, cy) = (cell % BOARD_SIZE, cell / BOARD_SIZE);
+        let occ_window = local_window_of_mask(&position.occ, cx, cy);
+        let own_window = local_window_of_mask(&position.own[seat], cx, cy);
+        if self.scan_corner(t, cell, hand, occ_window, own_window, generation, limit, &mut count) {
+            corners_used += 1;
+            if corners_used >= max_corners {
+                return count;
+            }
+        }
+        to_indices(&corners_mask, &mut self.corner_cells);
+        self.corner_cells.swap(pick, corners - 1);
+        let occ_rows = board_rows(&position.occ);
+        let own_rows = board_rows(&position.own[seat]);
+        let mut remaining = corners - 1;
         while remaining > 0 && count < limit {
             let pick = rng.next_int(remaining);
             let cell = self.corner_cells[pick];
@@ -189,31 +209,7 @@ impl Playout {
             let (cx, cy) = (cell as usize % BOARD_SIZE, cell as usize / BOARD_SIZE);
             let occ_window = local_window(&occ_rows, cx, cy);
             let own_window = local_window(&own_rows, cx, cy);
-            let mut found = false;
-            let piece_base = cell as usize * (PIECE_COUNT + 1);
-            let mut piece = 0;
-            while piece < PIECE_COUNT && count < limit {
-                if hand & (1 << piece) != 0 {
-                    let run_start = t.cover_piece_start[piece_base + piece] as usize;
-                    let run_end = t.cover_piece_start[piece_base + piece + 1] as usize;
-                    let mut i = run_start;
-                    while i < run_end && count < limit {
-                        let shape = &t.shapes[t.cover_shape[i] as usize];
-                        let rejected = (occ_window & shape.cells) | (own_window & shape.edge) != 0;
-                        let id = t.cover_list[i] as usize;
-                        i += 1;
-                        if rejected || self.stamp[id] == generation {
-                            continue;
-                        }
-                        self.stamp[id] = generation;
-                        self.candidates[count] = id as i32;
-                        count += 1;
-                        found = true;
-                    }
-                }
-                piece += 1;
-            }
-            if found {
+            if self.scan_corner(t, cell as usize, hand, occ_window, own_window, generation, limit, &mut count) {
                 corners_used += 1;
                 if corners_used >= max_corners {
                     return count;
@@ -222,6 +218,46 @@ impl Playout {
             remaining -= 1;
         }
         count
+    }
+
+    /// Appends the legal placements covering `cell` (pieces in `hand`, in cover-list order, not
+    /// already stamped in this `generation`) until `limit`; true if it found any.
+    #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
+    fn scan_corner(&mut self, t: &PlacementTable, cell: usize, hand: u32, occ_window: u128, own_window: u128, generation: u32, limit: usize, count: &mut usize) -> bool {
+        // The same entries in the same order as a nested `while ... && count < limit` scan: the
+        // limit is checked before each entry, so stopping right after the entry that reaches it
+        // is the same thing.
+        if *count >= limit {
+            return false;
+        }
+        let start = *count;
+        let piece_base = cell * (PIECE_COUNT + 1);
+        let runs = &t.cover_piece_start[piece_base..piece_base + PIECE_COUNT + 1];
+        let (shapes, cover_shape, cover_list) = (&t.shapes[..], &t.cover_shape[..], &t.cover_list[..]);
+        let mut bits = hand & ((1 << PIECE_COUNT) - 1);
+        while bits != 0 {
+            let piece = bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            let (run_start, run_end) = (runs[piece] as usize, runs[piece + 1] as usize);
+            for (&shape_index, &id) in cover_shape[run_start..run_end].iter().zip(&cover_list[run_start..run_end]) {
+                let shape = &shapes[shape_index as usize];
+                if (occ_window & shape.cells) | (own_window & shape.edge) != 0 {
+                    continue;
+                }
+                let id = id as usize;
+                if self.stamp[id] == generation {
+                    continue;
+                }
+                self.stamp[id] = generation;
+                self.candidates[*count] = id as i32;
+                *count += 1;
+                if *count >= limit {
+                    return true;
+                }
+            }
+        }
+        *count > start
     }
 
     /// Plays from `position` for at most `cutoff` plies; the position is restored before return.

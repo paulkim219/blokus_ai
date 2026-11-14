@@ -109,7 +109,16 @@ fn columns() -> &'static Columns {
 /// Expanded one BFS layer at a time over whole bitboards. BFS distances are unique, so the layer
 /// in which a cell first appears is exactly the distance the TS queue BFS assigns it.
 fn flood_seat(position: &Position, seat: usize, sources: &Mask, distance: &mut [i16], reach: &mut Mask) -> i32 {
-    distance.fill(UNREACHED);
+    flood_layers::<true>(position, seat, sources, distance, reach)
+}
+
+/// The flood itself; with `DISTANCES` false the distance map is left untouched and only the reach
+/// (and its size) is produced, which is the same set of cells.
+#[inline(always)]
+fn flood_layers<const DISTANCES: bool>(position: &Position, seat: usize, sources: &Mask, distance: &mut [i16], reach: &mut Mask) -> i32 {
+    if DISTANCES {
+        distance.fill(UNREACHED);
+    }
     let c = columns();
     let occ = widen(&position.occ);
     let edge = widen(&position.edge_halo[seat]);
@@ -124,11 +133,13 @@ fn flood_seat(position: &Position, seat: usize, sources: &Mask, distance: &mut [
     let mut d: i16 = 0;
     loop {
         // Record this layer.
-        for (i, &word) in frontier.iter().enumerate() {
-            let mut bits = word;
-            while bits != 0 {
-                distance[i * 64 + bits.trailing_zeros() as usize] = d;
-                bits &= bits - 1;
+        if DISTANCES {
+            for (i, &word) in frontier.iter().enumerate() {
+                let mut bits = word;
+                while bits != 0 {
+                    distance[i * 64 + bits.trailing_zeros() as usize] = d;
+                    bits &= bits - 1;
+                }
             }
         }
         // x+1 needs the source off the last column, x-1 off the first; rows shift by 20.
@@ -154,6 +165,22 @@ fn flood_seat(position: &Position, seat: usize, sources: &Mask, distance: &mut [
     }
     *reach = narrow(&visited);
     visited.iter().map(|w| w.count_ones() as i32).sum()
+}
+
+/// S4: only `open_corners`, `reach` and `reachable_count`, exactly as `compute_territory` sets them
+/// (the other fields are left as they were). Enough for `is_sealed` and the sealed-region packer.
+pub fn compute_reach(position: &Position, out: &mut TerritoryMap) {
+    for seat in 0..SEAT_COUNT {
+        let mut corners = position.open_corners(seat);
+        if position.played[seat] == 0 {
+            let home = HOME_CORNER[seat];
+            if !test_bit(&position.occ, home) {
+                set_bit(&mut corners, home);
+            }
+        }
+        out.open_corners[seat] = corners;
+        out.reachable_count[seat] = flood_layers::<false>(position, seat, &corners, &mut [], &mut out.reach[seat]);
+    }
 }
 
 pub fn compute_territory(position: &Position, out: &mut TerritoryMap, fractional_ties: bool) {

@@ -87,6 +87,24 @@ pub fn to_indices(mask: &Mask, out: &mut [i32]) -> usize {
     count
 }
 
+/// S4: the cell index of the `n`-th set bit (0-based, ascending), i.e. `to_indices`' entry `n`.
+/// `n` must be below the popcount.
+#[inline]
+pub fn nth_set_bit(mask: &Mask, mut n: usize) -> usize {
+    for w in 0..WORDS {
+        let c = mask[w].count_ones() as usize;
+        if n < c {
+            let mut word = mask[w];
+            for _ in 0..n {
+                word &= word - 1;
+            }
+            return (w << 5) + word.trailing_zeros() as usize;
+        }
+        n -= c;
+    }
+    unreachable!("nth_set_bit past the popcount")
+}
+
 pub fn mask_from_indices(indices: &[usize]) -> Mask {
     let mut mask = EMPTY;
     for &index in indices {
@@ -141,13 +159,22 @@ fn shr_into(dst: &mut Mask, src: &Mask, bits: usize) {
     dst[TAIL_WORD] &= TAIL_MASK;
 }
 
+/// (every column but the last, every column but the first): the masks `shift_into` clears before a
+/// horizontal shift. Built once (S4: they were rebuilt from 400 `set_bit` calls on every shift).
+static SHIFT_COLUMNS: std::sync::OnceLock<(Mask, Mask)> = std::sync::OnceLock::new();
+
+#[inline(always)]
+fn shift_columns() -> &'static (Mask, Mask) {
+    SHIFT_COLUMNS.get_or_init(|| (column_mask(|x| x < BOARD_SIZE - 1), column_mask(|x| x > 0)))
+}
+
 /// `dst = src` translated by (dx, dy), dropping anything that would leave the board.
 pub fn shift_into(dst: &mut Mask, src: &Mask, dx: isize, dy: isize) {
     let mut scratch = *src;
     if dx > 0 {
-        and_into(&mut scratch, &column_mask(|x| x < BOARD_SIZE - 1));
+        and_into(&mut scratch, &shift_columns().0);
     } else if dx < 0 {
-        and_into(&mut scratch, &column_mask(|x| x > 0));
+        and_into(&mut scratch, &shift_columns().1);
     }
     let delta = dy * BOARD_SIZE as isize + dx;
     if delta >= 0 {

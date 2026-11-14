@@ -14,12 +14,16 @@ use std::cmp::Ordering;
 pub struct HistoryTable {
     sum: Vec<f32>,
     count: Vec<i32>,
+    /// S4: the smallest and largest value `score` has returned for any entry since `clear` (0 for
+    /// an entry never updated), so every current score lies in [low, high]. Read only as a bound.
+    low: f64,
+    high: f64,
 }
 
 impl HistoryTable {
     pub fn new() -> Self {
         let n = placements().count * SEAT_COUNT;
-        HistoryTable { sum: vec![0.0; n], count: vec![0; n] }
+        HistoryTable { sum: vec![0.0; n], count: vec![0; n], low: 0.0, high: 0.0 }
     }
 
     #[inline(always)]
@@ -27,6 +31,15 @@ impl HistoryTable {
         let index = mv as usize * SEAT_COUNT + seat;
         self.sum[index] = (self.sum[index] as f64 + value) as f32;
         self.count[index] += 1;
+        let score = self.sum[index] as f64 / self.count[index] as f64;
+        self.low = self.low.min(score);
+        self.high = self.high.max(score);
+    }
+
+    /// Every entry's `score` lies in this range (S4's selection bound).
+    #[inline(always)]
+    pub fn range(&self) -> (f64, f64) {
+        (self.low, self.high)
     }
 
     #[inline(always)]
@@ -39,6 +52,8 @@ impl HistoryTable {
     pub fn clear(&mut self) {
         self.sum.fill(0.0);
         self.count.fill(0);
+        self.low = 0.0;
+        self.high = 0.0;
     }
 }
 
@@ -215,8 +230,53 @@ pub fn softmax_priors(scores: &[f64], temperature: f64, out: &mut [f64]) {
     }
 }
 
+thread_local! {
+    static SORT_KEYS: std::cell::RefCell<Vec<u128>> = const { std::cell::RefCell::new(Vec::new()) };
+    static SORT_SCORES: std::cell::RefCell<Vec<f64>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
 /// Descending by score, ascending by placement id on ties — a total order, so any sort agrees.
+///
+/// S4: the same permutation as [`sort_by_score_reference`] (a stable sort with that comparator),
+/// computed by sorting packed integer keys: (score descending, with −0.0 and +0.0 equal as
+/// `partial_cmp` has them; placement id ascending; original index ascending, which is what
+/// stability gives equal elements). With a NaN score the comparator is not an order, so that case
+/// keeps the reference code.
 pub fn sort_by_score(moves: &mut [i32], scores: &mut [f64]) {
+    let n = moves.len();
+    if n < 2 {
+        return;
+    }
+    if scores[..n].iter().any(|s| s.is_nan()) {
+        sort_by_score_reference(moves, scores);
+        return;
+    }
+    SORT_KEYS.with(|keys| {
+        SORT_SCORES.with(|saved| {
+            let mut keys = keys.borrow_mut();
+            let mut saved = saved.borrow_mut();
+            keys.clear();
+            saved.clear();
+            saved.extend_from_slice(&scores[..n]);
+            for i in 0..n {
+                let s = if scores[i] == 0.0 { 0.0 } else { scores[i] };
+                let bits = s.to_bits();
+                let ascending = if bits >> 63 == 1 { !bits } else { bits | (1 << 63) };
+                let mv = (moves[i] as u32) ^ 0x8000_0000;
+                keys.push(((!ascending as u128) << 64) | ((mv as u128) << 32) | i as u128);
+            }
+            keys.sort_unstable();
+            for (j, &key) in keys.iter().enumerate() {
+                let i = (key & 0xffff_ffff) as usize;
+                moves[j] = (((key >> 32) as u32) ^ 0x8000_0000) as i32;
+                scores[j] = saved[i];
+            }
+        })
+    })
+}
+
+/// `sort_by_score` as it was before S4 (kept as the reference for `tests/s4.rs`).
+pub fn sort_by_score_reference(moves: &mut [i32], scores: &mut [f64]) {
     let mut order: Vec<usize> = (0..moves.len()).collect();
     order.sort_by(|&a, &b| match scores[b].partial_cmp(&scores[a]) {
         Some(Ordering::Equal) | None => moves[a].cmp(&moves[b]),

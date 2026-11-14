@@ -17,7 +17,7 @@ use crate::net::{NetClient, NetOptions, NetOutput};
 use crate::prior::{PriorClient, encode_request};
 use crate::rng::Rng;
 use crate::rollout_policy::RolloutPolicy;
-use crate::territory::is_sealed;
+use crate::territory::{compute_reach, is_sealed};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
@@ -49,6 +49,15 @@ struct Node {
     prior_max: f64,
     /// P4 at interior nodes (`interiorInitVisits`): children carry a prior-derived initial value.
     value_init: bool,
+    /// S4 (`V12Search::fast_select` only): edges whose child node exists, in creation order; per
+    /// edge, `1.0 · cPuct · p_i` and the initial-value ratio `sqrt(p_i / p_max)` exactly as selection
+    /// computes them, and the largest prior and ratio from that edge on (bounds for the edges not
+    /// yet descended). The ratio arrays are empty when the node's children have no initial value.
+    touched: Vec<u32>,
+    edge_cp: Vec<f64>,
+    edge_ratio: Vec<f64>,
+    prior_suffix: Vec<f64>,
+    ratio_suffix: Vec<f64>,
 }
 
 impl Node {
@@ -73,6 +82,11 @@ impl Node {
             amaf: Vec::new(),
             prior_max: 0.0,
             value_init: false,
+            touched: Vec::new(),
+            edge_cp: Vec::new(),
+            edge_ratio: Vec::new(),
+            prior_suffix: Vec::new(),
+            ratio_suffix: Vec::new(),
         }
     }
 
@@ -233,6 +247,10 @@ pub struct V12Search {
     /// Diagnostics: the tree part of each simulation (edges descended), summed and maximum.
     depth_sum: u64,
     depth_max: u32,
+    /// S4: selection skips untouched edges that provably cannot win (same choice, less work). On
+    /// only when nothing else changes priors or Q after initialisation: no RAVE, no `native.selection`,
+    /// no network or learned prior, and a non-negative `cPuct`.
+    fast_select: bool,
 }
 
 impl V12Search {
@@ -264,7 +282,14 @@ impl V12Search {
         let (interior_full, interior_no_widening, interior_init_visits) = candidates
             .as_ref()
             .map_or((false, false, 0.0), |c| (c.interior_full, c.interior_no_widening, c.interior_init_visits));
+        let fast_select = rave.is_none()
+            && selection.is_none()
+            && net_options.is_none()
+            && params.native.as_ref().is_none_or(|n| n.prior.is_none())
+            && params.search.c_puct >= 0.0
+            && params.search.c_puct.is_finite();
         V12Search {
+            fast_select,
             selection,
             history_bound,
             opening,
@@ -424,6 +449,10 @@ impl V12Search {
             if c.init_visits > 0.0 && !node.priors.is_empty() {
                 let max = node.priors.iter().copied().fold(0.0, f64::max);
                 self.init_ratio = node.priors.iter().map(|&p| if max > 0.0 { (p / max).sqrt() } else { 1.0 }).collect();
+                if self.fast_select {
+                    node.edge_ratio = self.init_ratio.clone();
+                    node.ratio_suffix = suffix_max(self.init_ratio.iter().copied());
+                }
             }
         }
         self.learned_prior = false;
@@ -511,6 +540,16 @@ impl V12Search {
                 node.opened = shortlist;
             }
             node.value_init = self.interior_init_visits > 0.0 && node.prior_max > 0.0;
+        }
+        if self.fast_select {
+            let c_puct = self.params.search.c_puct;
+            node.edge_cp = node.priors.iter().map(|&p| 1.0 * c_puct * p).collect();
+            node.prior_suffix = suffix_max(node.priors.iter().copied());
+            if node.value_init {
+                let max = node.prior_max;
+                node.edge_ratio = node.priors.iter().map(|&p| (p / max).sqrt()).collect();
+                node.ratio_suffix = suffix_max(node.edge_ratio.iter().copied());
+            }
         }
         if let Some(r) = &self.rave
             && (is_root || !r.root_only())
@@ -914,6 +953,9 @@ impl V12Search {
             if existing == NONE {
                 let child = self.node_for(position);
                 self.nodes[node as usize].children[index] = child;
+                if self.fast_select {
+                    self.nodes[node as usize].touched.push(index as u32);
+                }
                 self.enter_node(child, position);
                 node = child;
                 break;
@@ -1007,6 +1049,107 @@ impl V12Search {
             }
             _ => f64::INFINITY,
         };
+        if self.fast_select {
+            // S4: the same choice as the loop below (highest score, lowest index on ties), but the
+            // edges never descended are visited in prior order only until a bound on all that
+            // remain falls below the best score. With fast_select there is no RAVE, network value,
+            // priorLog or cut-off, so the loop below computes exactly `edge_score` for every edge.
+            debug_assert!(!net_value && !prior_log && node.amaf.is_empty() && cutoff == f64::INFINITY);
+            let nodes = &self.nodes;
+            let history = &self.history;
+            let edge_score = |index: usize| -> f64 {
+                let child = node.children[index];
+                let edge_visits = node.child_visits[index] as f64;
+                let q = if init_value {
+                    let v = root_mean * self.init_ratio[index];
+                    if child == NONE || nodes[child as usize].visits == 0.0 {
+                        v
+                    } else {
+                        let c = &nodes[child as usize];
+                        (c.values[self.root_seat] + n0 * v) / (c.visits + n0)
+                    }
+                } else if interior_init {
+                    let v = mover_mean * (node.priors[index] / node.prior_max).sqrt();
+                    if child == NONE || nodes[child as usize].visits == 0.0 {
+                        v
+                    } else {
+                        let c = &nodes[child as usize];
+                        let w = if invert { c.visits - c.values[component] } else { c.values[component] };
+                        (w + n0_interior * v) / (c.visits + n0_interior)
+                    }
+                } else if child == NONE || nodes[child as usize].visits == 0.0 {
+                    (if invert { 1.0 - parent_mean } else { parent_mean }) - s.fpu_reduction
+                } else {
+                    let c = &nodes[child as usize];
+                    let mean = c.values[component] / c.visits;
+                    if invert { 1.0 - mean } else { mean }
+                };
+                let u = 1.0 * s.c_puct * node.priors[index] * (sqrt_visits / (1.0 + edge_visits));
+                let h = if s.history_weight == 0.0 {
+                    0.0
+                } else {
+                    (s.history_weight * history.score(seat, node.moves[index])) / (1.0 + edge_visits)
+                };
+                q + u + h
+            };
+            let mut best_index: Option<usize> = None;
+            let mut best_score = f64::NEG_INFINITY;
+            let consider = |index: usize, score: f64, best_index: &mut Option<usize>, best_score: &mut f64| {
+                if score > *best_score || (score == *best_score && best_index.is_some_and(|b| index < b)) {
+                    *best_score = score;
+                    *best_index = Some(index);
+                }
+            };
+            for &edge in &node.touched {
+                let index = edge as usize;
+                if index < node.opened {
+                    consider(index, edge_score(index), &mut best_index, &mut best_score);
+                }
+            }
+            // Bound on an untouched edge from `index` on (its edge visits are 0): initial value
+            // coefficient × the largest ratio left, PUCT term at the largest prior left, history at
+            // the end of its range that maximises it.
+            let (q_coef, q_const) = if init_value {
+                (root_mean.max(0.0), 0.0)
+            } else if interior_init {
+                (mover_mean.max(0.0), 0.0)
+            } else {
+                (0.0, (if invert { 1.0 - parent_mean } else { parent_mean }) - s.fpu_reduction)
+            };
+            let h_bound = if s.history_weight == 0.0 {
+                0.0
+            } else {
+                let (low, high) = self.history.range();
+                if s.history_weight > 0.0 { s.history_weight * high } else { s.history_weight * low }
+            };
+            let explore = s.c_puct * sqrt_visits;
+            let with_ratio = q_coef > 0.0;
+            // An untouched edge's score as `edge_score` computes it, from the stored factors: its
+            // child is NONE, so q is the initial value (`coef · ratio`, the ratio stored with the
+            // same arithmetic) or the first-play value; its edge visits are 0, so the PUCT term is
+            // `(1.0 · cPuct · p) · (sqrt_visits / 1.0)` and the history term `(w · H) / 1.0`, and
+            // x / 1.0 is x exactly.
+            let coef = if init_value { root_mean } else { mover_mean };
+            let ratio_q = init_value || interior_init;
+            let hw = s.history_weight;
+            for index in 0..node.opened {
+                if node.children[index] != NONE {
+                    continue;
+                }
+                let q_bound = if with_ratio { q_coef * node.ratio_suffix[index] } else { q_const };
+                let bound = q_bound + explore * node.prior_suffix[index] + h_bound;
+                if bound + 1e-9 * (1.0 + bound.abs()) < best_score {
+                    break;
+                }
+                let q = if ratio_q { coef * node.edge_ratio[index] } else { q_const };
+                let u = node.edge_cp[index] * sqrt_visits;
+                let h = if hw == 0.0 { 0.0 } else { hw * history.score(seat, node.moves[index]) };
+                let score = q + u + h;
+                debug_assert_eq!(score.to_bits(), edge_score(index).to_bits());
+                consider(index, score, &mut best_index, &mut best_score);
+            }
+            return best_index;
+        }
         let mut best_index = None;
         let mut best_score = f64::NEG_INFINITY;
         for index in 0..node.opened {
@@ -1116,7 +1259,9 @@ impl V12Search {
         let mut sealed_count = 0;
         let active_seats = position.out.iter().filter(|&&o| o == 0).count();
         if self.endgame_gate_open(position) {
-            refresh_context(&mut self.context, position, false);
+            // S4: the gate reads only each seat's reach (is_sealed, the packer), so only that part
+            // of the context is refreshed; every other reader of `self.context` refreshes it first.
+            compute_reach(position, &mut self.context.territory);
             for seat in 0..SEAT_COUNT {
                 if position.out[seat] == 1 || !is_sealed(&self.context.territory, seat) {
                     continue;
@@ -1529,6 +1674,17 @@ pub struct TreeShape {
     pub busy_visited: usize,
     pub busy_top_share_sum: f64,
     pub nodes_total: usize,
+}
+
+/// S4: `out[i]` = the largest of `values[i..]` (for selection bounds).
+fn suffix_max(values: impl DoubleEndedIterator<Item = f64> + ExactSizeIterator) -> Vec<f64> {
+    let mut out = vec![0.0; values.len()];
+    let mut running = f64::NEG_INFINITY;
+    for (i, v) in values.enumerate().rev() {
+        running = running.max(v);
+        out[i] = running;
+    }
+    out
 }
 
 /// `enter_node`'s settle: seats with no move are marked out until someone can move or all are out.
