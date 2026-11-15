@@ -584,7 +584,11 @@ impl V12Search {
             let recent = self.path_recent();
             let ctx = PriorContext::new(position, seat, &recent);
             let mut scores = vec![0.0; moves.len()];
-            c.model.as_ref().expect("interiorFull without a model").score(&ctx, &moves, &mut scores);
+            let model = c.interior_prior().expect("interiorFull without a model");
+            model.score(&ctx, &moves, &mut scores);
+            if model.has_extras() {
+                model.add_extras(position, seat, ctx.own_moves, &moves, &mut scores);
+            }
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
             }
@@ -628,7 +632,11 @@ impl V12Search {
             let c = params.native.as_ref().and_then(|n| n.candidates.as_ref()).unwrap();
             let recent = self.path_recent();
             let ctx = PriorContext::new(position, seat, &recent);
-            c.model.as_ref().unwrap().score(&ctx, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            let model = c.interior_prior().unwrap();
+            model.score(&ctx, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            if model.has_extras() {
+                model.add_extras(position, seat, ctx.own_moves, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
+            }
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept], c.next_pressure, &mut self.pressure_buffer);
             }
@@ -673,7 +681,11 @@ impl V12Search {
         let temperature;
         if c.root_fitted() {
             let ctx = PriorContext::new(position, seat, &self.root_recent);
-            c.model.as_ref().expect("fitted root scorer without a model").score(&ctx, &moves, &mut scores);
+            let model = c.model.as_ref().expect("fitted root scorer without a model");
+            model.score(&ctx, &moves, &mut scores);
+            if model.has_extras() {
+                model.add_extras(position, seat, ctx.own_moves, &moves, &mut scores);
+            }
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
             }

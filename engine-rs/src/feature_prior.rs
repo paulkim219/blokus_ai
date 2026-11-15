@@ -12,7 +12,7 @@
 
 use crate::bitboard::*;
 use crate::placements::*;
-use crate::position::{HOME_CORNER, Position, SEAT_COUNT};
+use crate::position::{HOME_CORNER, MAX_MOVES, Position, SEAT_COUNT};
 use serde::{Deserialize, Serialize};
 
 /// Feature vector layout. The names are written next to the weights in the model JSON and checked
@@ -115,14 +115,19 @@ fn score_tables() -> &'static ScoreTables {
 
 impl PriorModel {
     pub fn check(&self) -> Result<(), String> {
-        if self.features.len() != FEATURE_COUNT || self.features.iter().zip(FEATURE_NAMES).any(|(a, b)| a != b) {
+        if self.features.len() < FEATURE_COUNT || self.features.iter().zip(FEATURE_NAMES).any(|(a, b)| a != b) {
             return Err(format!("prior model features {:?} do not match this engine's layout", self.features));
+        }
+        for (k, name) in self.features[FEATURE_COUNT..].iter().enumerate() {
+            if !EXTRA_NAMES.contains(&name.as_str()) || self.features[FEATURE_COUNT..k + FEATURE_COUNT].contains(name) {
+                return Err(format!("prior model extra feature {name:?} unknown or repeated (known: {EXTRA_NAMES:?})"));
+            }
         }
         if self.bands.is_empty() {
             return Err("prior model has no bands".into());
         }
         for band in &self.bands {
-            if band.weights.len() != FEATURE_COUNT || band.weights.iter().any(|w| !w.is_finite()) {
+            if band.weights.len() != self.features.len() || band.weights.iter().any(|w| !w.is_finite()) {
                 return Err(format!("prior model band {}..{} has bad weights", band.min_own_move, band.max_own_move));
             }
         }
@@ -141,6 +146,90 @@ impl PriorModel {
         let tables = score_tables();
         for (i, &mv) in moves.iter().enumerate() {
             out[i] = ctx.score_from(mv, statics[mv as usize], weights, tables);
+        }
+    }
+
+    /// N19 (round 4): true when the model has mobility features after the 39 standard ones.
+    pub fn has_extras(&self) -> bool {
+        self.features.len() > FEATURE_COUNT
+    }
+
+    /// N19: adds the mobility features' terms to `out` (after [`PriorModel::score`]). Features, as in
+    /// `examples/n19_features.rs`: own_gain = (the mover's legal placements after the move − before) / 10;
+    /// rm_next / rm_opp / rm_prev = legal placements of seat + 1 / + 2 / + 3 that the move's cells
+    /// intersect, / 10; rm_sum their sum; pr_* = sum over the move's cells of how many of that seat's
+    /// legal placements cover the cell, / 10; own_live = the mover's open corners after − before.
+    pub fn add_extras(&self, position: &Position, seat: usize, own_moves: u32, moves: &[i32], out: &mut [f64]) {
+        let band = &self.bands[band_of(own_moves, &self.bands)];
+        let extras: Vec<(usize, f64)> = self.features[FEATURE_COUNT..]
+            .iter()
+            .zip(&band.weights[FEATURE_COUNT..])
+            .map(|(n, &w)| (EXTRA_NAMES.iter().position(|e| e == n).unwrap(), w))
+            .collect();
+        let need_opp = extras.iter().any(|&(k, _)| (1..=7).contains(&k));
+        let need_own = extras.iter().any(|&(k, _)| k == 0 || k == 8);
+        let t = placements();
+        let mut buf = vec![0i32; MAX_MOVES];
+        let mut cover: Vec<Vec<Vec<u32>>> = Vec::new();
+        let mut counts: Vec<Vec<u16>> = Vec::new();
+        let mut opp_n = [0usize; 3];
+        if need_opp {
+            for r in 0..3 {
+                let o = (seat + 1 + r) % SEAT_COUNT;
+                let n = position.generate_moves(o, &mut buf, usize::MAX);
+                opp_n[r] = n;
+                let mut lists = vec![Vec::new(); CELL_COUNT];
+                let mut c = vec![0u16; CELL_COUNT];
+                for (j, &om) in buf[..n].iter().enumerate() {
+                    let m = om as usize;
+                    for i in t.cell_start[m]..t.cell_start[m + 1] {
+                        let cell = t.cell_list[i as usize] as usize;
+                        lists[cell].push(j as u32);
+                        c[cell] += 1;
+                    }
+                }
+                cover.push(lists);
+                counts.push(c);
+            }
+        }
+        let mut stamp = vec![0u32; opp_n.iter().copied().max().unwrap_or(0)];
+        let mut stamp_gen = 0u32;
+        let mut scratch = if need_own { Some(position.clone()) } else { None };
+        let before = if need_own { position.generate_moves(seat, &mut buf, usize::MAX) as f64 } else { 0.0 };
+        let corners_before = popcount(&position.open_corners(seat)) as f64;
+        for (i, &mv) in moves.iter().enumerate() {
+            let m = mv as usize;
+            let mut f = [0f64; 9];
+            if let Some(p) = scratch.as_mut() {
+                p.force_turn(seat);
+                let undo = p.apply(mv);
+                let after = p.generate_moves(seat, &mut buf, usize::MAX) as f64;
+                f[8] = popcount(&p.open_corners(seat)) as f64 - corners_before;
+                p.undo(&undo);
+                f[0] = (after - before) / 10.0;
+            }
+            if need_opp {
+                for r in 0..3 {
+                    stamp_gen = stamp_gen.wrapping_add(1);
+                    let (mut removed, mut pressure) = (0u32, 0u32);
+                    for ci in t.cell_start[m]..t.cell_start[m + 1] {
+                        let cell = t.cell_list[ci as usize] as usize;
+                        pressure += counts[r][cell] as u32;
+                        for &j in &cover[r][cell] {
+                            if stamp[j as usize] != stamp_gen {
+                                stamp[j as usize] = stamp_gen;
+                                removed += 1;
+                            }
+                        }
+                    }
+                    f[1 + r] = removed as f64 / 10.0;
+                    f[5 + r] = pressure as f64 / 10.0;
+                }
+                f[4] = f[1] + f[2] + f[3];
+            }
+            for &(k, w) in &extras {
+                out[i] += w * f[k];
+            }
         }
     }
 
@@ -181,6 +270,9 @@ impl PriorModel {
             .collect()
     }
 }
+
+/// N19 (round 4): optional mobility features a model may list after the 39 standard ones.
+pub const EXTRA_NAMES: [&str; 9] = ["own_gain", "rm_next", "rm_opp", "rm_prev", "rm_sum", "pr_next", "pr_opp", "pr_prev", "own_live"];
 
 /// Features 0–22 depend only on the placement.
 const STATIC_COUNT: usize = 23;

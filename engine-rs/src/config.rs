@@ -545,6 +545,16 @@ pub struct CandidateOptions {
     /// The fitted model (`ml/v5-prior-weights.json`), inline so a config is self-contained.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<PriorModel>,
+    /// N19 (round 4): a separate model for interior nodes (default: `model` everywhere).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interior_model: Option<PriorModel>,
+}
+
+impl CandidateOptions {
+    /// The model interior nodes score with: `interiorModel` if given, else `model`.
+    pub fn interior_prior(&self) -> Option<&PriorModel> {
+        self.interior_model.as_ref().or(self.model.as_ref())
+    }
 }
 
 fn ordering() -> String {
@@ -651,6 +661,9 @@ impl BitboardParams {
             reject(needs_model && c.model.is_none(), "native.candidates: a fitted scorer needs a model");
             if let Some(Err(e)) = c.model.as_ref().map(|m| m.check()) {
                 reject(true, &format!("native.candidates.model: {e}"));
+            }
+            if let Some(Err(e)) = c.interior_model.as_ref().map(|m| m.check()) {
+                reject(true, &format!("native.candidates.interiorModel: {e}"));
             }
             reject(c.interior_full && !c.interior_fitted(), "native.candidates.interiorFull needs interiorScorer fitted");
             reject(!(c.interior_init_visits >= 0.0 && c.interior_init_visits.is_finite()), "native.candidates.interiorInitVisits must be >= 0");
