@@ -1160,3 +1160,71 @@ the shared process as allowed); a larger tuner budget per candidate.
 re-checked, so their final cost is about 1 ± 0.03 by construction only. TM is kept only in
 `tmp/v52/S1/configs/TM.json` (not committed, since `tmp/` is ignored); its only change is `iterationScale`
 23.222.
+
+
+# Round 6 (2026-11-15 afternoon, 13:27–18:00 CST) — tiers at equal wall time against Pentobi's levels
+
+Preregistration: "2026-11-15 13:40 CST, round 6" (commit `f994698`, before any game). Engine `6f63202` (pinned
+`tmp/v53/bin`) adds `--mode pentobi-ladder` and `--rotations`; defaults are unchanged (checked). Driver
+`engine-rs/scripts/v53-chain.sh`; read-outs `engine-rs/scripts/v53_report.py`.
+
+## Round 6, Stage 1 — tier calibration (measured; `tmp/v53/cal/`)
+
+**Calibration table.** Times are means per move from each seat's fifth move on (see the prereg for why).
+`iterationScale` is the saved value, after one correction for nano, lite, pro and ultra.
+
+| Level | Pentobi ms/move | Pentobi new simulations/move | Tier | `iterationScale` (saved) | our ms/move at the checked scale | our nominal iterations/move at the saved scale |
+|---:|---:|---:|---|---:|---:|---:|
+| 1 | 1.7 | 3 | nano | 0.383 | 2.3 (at the pre-correction scale) | 115 |
+| 3 | 2.5 | 69 | lite | 0.647 | 3.0 (at the pre-correction scale) | 194 |
+| 5 | 10.6 | 855 | base | 3.545 | 11.4 (at the pre-correction scale) | 1,064 |
+| 7 | 902.7 | 81,654 | pro | 224.487 | 1185.2 (at the pre-correction scale) | 67,346 |
+| 9 | 17069.2 | 1,745,122 | ultra | 3948.432 | 22145.6 (at the pre-correction scale) | 1,184,530 |
+
+Configs saved: `engine-rs/configs/v5.2-{nano,lite,base,pro,ultra}.json` (`v5.1-ultra`'s settings at those
+scales) and `engine-rs/configs/v5.2-l6.json` (round 5's level-6 time match, `iterationScale` 23.222).
+
+**Full output** (one game thread, per-seat processes, 13:36–14:14; level 9 and the ultra check ran
+alongside the others as a second single-threaded game; raw logs `tmp/v53/cal/L{k}.jsonl`, `check-<tier>.jsonl`,
+Pentobi logs `logs-L{k}/`):
+
+Blokee `v5.1-ultra` at iterationScale 14.224: 42.5 ms/move (own moves 4+, pooled over the level 1-7 runs)
+
+| Level | Games | Pentobi ms/move (move 5+) | Pentobi ms/move (all) | new simulations/move | root visits | Tier | iterationScale |
+|---:|---:|---:|---:|---:|---:|---|---:|
+| 1 | 4 | 1.7 | 3.2 | 3 | 3 | nano | 0.565 |
+| 2 | 4 | 2.0 | 3.8 | 24 | 25 |  |  |
+| 3 | 4 | 2.5 | 4.7 | 69 | 70 | lite | 0.825 |
+| 4 | 4 | 4.1 | 5.8 | 218 | 222 |  |  |
+| 5 | 4 | 10.6 | 12.1 | 855 | 889 | base | 3.545 |
+| 6 | 4 | 72.3 | 72.7 | 6496 | 6954 |  |  |
+| 7 | 4 | 902.7 | 880.8 | 81654 | 88597 | pro | 302.191 |
+| 8 | 2 | 3931.5 | 3969.2 | 399181 | 443978 |  |  |
+| 9 | 1 | 17069.2 | 17507.1 | 1745122 | 2011301 | ultra | 5714.031 |
+
+| Tier | Level | iterationScale (checked) | our ms/move (own 4+) | Pentobi ms/move (move 5+) | ratio | our ms (all) |
+|---|---:|---:|---:|---:|---:|---:|
+| nano (check) | 1 | 0.565 | 2.3 | 1.5 | 1.474 | 2.2 |
+| lite (check) | 3 | 0.825 | 3.0 | 2.3 | 1.276 | 2.8 |
+| base (check) | 5 | 3.545 | 11.4 | 11.8 | 0.972 | 11.1 |
+| pro (check) | 7 | 302.191 | 1185.2 | 880.5 | 1.346 | 1063.0 |
+| ultra (check) | 9 | 5714.031 | 22145.6 | 15302.8 | 1.447 | 20308.7 |
+
+**Measured:**
+- Pentobi's time per move grows slowly from level 1 to 5 (1.7 → 10.6 ms), then about tenfold per level:
+  72 ms at level 6, 0.9 s at 7, 3.9 s at 8, 17 s at 9.
+- Simulations follow the same pattern: 3, 24, 69, 218, 855, 6,500, 82,000, 399,000, 1.75M.
+- **Our time is not proportional to the iterations at either end.** The proportional scale overshot by 47%
+  (nano), 28% (lite), 35% (pro) and 45% (ultra); base was within 3%.
+- At the low end, a fixed cost per move weighs most. From the two low checks, about 0.8 ms per move plus
+  about 2.7 ms per unit of `iterationScale` (reading: root expansion with the full-move prior, and the
+  position context). It does not bind: nano's corrected 115 nominal iterations should land near level 1's
+  1.7 ms.
+- At the high end, each iteration costs more in a bigger tree (memory and cache).
+
+The corrected scales were not re-checked, as preregistered. Their time match is therefore an estimate.
+The Stage-2 in-match times are the real check (below).
+
+**High budgets:** one search at `iterationScale` 5,000 ran 1.0–1.4M iterations in 7–48 s, with peak memory
+8.2 GB and no error (`tmp/v53/mem/`). Nothing in the engine needed changing. Memory limits ultra to about 3
+concurrent games on this machine.
