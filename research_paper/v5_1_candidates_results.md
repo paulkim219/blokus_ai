@@ -362,3 +362,113 @@ Preregistered and unplayed (no Stage-3 arm cleared): 89,900,000.
 
 Untouched and unread: 83,100,000, 83,200,000, 84,800,000, 87,200,000, 87,300,000, 87,500,000, 88,200,000,
 88,300,000.
+
+# Round 3 (2026-11-14 evening, 17:05–22:30 CST) — v5.1 replication, the next seat's windfall
+
+Preregistration: entries "2026-11-14 17:10 / 17:15 / 17:25 CST, v5.1 round 3, Stage A / B / D" (commits
+`216b648`, `79a7580`, `96f64dd`). Arms and seeds were set by the supervising session's brief.
+
+## Round 3, Stage C — move-level diagnostic (measured on existing logs, no games; `tmp/v51c/C/stageC.md`)
+
+**Tool.** `engine-rs/examples/c_moves.rs` replays every recorded game, using the per-seat engine from
+`engines` and turn order from `seatOrder`. For every placement it computes the following, against the
+next, opposite and previous seat (only targets that still have a move):
+- the change in the target's legal placements, absolute and as % of its count before;
+- the change in its live attach points (open corners covered by at least one of its legal placements);
+- the attach points the move occupies, and the ones it leaves free but dead;
+- the mover's own change in legal placements, the new live attach points it creates, and how many of
+  those the very next placement covers or kills.
+
+The aggregation is `engine-rs/scripts/v51c_moves.py`. Each ± is 1.96 × the standard error of per-seed
+means. Two logs were replayed: the lone-seat log `tmp/v51b/rep/pooled/rep-base.moves.jsonl`
+(`v5.0-ultra` vs three level-6 seats, 800 seeds, 3,200 games) and the two-two log
+`tmp/v51b/par/par-v5.0-ultra.moves.jsonl` (1,200 games, both engines in the same games). Raw rows are in
+`tmp/v51c/C/lone-v50.csv` and `twotwo-v50.csv`.
+
+**Middle game (plies 8–27): legal placements a move removes from the target**, as Δ placements per move
+(Δ % of the target's count):
+
+| Log | Role | Blokee mover | Pentobi mover, Pentobi target | Pentobi mover, Blokee target |
+|---|---|---:|---:|---:|
+| lone | next | **−33.8 ±0.6 (−6.0%)** → Pentobi | **−40.0 ±0.5 (−7.4%)** | −34.5 ±0.7 (−6.2%) |
+| lone | opposite | −16.1 ±0.5 (−3.1%) → Pentobi | −21.0 ±0.4 (−3.6%) | −15.8 ±0.4 (−2.8%) |
+| lone | previous | −29.7 ±0.6 (−5.2%) → Pentobi | −31.5 ±0.4 (−5.2%) | −23.9 ±0.6 (−4.1%) |
+| two-two | next | −29.1 ±1.3 (→ Blokee), −35.6 ±1.1 (→ Pentobi) | −41.7 ±1.2 (−7.4%) | −34.1 ±1.1 (−6.1%) |
+
+**Other measures:**
+- Attach points occupied per move are the same for both engines (next seat: 0.40 Blokee vs 0.39 Pentobi;
+  "killed but not occupied" is ≈ 0, because a monomino can use almost any free corner).
+- Own gain per middle-game move: Blokee +49.4 ±1.1 legal placements, Pentobi +54.3 ±0.7 (+58.8 when the
+  Pentobi seat follows Blokee).
+- The very next placement occupies 0.13 of Blokee's new live attach points (Pentobi successor) and 0.14 of a
+  Pentobi mover's (Pentobi successor). When Blokee is the successor it occupies 0.18–0.21 of its
+  predecessor's.
+- Late game (28+): the next-seat gap narrows. Blokee → next −5.97% vs Pentobi → Pentobi next −6.24%.
+
+**Answer (reading):** a Pentobi seat that follows Blokee gets room, not attacks. In the middle game each
+Blokee placement removes about 6 fewer of the next seat's legal placements than a Pentobi predecessor's
+placement does (−6.0% against −7.4% per move, both logs). The difference is in placements cut near that
+seat's frontier, not in attach points occupied, which are the same. The successor also does not gain by
+hitting Blokee's new attach points (its reply occupies them no more often than a Pentobi successor's).
+Blokee's moves are less disruptive towards every seat (the opposite seat also loses fewer, −16.1 vs −21.0)
+and add less for itself (+49 vs +54). Blokee, as a successor, attacks its predecessor's new attach points
+more than Pentobi does. So the difference is most plausibly Blokee playing less "blocking" and less
+"expanding" placement-count-wise, and the next seat collects most of the slack. This is consistent with a
+real effect, but correlational: Stage B is what tells real from artefact.
+
+
+## Round 3, Stage A — `v5.1-ultra` replication (measured; `tmp/v51c/A/stageA.md`)
+
+Binary: the round-2 pin `tmp/v51b/bin`. Lone seat vs three level-6 seats, 400 seeds on 90,000,000 and 400
+on 90,100,000, played 17:07–17:53. Direct matches with `blokee-match`, 400 seeds on 90,200,000, played
+17:53–18:12. Raw logs: `tmp/v51c/A/a1/lone-<config>.jsonl`, `tmp/v51c/A/a2/lone-<config>.jsonl`
+(+ `.moves`, `.timing`), `tmp/v51c/A/h2h-fwd.jsonl`, `tmp/v51c/A/h2h-rev.jsonl`; pooled copies in
+`tmp/v51c/A/pooled/`. First place "any" = among the top scorers; "split" = ties shared.
+
+### Lone seat vs three level-6 seats
+
+| Arm / block | Seeds | Advantage vs L6 [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| v5.0-ultra, a1 (90,000,000) | 400 | -1.62 [-2.17, -1.06] | 20.3% | 17.8% |
+| v5.0-ultra, a2 (90,100,000) | 400 | -2.19 [-2.73, -1.62] | 19.0% | 16.4% |
+| v5.0-ultra, fresh 800 | 800 | -1.90 [-2.29, -1.52] | 19.7% | 17.1% |
+| v5.0-ultra, round 2 800 | 800 | -1.78 [-2.16, -1.38] | 20.3% | 17.7% |
+| v5.0-ultra, all 1,600 | 1600 | -1.84 [-2.11, -1.57] | 20.0% | 17.4% |
+| v5.1-ultra, a1 (90,000,000) | 400 | -1.17 [-1.73, -0.60] | 20.4% | 17.8% |
+| v5.1-ultra, a2 (90,100,000) | 400 | -1.23 [-1.78, -0.67] | 20.7% | 18.1% |
+| v5.1-ultra, fresh 800 | 800 | -1.20 [-1.60, -0.81] | 20.6% | 17.9% |
+| v5.1-ultra, round 2 800 | 800 | -1.19 [-1.61, -0.79] | 20.6% | 17.6% |
+| v5.1-ultra, all 1,600 | 1600 | -1.20 [-1.48, -0.92] | 20.6% | 17.8% |
+
+### Paired v5.1-ultra − v5.0-ultra (same seeds)
+
+| Sample | Seeds | Paired Δ advantage [95% CI] | Paired Δ first place (any), pp | Paired Δ first place (split), pp |
+|---|---:|---:|---:|---:|
+| a1 (90,000,000) | 400 | +0.44 [-0.27, +1.18] | +0.12 [-2.50, +2.75] | -0.04 [-2.41, +2.39] |
+| a2 (90,100,000) | 400 | +0.96 [+0.24, +1.67] | +1.69 [-0.88, +4.25] | +1.70 [-0.58, +3.96] |
+| fresh 800 | 800 | +0.70 [+0.19, +1.22] | +0.91 [-0.94, +2.75] | +0.83 [-0.86, +2.52] |
+| round 2 800 | 800 | +0.58 [+0.06, +1.11] | +0.31 [-1.53, +2.19] | -0.05 [-1.70, +1.62] |
+| all 1,600 | 1600 | +0.64 [+0.28, +0.99] | +0.61 [-0.69, +1.91] | +0.39 [-0.77, +1.55] |
+
+### Direct matches (blokee-match, 400 seeds 90,200,000; advantage = lone seat − mean of the three others)
+
+| Match | Seeds | Lone seat's advantage [95% CI] | First place (any) | First place (split), par 25% |
+|---|---:|---:|---:|---:|
+| one v5.1-ultra vs three v5.0-ultra | 400 | -0.51 [-1.14, +0.10] | 26.6% | 23.2% |
+| one v5.0-ultra vs three v5.1-ultra | 400 | +0.06 [-0.56, +0.67] | 30.1% | 26.1% |
+
+Combined (descriptive): per seed (fwd − rev) / 2 = -0.28 [-0.72, +0.15] on 400 seeds (positive = v5.1 better; the lone seat's advantage measured from both sides).
+
+**Measured:**
+- Against level 6 the gain replicates on fresh seeds: **+0.70 [+0.19, +1.22]** on the 800 new seeds, and
+  **+0.64 [+0.28, +0.99]** pooled over 1,600 seeds (four blocks: +1.15, +0.02, +0.44, +0.96).
+- First place does not move measurably: +0.83 pp [−0.86, +2.52] split on the fresh 800, and +0.39 pp
+  [−0.77, +1.55] on 1,600.
+- In direct play `v5.1-ultra` is not better than `v5.0-ultra`. A lone v5.1 reads −0.51 [−1.14, +0.10]
+  against three v5.0. A lone v5.0 reads +0.06 [−0.56, +0.67] against three v5.1. The combined per-seed
+  reading is −0.28 [−0.72, +0.15]. Round 2's 200-seed direct match read −0.53 [−1.40, +0.40].
+
+**Reading:** v5.1 gains about +0.6 per game against Pentobi level 6 and nothing (possibly a little less)
+against v5.0. Its changes (wider priorLog exploration, stronger RAVE, more quality bonus, fewer initial
+visits) seem to help against Pentobi's style specifically rather than in general strength. Which
+benchmark should define a version is the supervising session's call. No config was renamed or deleted.
