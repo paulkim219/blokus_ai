@@ -857,3 +857,30 @@ no `v5.2-cand-ultra.json`. Pooled over the screen and confirmation (800 seeds, d
 decision, +1.2 pp top-1). In play the effect is at most small: the screen's +0.85 did not replicate. Use at
 interior nodes, where a prior acts on most of the tree, is too expensive with exact mobility counts
 (about 15×), and the cheap counts cost the same because they also need move lists.
+
+
+## Round 4 — level 7, Stage 3, seed blocks, what I did not get to
+
+**Level 7** (measured; per-seat processes, 200 seeds 91,300,000, 23:20–00:30; raw log `tmp/v51d/S1/v51-l7.jsonl`
++ `.moves`, `.timing`): `v5.1-ultra` vs three level-7 seats reads **−5.26 [−6.08, −4.40]**, first place 14.9%
+(12.6% with ties split). Role split: own −3.95, next +3.96, opposite +0.25, previous −0.26. Earlier readings,
+on other seeds, unpaired, with the shared process: `v5.1-ultra` −6.88 [−7.69, −6.02] (round 2) and
+`v5.0-ultra` −7.85 [−8.66, −7.03] (X4). The full Stage-1 read-out is `tmp/v51d/S1/stage1.md`.
+
+**Stage 3 (compute doubling) was not played.** The level-7 block ended at 00:30:11, so the ×1 / ×2 / ×0.5
+blocks on 91,800,000 met the 00:30 cut-off and did not start. 91,800,000 is unplayed and unread. Round 5
+Stage 1 measures the compute curve on 93,200,000 instead.
+
+**Seed blocks played in round 4:**
+- 91,000,000 and 91,100,000 (Stage 1, 400 each)
+- 91,200,000 (`v4.2-ultra`), 91,300,000 (level 7), 91,400,000 (reverse), 91,500,000 (two-two)
+- 91,600,000 (N19 screen) and 91,700,000 (N19 confirmation)
+- 92,000,000 (arrangement check, 3 × 400)
+- 91,950,000–91,950,009 (clean timing and Pentobi statistics)
+
+Unplayed: 91,800,000. Protected and unread: 83,100,000; 83,200,000; 84,800,000; 87,200,000; 87,300,000;
+87,500,000; 88,200,000; 88,300,000; 89,900,000; also 90,600,000 unplayed.
+
+**Not done in round 4:** the compute doubling (moved to round 5), and a cheaper interior-node
+approximation for the N19 features. An approximation without move generation would only re-express existing
+prior features.
