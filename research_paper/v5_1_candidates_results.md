@@ -1228,3 +1228,58 @@ The Stage-2 in-match times are the real check (below).
 **High budgets:** one search at `iterationScale` 5,000 ran 1.0–1.4M iterations in 7–48 s, with peak memory
 8.2 GB and no error (`tmp/v53/mem/`). Nothing in the engine needed changing. Memory limits ultra to about 3
 concurrent games on this machine.
+
+
+## Round 6, Stage 2 — each tier against its level at equal time (measured; `tmp/v53/S2/tiers.md`)
+
+Per-seat processes, 10 threads, 14:14–15:04. Raw logs `tmp/v53/S2/<tier>-L<k>.jsonl` and
+`tmp/v53/S2/rev-<tier>-L<k>.jsonl` (+ `.moves`, `.timing`). In-match times are under 10-game load. Ultra is
+the tail (below).
+
+| Match | Seeds | Our advantage [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| v5.2-nano vs 3 x L1 | 400 | +6.30 [+5.78, +6.83] | 52.8% | 49.3% |
+| one L1 vs 3 x v5.2-nano (Pentobi's advantage) | 200 | -7.92 [-8.64, -7.21] | 7.8% | 6.4% |
+| v5.2-lite vs 3 x L3 | 400 | +1.61 [+1.11, +2.14] | 37.4% | 32.7% |
+| one L3 vs 3 x v5.2-lite (Pentobi's advantage) | 200 | -3.66 [-4.32, -3.08] | 14.2% | 11.5% |
+| v5.2-base vs 3 x L5 | 400 | +0.33 [-0.20, +0.85] | 24.7% | 21.9% |
+| one L5 vs 3 x v5.2-base (Pentobi's advantage) | 200 | -1.28 [-2.11, -0.46] | 27.8% | 24.6% |
+| v5.2-pro vs 3 x L7 | 100 | -2.02 [-3.14, -0.84] | 21.2% | 18.1% |
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v53/S2/nano-L1.jsonl` | 400 | +4.72 [+4.34, +5.12] | -0.71 [-1.04, -0.36] | -2.88 [-3.23, -2.53] | -1.14 [-1.47, -0.80] |
+| `tmp/v53/S2/rev-nano-L1.jsonl` | 200 | -5.94 [-6.48, -5.41] | +2.05 [+1.43, +2.67] | +3.20 [+2.63, +3.80] | +0.68 [+0.16, +1.19] |
+| `tmp/v53/S2/lite-L3.jsonl` | 400 | +1.21 [+0.83, +1.60] | +0.73 [+0.45, +1.00] | -1.32 [-1.65, -0.99] | -0.62 [-0.90, -0.34] |
+| `tmp/v53/S2/rev-lite-L3.jsonl` | 200 | -2.75 [-3.24, -2.31] | +0.37 [-0.26, +1.02] | +2.47 [+1.95, +3.02] | -0.09 [-0.70, +0.49] |
+| `tmp/v53/S2/base-L5.jsonl` | 400 | +0.25 [-0.15, +0.64] | +2.15 [+1.76, +2.54] | -2.24 [-2.62, -1.85] | -0.17 [-0.55, +0.22] |
+| `tmp/v53/S2/rev-base-L5.jsonl` | 200 | -0.96 [-1.58, -0.35] | -0.77 [-1.44, -0.10] | +1.59 [+0.97, +2.23] | +0.14 [-0.47, +0.75] |
+| `tmp/v53/S2/pro-L7.jsonl` | 100 | -1.51 [-2.35, -0.63] | +4.02 [+3.03, +5.01] | -1.46 [-2.42, -0.54] | -1.05 [-1.94, -0.10] |
+
+In-match ms/move (own/move 5+; all): 
+- `tmp/v53/S2/nano-L1.jsonl`: ours 1.9 (1.8), Pentobi 1.8 (3.6)
+- `tmp/v53/S2/rev-nano-L1.jsonl`: ours 1.7 (1.6), Pentobi 1.9 (3.6)
+- `tmp/v53/S2/lite-L3.jsonl`: ours 3.0 (2.8), Pentobi 2.7 (5.1)
+- `tmp/v53/S2/rev-lite-L3.jsonl`: ours 2.8 (2.6), Pentobi 2.8 (5.2)
+- `tmp/v53/S2/base-L5.jsonl`: ours 13.8 (12.9), Pentobi 11.9 (13.4)
+- `tmp/v53/S2/rev-base-L5.jsonl`: ours 13.6 (12.8), Pentobi 12.1 (13.7)
+- `tmp/v53/S2/pro-L7.jsonl`: ours 823.6 (775.6), Pentobi 937.7 (935.7)
+
+**Measured:**
+
+| Tier vs level | Lone seat | Reverse (one Pentobi seat vs three of ours) |
+|---|---|---|
+| nano vs 1 | **+6.30 [+5.78, +6.83]**, first place 52.8% | −7.92 |
+| lite vs 3 | **+1.61 [+1.11, +2.14]**, 37.4% | −3.66 |
+| base vs 5 | **+0.33 [−0.20, +0.85]**, 24.7% (parity) | −1.28 [−2.11, −0.46] |
+| pro vs 7 | **−2.02 [−3.14, −0.84]**, 21.2% (100 seeds) | not played |
+
+Under match load our time per move is close to Pentobi's for nano (1.9 against 1.8 ms) and lite (3.0
+against 2.7). It is 16% above for base (13.8 against 11.9) and 12% below for pro (824 against 938 ms). So
+the corrected scales are approximate, as Stage 1 warned.
+
+**Reading:** the further down the ladder, the larger our lead at equal time: decisive at level 1, clear at
+3, level at 5, behind at 7. Pentobi's search at levels 1–3 is tiny (3–70 simulations); ours at the same
+time runs about 115–200 iterations with a fitted prior. At level 7 Pentobi's 80,000 simulations outplay
+our roughly 67,000 iterations. The seat after Blokee still gains at base and pro (+2.2, +4.0), but not at
+nano and lite. There our seat takes most of the slack itself.

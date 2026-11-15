@@ -30,10 +30,11 @@ def times(path, lone_blokee=True):
         t = json.loads(l)
         lone = t["seat"]
         for c, v in t["msBySeat"].items():
-            if ((c == lone) == lone_blokee) and t["blokeeMs"]:
+            ours = bool(t["blokeeMs"]) and ((c == lone) == lone_blokee)
+            if ours:
                 b4 += v[4:]
                 ba += v
-            elif c != lone or not t["blokeeMs"]:
+            else:
                 p4 += v[4:]
                 pa += v
     m = lambda v: sum(v) / len(v) if v else float("nan")
