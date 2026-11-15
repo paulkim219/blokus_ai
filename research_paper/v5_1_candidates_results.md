@@ -1444,3 +1444,92 @@ NEW BASE: (none)
 
 **Reading:** the `v5.1-ultra` settings carry over to small budgets about as well as the alternatives tried,
 and exploration should not be lowered at small budgets.
+
+
+# Round 7 (2026-11-15 evening – 2026-11-16 08:00 CST) — why we fall behind at the pro budget
+
+Preregistration: "2026-11-15 16:55 CST, round 7" (commit `0f31eb0`). Driver `engine-rs/scripts/v54-chain.sh`.
+
+## Round 7, B — scaling diagnosis (measured, no Pentobi games; `tmp/v54/B/`)
+
+Setup: 150 recorded positions (own moves 3+, `tmp/d1/x1-l6a.moves.jsonl`) at the `v5.2-l6`, 4× l6 and `v5.2-pro`
+budgets, plus half budgets for the change rate (`p910_probe shape`, `p4_cost` with one thread). This ran
+alongside the ultra tail (3 game threads), so absolute times carry that load. Reuse uses the P8 method
+(`p67_probe reuse`) on 48 recorded games: round 5's time-matched games for l6 and 4×, and round 6's
+`pro-L7` games for pro. The profile is `sample` of a single-threaded `p4_cost` for 25 s. Raw files:
+`shape.csv`, `cost.csv`, `reuse-*.csv` / `.md`, `sample-*.txt`.
+
+| Budget (iterationScale) | iterations (mean) | ms/move (1 thread, under ultra load) | iterations/s | nodes | depth mean / max | chosen move's visit share | its top reply's share | best move changes, half → full budget | reuse at next own turn (share of budget; visits) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v5.2-l6 (23.222) | 5,280 | 103 | 51,021 | 5,122 | 4.14 / 16 | 0.509 | 0.371 | 18.7% | 0.843% (58.71) |
+| 4× l6 (92.888) | 20,026 | 409 | 48,952 | 19,108 | 4.95 / 20 | 0.586 | 0.509 | 13.3% | 1.003% (279.36) |
+| v5.2-pro (224.487) | 47,609 | 1012 | 47,042 | 44,788 | 5.60 / 20 | 0.615 | 0.562 | 14.7% | 1.325% (892.62) |
+
+**Top of stack, `sample` 25 s, l6** (share of the samples listed):
+
+- semaphore_wait_trap: 11387 (51.0%)
+- _RNvMNtCsfG6yJ9azk97_6blokee7playoutNtB2_7Playout12sample_moves: 3534 (15.8%)
+- _RNvMs_NtCsfG6yJ9azk97_6blokee6searchNtB4_9V12Search7iterate: 2736 (12.3%)
+- _RNvMNtCsfG6yJ9azk97_6blokee13feature_priorNtB2_10PriorModel5score: 1950 (8.7%)
+- _RNvMNtCsfG6yJ9azk97_6blokee7playoutNtB2_7Playout3run: 766 (3.4%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position14generate_moves: 586 (2.6%)
+- _RINvNtNtNtNtCs3bJEMBXHbwl_4core5slice4sort8unstable9quicksort9quicksortoNvYoNtNtBa_3cmp10PartialOrd2ltECsfG6y: 311 (1.4%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position8is_legal: 283 (1.3%)
+- _RNvNtCsfG6yJ9azk97_6blokee8bitboard10to_indices: 266 (1.2%)
+- _RNvNtCsfG6yJ9azk97_6blokee6jsmath3exp: 135 (0.6%)
+- _platform_memset: 117 (0.5%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position4undo: 116 (0.5%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position5apply: 83 (0.4%)
+- _RNvNtCsfG6yJ9azk97_6blokee8ordering13sort_by_score: 64 (0.3%)
+
+**Top of stack, `sample` 25 s, pro** (share of the samples listed):
+
+- semaphore_wait_trap: 21505 (51.0%)
+- _RNvMs_NtCsfG6yJ9azk97_6blokee6searchNtB4_9V12Search7iterate: 6786 (16.1%)
+- _RNvMNtCsfG6yJ9azk97_6blokee7playoutNtB2_7Playout12sample_moves: 5750 (13.6%)
+- _RNvMNtCsfG6yJ9azk97_6blokee13feature_priorNtB2_10PriorModel5score: 3605 (8.5%)
+- _RNvMNtCsfG6yJ9azk97_6blokee7playoutNtB2_7Playout3run: 1101 (2.6%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position14generate_moves: 931 (2.2%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position8is_legal: 602 (1.4%)
+- _RINvNtNtNtNtCs3bJEMBXHbwl_4core5slice4sort8unstable9quicksort9quicksortoNvYoNtNtBa_3cmp10PartialOrd2ltECsfG6y: 563 (1.3%)
+- _RNvNtCsfG6yJ9azk97_6blokee8bitboard10to_indices: 359 (0.9%)
+- _platform_memset: 238 (0.6%)
+- _RNvNtCsfG6yJ9azk97_6blokee6jsmath3exp: 232 (0.5%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position5apply: 197 (0.5%)
+- _RNvMNtCsfG6yJ9azk97_6blokee8positionNtB2_8Position4undo: 184 (0.4%)
+- _RNvNtCsfG6yJ9azk97_6blokee8ordering13sort_by_score: 146 (0.3%)
+
+In the profile, `semaphore_wait_trap` is the idle main thread of `p4_cost`. Among the worker's samples:
+
+| Component | l6 | pro |
+|---|---:|---:|
+| `iterate` (selection, backup, RAVE updates inlined) | ≈25% | ≈33% |
+| rollout move sampling (`sample_moves`) | ≈32% | ≈28% |
+| prior scoring | ≈18% | ≈17% |
+| move generation | ≈5% | ≈4% |
+| sorting | ≈3% | ≈3% |
+
+**Settings fixed in absolute visits** that act differently at 50× the visits:
+- **priorLog exploration**: its bonus scales as √N·ln(N+1)/(n+k), so it is about 26% stronger relative to
+  the visits at the pro budget than at l6.
+- **RAVE weight 1.0, equivalence 100**: RAVE's share fades with real visits, but the deeper, thinly
+  visited nodes keep its bias.
+- **Prior pseudo-visits** (3 at the root, 1 at interior nodes): negligible at high counts.
+- **Early exit**: stops at about 70–76% of the budget at every budget, so it acts the same.
+- **No widening**: full expansion everywhere.
+- **Per-search statistics** (rank-reward z-scores, last-good-reply table): cleared each search, independent
+  of budget.
+
+**Reading — the most likely reasons the gain flattens:**
+1. **The tree stays shallow and broad for its size.** Nine times the iterations add only 1.5 plies of mean
+   depth; the chosen move holds 62% of the root visits, and the best move still changes on 15% of positions
+   in the second half of the search. Pentobi at level 7 runs 1.7× our iterations per move (82,000 against
+   about 48,000 at equal time) and is reported deeper (round 3: 5.6 against 4.6 at level 6). Our
+   exploration term growing with ln N is one candidate cause (Stage C tests it).
+2. **Each iteration costs a little more in a bigger tree** (−8% iterations per second; the
+   selection/backup share rises from ¼ to ⅓). That is a modest loss, not the main one.
+3. **No reuse across moves for us, and little for Pentobi in per-seat mode.** Reuse would carry only 1.3%
+   of the pro budget, so it is not the gap.
+
+The rest, and probably most, is the quality of each simulation: our rollout policy and Pentobi's. These
+measurements cannot separate that.
