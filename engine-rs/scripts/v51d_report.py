@@ -58,6 +58,32 @@ def time_report(path):
     print(f"Blokee ms/move mean {bm:.1f} median {bmed:.1f} over {len(ms_b)} moves; Pentobi (per-seat process) mean {pm:.1f} median {pmed:.1f} over {len(ms_p)} moves")
 
 
-if __name__ == "__main__":
-    a = sys.argv
-    {"--stage1": stage1, "--time": time_report}[a[1]](a[2])
+if __name__ == "__main__" and sys.argv[1] in ("--stage1", "--time"):
+    {"--stage1": stage1, "--time": time_report}[sys.argv[1]](sys.argv[2])
+
+
+def cmoves(root, arms, sub="screen", prefix="rol"):
+    """Blokee movers' middle-game (plies 8-27) placement numbers per arm (examples/c_moves.rs)."""
+    import subprocess
+    import pandas as pd
+    print("| Arm | Δ next legal (%) | Δ opposite legal (%) | Δ previous legal (%) | own Δ legal |")
+    print("|---|---:|---:|---:|---:|")
+    for a in arms:
+        mv = os.path.join(root, sub, f"{prefix}-{a}.moves.jsonl")
+        out = os.path.join(root, sub, f"cm-{a}.csv")
+        if not os.path.exists(mv):
+            continue
+        subprocess.run(["tmp/v51d/bin2/c_moves", "6", out, mv], capture_output=True)
+        d = pd.read_csv(out, dtype={"replier": "string"})
+        d = d[(d.ply >= 8) & (d.ply < 28) & (d.mover_engine == "blokee")]
+        cells = []
+        for role in ["next", "opposite", "previous"]:
+            r = d[d.role == role]
+            cells.append(f"{r.d_legal.mean():+.1f} ({100 * (r.d_legal / r.legal_before.clip(lower=1)).mean():+.2f}%)")
+        cells.append(f"{d[d.role == 'self'].d_legal.mean():+.1f}")
+        print(f"| {a} | " + " | ".join(cells) + " |")
+        os.remove(out)
+
+
+if __name__ == "__main__" and sys.argv[1] == "--cmoves":
+    cmoves(sys.argv[2], sys.argv[3:])

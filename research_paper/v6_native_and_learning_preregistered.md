@@ -983,3 +983,40 @@ every descent; `false` (every existing version) is byte-identical.
     Descriptive, no gate. Driver `engine-rs/scripts/v51d-stage1.sh`, read-out `v51d_report.py --stage1`.
     No block starts at or after 00:30 CST. Protected and unread: 83,100,000; 83,200,000; 84,800,000;
     87,200,000; 87,300,000; 87,500,000; 88,200,000; 88,300,000; 89,900,000; also 90,600,000 unplayed.
+- **2026-11-14 20:10 CST, round 4, Stage 2: N19, the move prior re-fitted with mobility features; then the
+  deferred level-7 block and Stage 3. Fixed before any game of it (no Stage-1 game read yet).**
+  - **Offline (measured, `tmp/v51d/n19/fit.log`, `ml/n19_fit_prior.py`):** the level-6 decisions the current
+    prior was fitted on (29,991 decisions, seeds ending in 4/9 held out; the refit of the 39 features
+    reproduces the current weights exactly). New columns per legal move (`examples/n19_features.rs`, aligned
+    row for row; checked against the engine's own computation on 347/347 moves of a decision): own_gain (the
+    mover's legal placements after − before), legal placements of the next / opposite / previous seat the
+    move's cells intersect, their sum, per-cell pressure on each opponent, own open-corner gain. Held-out,
+    own moves 3+: log-likelihood current −2.918 → **exact −2.846** (own gain + removed ×3; top-1 0.277 →
+    0.289, top-5 0.579 → 0.600), exact without own gain −2.901, exact-sum −2.850, cheap (pressure + own
+    corners) −2.897. The gain is largest on own moves 9–14 (−3.071 → −2.938). The own-gain count carries
+    most of it. Offline the new features add something, so Stage 2 proceeds.
+  - **Engine (`6616c10`, pinned `tmp/v51d/bin2`; off by default; identity: 300 positions × 4 configs
+    byte-identical to the S6 pin, `cargo test` 32, npm native pass):** a fitted model may list the
+    mobility features after the 39 standard ones (`PriorModel::add_extras`, computed per scored move list);
+    `native.candidates.interiorModel` (optional) gives interior nodes their own model. Rough cost probe (20
+    positions, under match load, not the measurement): root-only ≈ 1×, any use at interior nodes ≈ 14×
+    (three opponent move lists plus a move per candidate at every expansion), the cheap pressure variant
+    included — so no interior approximation is cheap; an approximation without move generation would only
+    re-express existing features (new corners, opponent corners covered).
+  - **Arms (base `v5.1-ultra`, `engine-rs/scripts/v51d_n19configs.py`):** `R-EX` root scorer = exact model,
+    interior = current; `R-CH` root = cheap model, interior = current; `A-EX` exact at root and interior
+    (expected ≈ 14×, so played at equal time at about 1/14 of the iterations — kept to measure the trade the
+    brief asks about). No temperature arm (the re-fit is only slightly sharper: top-1 +1.2 pp). Clean cost
+    in the driver after Stage 1 with nothing else running (`p4_cost`, 150 positions, two rounds); arms
+    outside [0.97, 1.03] played at equal time (`iterationScale` 14.224 / c), check round, one correction.
+  - **Screen:** base + arms, lone seat vs three level-6 seats, per-seat processes, **400 seeds
+    91,600,000–91,600,399**; role table and `c_moves` middle-game placement numbers for every arm.
+    **Standing rule:** an arm clears if its paired lower bound vs base is above 0; the clearing arm with the
+    largest point estimate is confirmed with a fresh base arm (started together) on **400 seeds
+    91,700,000–91,700,399**; accepted if the paired lower bound is above 0 and the first-place interval is
+    not entirely below 0; saved as `engine-rs/configs/v5.2-cand-ultra.json` (naming left to the
+    supervising session).
+  - **Then:** Stage 1's `v5.1-ultra` vs three level-7 seats, per-seat, 200 seeds 91,300,000 (only if started
+    before 23:20); **Stage 3:** `v5.1-ultra` at `iterationScale` ×1 / ×2 / ×0.5 (14.224 / 28.448 / 7.112),
+    per-seat, **200 seeds 91,800,000**, each block only if started before 00:30. Driver
+    `engine-rs/scripts/v51d-stage2.sh` (starts after the Stage-1 driver exits).
