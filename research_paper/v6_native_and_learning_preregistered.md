@@ -1175,3 +1175,31 @@ every descent; `false` (every existing version) is byte-identical.
     together) on **400 seeds** (nano 98,300,000, lite 98,400,000, base 98,500,000); accepted if the paired
     lower bound is above 0 and the first-place interval is not entirely below 0; saved as
     `engine-rs/configs/v5.3-cand-<tier>.json`. No block starts at or after 17:30.
+- **2026-11-15 16:55 CST, round 7 (the supervising session's brief): scaling diagnosis, pro-tier candidates,
+  benchmark fill-ins. Fixed before any game of it.** Read so far: rounds 1–6, and the B diagnosis (no games;
+  `tmp/v54/B/scaling.md`): from the `v5.2-l6` budget to `v5.2-pro` (9× iterations) iterations per second
+  fall only 8%, the tree deepens from 4.1 to 5.6 plies on average, the chosen move's share rises from 0.51 to
+  0.62, the best move still changes between half and full budget on 15% of positions, the selection/backup
+  loop's share of the work rises from about a quarter to a third, and **subtree reuse would carry 1.3% of the
+  pro budget** (0.8% at l6, 1.0% at 4×; 3.8% on own moves 15+) — far below the 10% line, so reuse is not
+  built. Settings fixed in absolute visits that act differently at 50× the visits: priorLog exploration's
+  term grows as √N·ln(N+1), so relative to the l6 budget its exploration is about 27% stronger at the pro
+  budget (ln 47,600 / ln 5,300 ≈ 1.26); RAVE equivalence 100 and weight 1.0 (RAVE's share fades with real
+  visits, but deeper, thinly visited nodes keep it); initial visits 3 (root) / 1 (interior) of prior
+  pseudo-visits (negligible at high counts); early exit (stops at about 70–76% of the budget at all three
+  budgets); no widening (full expansion).
+  - **Ultra tail:** `ultra-L9` (started 16:17, about 27 minutes per batch of three games, so 96 games would
+    end near 07:00) is stopped at **22:00** if unfinished; complete seeds are reported. Reason: Stage C needs
+    the machine and must start before the 07:30 limit.
+  - **C — pro-tier screen** (base `v5.2-pro`, lone seat vs three level-7 seats, per-seat, 10 threads):
+    arms `X03` priorLog exploration 0.3, `X025` 0.25 (both offset the √N·ln N growth: 0.4 × ln 5,300 /
+    ln 47,600 ≈ 0.32), `RW05` RAVE weight 0.5, `IIV3` interiorInitVisits 3. Clean cost on 60 positions,
+    two rounds (pro searches take about a second each), arms outside [0.97, 1.03] re-timed once, not
+    re-checked. **100 seeds 99,000,000** per arm; clears if the paired lower bound is above 0; the best
+    clearing arm confirmed with a fresh base (started together) on **100 seeds 99,100,000**; accepted by the
+    usual rule → `engine-rs/configs/v5.3-cand-pro.json`, then the same change at the `v5.2-l6` budget vs level
+    6, **400 seeds 99,200,000** (descriptive).
+  - **D — benchmark fill-ins** (after C): nano vs 3 (200 seeds 97,960,000) and vs 4 (200, 97,970,000);
+    `v5.2-l6` vs 5 (200, 97,980,000) and vs 7 (100, 97,990,000); pro vs 6 (100, 97,995,000); ladder lone 6 vs
+    three 7 (100, 97,550,000). The draft read-out also counts round 5's 800-seed `v5.2-l6` vs level 6 block.
+  - No block starts at or after 07:30 CST. Driver `engine-rs/scripts/v54-chain.sh`.

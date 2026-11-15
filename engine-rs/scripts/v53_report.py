@@ -125,6 +125,9 @@ def bench(root):
         add(f"v5.2-{tier}", k, f"{root}/S2/{tier}-L{k}.jsonl")
         for lv in range(1, 10):
             add(f"v5.2-{tier}", lv, f"{root}/S3/{tier}-vs-L{lv}.jsonl")
+    add("v5.2-l6", 6, "tmp/v52/S1/pooled/lone-TM.jsonl")
+    for lv in range(1, 10):
+        add("v5.2-l6", lv, f"{root}/S3/l6-vs-L{lv}.jsonl")
     for k in range(1, 9):
         add(f"Pentobi L{k + 1}", k, f"{root}/S3/ladder-L{k + 1}-vs-L{k}.jsonl")
         add(f"Pentobi L{k}", k + 1, f"{root}/S3/ladder-L{k}-vs-L{k + 1}.jsonl")
