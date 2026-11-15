@@ -1115,3 +1115,43 @@ every descent; `false` (every existing version) is byte-identical.
     is not entirely below 0; saved as `engine-rs/configs/v5.2-cand-ultra.json` (or `v5.3-cand-ultra.json`
     if Stage 2 saved a v5.2 candidate). The old N10 validation seeds 79,800,000–79,800,199 stay unread.
     No block at or after 08:15.
+- **2026-11-15 13:40 CST, round 6: tiers at equal wall time against Pentobi's levels, data for a standard
+  benchmark. Fixed before any game of it; tiers, seeds and stages set by the supervising session's brief
+  (Paul's decisions: equal time is the standard; nano = level 1, lite = 3, base = 5, pro = 7, ultra = 9).**
+  Read so far: rounds 1–5. No game on seeds 96,000,000–98,999,999 exists in `tmp/` (checked). A rough probe
+  (13:28, eight levels in parallel, 4 threads each, seeds 12,500; not a measurement) showed that every
+  per-seat Pentobi process pays a one-off 150–700 ms on its first searched move (memory set-up), several
+  times its per-move search cost at levels 1–5, and that level 8 takes about 4 s per move.
+  - **Engine `6f63202`** (pinned `tmp/v53/bin`): `--mode pentobi-ladder --lone-level A --level B` (one
+    Pentobi seat at A against three at B, every seat in its own process) and `--rotations K` (first K seat
+    rotations of a seed, for slow timing runs); defaults unchanged (per-seat and shared one-blokee games equal
+    to the `6e9623b` pin). High budgets: one search at `iterationScale` 5,000 (budget 1.5M) ran ≈1.0–1.4M
+    iterations in 7–48 s with peak memory 8.2 GB and no error (`tmp/v53/mem/`); node ids are u32, counters
+    f64, early exit active — nothing to fix, but ultra games are run with 3 game threads.
+  - **Stage 1 (calibration):** one game thread, per-seat, `--pentobi-log`, `v5.1-ultra` (14.224) as the
+    Blokee seat: level k on seed 96,900,00k, one seed (4 games) for levels 1–7, 2 games for level 8, 1 game
+    for level 9 (level 9 runs alongside the others: two single-threaded games at once). **Statistic: mean
+    ms per move from each seat's fifth move on (index ≥ 4), for both engines** — this removes Pentobi's
+    one-off set-up move and Blokee's three opening-heuristic moves; all-move means are reported too. This
+    departs from "over all its moves" in the brief for the reason above. Tier `iterationScale` = 14.224 ×
+    Pentobi(level) / Blokee(14.224), Blokee pooled over the level 1–7 runs. Check: one game thread vs the
+    level (nano/lite/base one seed, pro 2 games, ultra 1 game alongside the others), seeds 96,950,00k; outside
+    [0.97, 1.03] one correction, not re-checked. Saved as `engine-rs/configs/v5.2-{nano,lite,base,pro,ultra}.json`
+    (`v5.1-ultra`'s settings, calibrated `iterationScale`), and round 5's time-matched config as
+    `engine-rs/configs/v5.2-l6.json`. Floor at the low end reported if it binds.
+  - **Stage 2 (each tier vs three seats of its level, per-seat, 10 threads):** nano vs level 1 **400 seeds
+    96,000,000**; lite vs 3 **96,100,000**; base vs 5 **96,200,000**; reverse (one level vs three of the tier)
+    **200 seeds** each: nano 96,300,000, lite 96,400,000, base 96,500,000; pro vs 7 **100 seeds 96,600,000**
+    (only if started before 16:30); ultra vs 9 **24 seeds 96,700,000** as the tail with 3 game threads
+    (started only before 17:30; read when partial). Absolute levels, first place, role table, in-match
+    ms/move both sides. No gates.
+  - **Stage 3 (benchmark data, each block only if started before 16:55):** the Pentobi ladder, lone k+1 vs
+    three k and lone k vs three k+1 for k = 1…5, 200 seeds each, seeds 97,000,000 + 50,000·i (i = 0…9 in
+    that order); tiers vs bracketing levels, 200 seeds each: nano vs 2 (97,600,000), lite vs 2 (97,700,000),
+    lite vs 4 (97,800,000), base vs 4 (97,900,000), base vs 6 (97,950,000). k = 6–8 ladder rungs and
+    `v5.2-l6` brackets are not scheduled (time). DRAFT read-out `engine-rs/scripts/v53_report.py --bench`:
+    per engine, advantage vs each anchor played and the break-even level by linear interpolation between the
+    bracketing anchors, 95% interval by bootstrap over seeds.
+  - **Stage 4 (efficiency screens per tier) is not scheduled**: the brief arrived at 13:27 with the 17:30
+    limit, and Stages 1–3 fill the time. No block starts at or after 17:30 CST. Driver
+    `engine-rs/scripts/v53-chain.sh`.
