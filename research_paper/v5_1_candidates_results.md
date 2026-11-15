@@ -973,3 +973,88 @@ Least-squares line over the multiples played: advantage = -0.87 + +1.18·log2(mu
 per move. At equal wall time against a per-seat process, `v5.1-ultra` is at parity with level 6, both as a
 lone seat and as three seats. The returns to iterations are flattening: the second doubling is worth about
 half the first.
+
+
+## Round 5, Stage 2 — N20: how the iterations are spread over a seat's own moves (measured; `tmp/v52/S2/`)
+
+The existing option `search.iterationShape` does this (a multiplier per own-move number, used once in S5), so
+no engine change was needed.
+
+**Shapes from existing logs** (`tmp/v52/shape/shapes.md`):
+
+| Own move | Blokee iterations (p4_cost positions) | n | Blokee in-match ms (per-seat, 800 seeds) | Pentobi L6 new simulations | n |
+|---:|---:|---:|---:|---:|---:|
+| 0 | — | 0 | 0.0 | 568 | 28 |
+| 1 | — | 0 | 0.0 | 517 | 54 |
+| 2 | — | 0 | 0.0 | 614 | 60 |
+| 3 | 3267 | 13 | 149.7 | 2712 | 60 |
+| 4 | 3343 | 13 | 129.7 | 3765 | 60 |
+| 5 | 3401 | 12 | 116.8 | 4210 | 60 |
+| 6 | 3216 | 12 | 101.8 | 4843 | 60 |
+| 7 | 3512 | 8 | 86.1 | 5400 | 60 |
+| 8 | 3721 | 7 | 71.5 | 5816 | 60 |
+| 9 | 3259 | 14 | 60.0 | 6598 | 60 |
+| 10 | 3300 | 10 | 48.4 | 7084 | 60 |
+| 11 | 3523 | 13 | 37.9 | 8009 | 60 |
+| 12 | 3467 | 12 | 29.7 | 8660 | 60 |
+| 13 | 3177 | 15 | 23.6 | 9413 | 60 |
+| 14 | 3456 | 6 | 18.5 | 9678 | 57 |
+| 15 | 2914 | 7 | 13.0 | 10160 | 53 |
+| 16 | 2778 | 5 | 7.8 | 11372 | 48 |
+| 17 | 4267 | 1 | 3.6 | 13888 | 40 |
+| 18 | 3584 | 2 | 1.5 | 15981 | 29 |
+| 19 | — | 0 | 0.7 | 16498 | 15 |
+| 20 | — | 0 | 0.5 | 11209 | 2 |
+
+`v5.1-ultra` runs about the same number of iterations at every own move, so its time per move falls
+about tenfold over the game: rollouts get shorter. Pentobi level 6 runs about six times as many simulations
+late in the game as at own move 3.
+
+**Arms** (`engine-rs/scripts/v52_n20configs.py`): MID (a), FLAT (b), PSHAPE (c), REV (d), as in the prereg.
+Each is normalised to the base's time per game on the measured in-match ms profile, then checked with
+`p4_cost` (02:04–02:08, quiet machine):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 57.7 | 57.7 | 1.000 | 1.000 | 1.000 |
+| MID | 150 | 55.0 | 55.8 | 0.952 | 0.967 | 0.960 |
+| REV | 150 | 57.3 | 58.4 | 0.993 | 1.011 | 1.002 |
+| FLAT | 150 | 51.7 | 52.3 | 0.896 | 0.905 | 0.901 |
+| PSHAPE | 150 | 55.3 | 56.3 | 0.958 | 0.975 | 0.967 |
+
+MID, FLAT and PSHAPE were outside [0.97, 1.03], so their whole shapes were scaled by 1/ratio once (not
+re-checked, as preregistered). The multipliers in the table's "Change" column are the ones before that
+scaling; the configs in `tmp/v52/S2/configs/` hold the scaled ones.
+
+**Screen** (400 seeds 93,300,000–93,300,399, per-seat, 02:08–03:17; raw logs
+`tmp/v52/S2/screen/rol-<arm>.jsonl` + `.moves`, `.timing`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.1-ultra.json unchanged (iterationScale 14.224) | 400 | -0.88 [-1.48, -0.28] | 21.6% | — | — |  | 58.1 | 0/1600 |
+| MID | (a) own moves 6-12 x1.5, 13+ x0.5, 3-5 scaled to equal time: 3:0.54, 4:0.54, 5:0.54, 6:1.50, 7:1.50, 8:1.50, 9:1.50, 10:1.50, 11:1.50, 12:1.50, 13:0.50, 14:0.50, 15:0.50, 16:0.50, 17:0.50, 18:0.50, 19:0.50, 20:0.50; whole shape (own moves 3+) scaled by 1/0.9596 after the cost check | 400 | -1.13 [-1.72, -0.54] | 21.5% | -0.24 [-0.91, +0.45] | -0.12 [-2.62, +2.31] | 0.960 | 59.8 | 1598/1600 |
+| REV | (d) reverse of (a): own moves 6-12 x0.667, 13+ x2, 3-5 scaled to equal time: 3:1.19, 4:1.19, 5:1.19, 6:0.67, 7:0.67, 8:0.67, 9:0.67, 10:0.67, 11:0.67, 12:0.67, 13:2.00, 14:2.00, 15:2.00, 16:2.00, 17:2.00, 18:2.00, 19:2.00, 20:2.00 | 400 | -0.77 [-1.36, -0.16] | 22.6% | +0.11 [-0.56, +0.79] | +0.94 [-1.56, +3.38] | 1.002 | 57.7 | 1598/1600 |
+| FLAT | (b) equal wall time per own move (m_k proportional to 1/ms_k, capped at x6.0), normalised: 3:0.42, 4:0.48, 5:0.54, 6:0.62, 7:0.73, 8:0.88, 9:1.05, 10:1.30, 11:1.66, 12:2.12, 13:2.66, 14:3.38, 15:4.84, 16:6.00, 17:6.00, 18:6.00, 19:6.00, 20:6.00; whole shape (own moves 3+) scaled by 1/0.9008 after the cost check | 400 | -1.52 [-2.12, -0.91] | 20.1% | -0.64 [-1.30, +0.05] | -1.50 [-4.06, +1.06] | 0.901 | 60.6 | 1599/1600 |
+| PSHAPE | (c) iterations proportional to Pentobi level 6's simulations per own move (capped at x6.0), normalised: 3:0.51, 4:0.71, 5:0.79, 6:0.91, 7:1.02, 8:1.10, 9:1.25, 10:1.34, 11:1.51, 12:1.63, 13:1.78, 14:1.83, 15:1.92, 16:2.15, 17:2.62, 18:3.02, 19:3.11, 20:2.12; whole shape (own moves 3+) scaled by 1/0.9666 after the cost check | 400 | -0.76 [-1.38, -0.14] | 22.7% | +0.12 [-0.61, +0.87] | +1.06 [-1.62, +3.75] | 0.967 | 58.5 | 1596/1600 |
+
+iterationScale played: base 14.224, MID 14.224, REV 14.224, FLAT 14.224, PSHAPE 14.224
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v52/S2/screen/rol-base.jsonl` | 400 | -0.66 [-1.11, -0.21] | +2.13 [+1.65, +2.60] | -1.67 [-2.13, -1.21] | +0.20 [-0.23, +0.65] |
+| `tmp/v52/S2/screen/rol-MID.jsonl` | 400 | -0.84 [-1.29, -0.40] | +2.02 [+1.57, +2.46] | -1.65 [-2.13, -1.16] | +0.47 [+0.03, +0.91] |
+| `tmp/v52/S2/screen/rol-REV.jsonl` | 400 | -0.58 [-1.02, -0.12] | +2.34 [+1.89, +2.79] | -1.81 [-2.26, -1.37] | +0.05 [-0.41, +0.51] |
+| `tmp/v52/S2/screen/rol-FLAT.jsonl` | 400 | -1.14 [-1.59, -0.68] | +2.00 [+1.55, +2.45] | -1.55 [-2.03, -1.06] | +0.69 [+0.20, +1.16] |
+| `tmp/v52/S2/screen/rol-PSHAPE.jsonl` | 400 | -0.57 [-1.04, -0.10] | +2.07 [+1.66, +2.49] | -1.62 [-2.08, -1.17] | +0.12 [-0.34, +0.56] |
+
+**Decision (standing rule): no arm clears, so there is no confirmation (93,400,000 unplayed) and no
+`v5.2-cand-ultra.json`.**
+
+**Reading:** how the same time is spread over the game makes no measurable difference within ±0.7.
+- Pentobi's shape reads +0.12.
+- The reverse of the middle-game-heavy shape reads +0.11.
+- The middle-game-heavy shape reads −0.24.
+- Equal time per move (FLAT) reads −0.64 [−1.30, +0.05], the weakest. FLAT moves most of the time to
+  late moves, where each iteration buys little.
+
+The flat iteration count Blokee uses now is as good as any of these shapes.
