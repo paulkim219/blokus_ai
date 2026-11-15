@@ -1333,6 +1333,12 @@ points per level are not constant, so interpolating in, say, log simulations wou
 different numbers.
 
 
+**Ladder rung 6 (added after Stage 4; measured):** lone level 7 against three level-6 seats, 100 seeds
+97,500,000 (16:04–16:17; raw log `tmp/v53/S3/ladder-L7-vs-L6.jsonl`) reads **+8.22 [+7.18, +9.30]**. That is
+the largest one-level step on the ladder (rungs 1–5 gave +3.7 to +7.7 for the stronger lone seat). The
+reverse rung (lone 6 vs three 7) was not played. The draft read-out `tmp/v53/S3/bench.md` is regenerated
+with it.
+
 ## Round 6, Stage 4 — cheap efficiency changes per tier (measured; `tmp/v53/S4/`)
 
 Five one-change arms per tier on `v5.2-<tier>`, at equal time:
