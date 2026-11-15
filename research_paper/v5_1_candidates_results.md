@@ -833,3 +833,27 @@ of the iterations.
 **Reading:** the middle-game placement numbers barely move (next seat −6.01% against −5.83%; own gain
 +50.7 against +50.2). So the root prior's gain, if real, does not show up as more blocking or expanding on
 average. It is in which move is chosen, not in the averages Stage C measured.
+
+
+**Confirmation** (400 seeds 91,700,000–91,700,399, base and R-EX started together, 5 threads each,
+22:52–23:20; raw logs `tmp/v51d/S2/confirm/rolc-{base,R-EX}.jsonl`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.1-ultra.json unchanged (iterationScale 14.224) | 400 | -0.65 [-1.26, -0.04] | 22.8% | — | — |  | 58.6 | 0/1600 |
+| R-EX | root: N19 exact model (39 features + own gain + removed from next/opposite/previous); interior: current model | 400 | -0.96 [-1.53, -0.36] | 21.4% | -0.30 [-1.06, +0.46] | -1.38 [-4.06, +1.25] | 1.013 | 60.0 | 1598/1600 |
+
+- R-EX: paired -0.30 [-1.06, +0.46] on 400 seeds; first place -1.38 pp [-4.06, +1.25] -> NOT ACCEPTED
+NEW BASE: (none)
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51d/S2/confirm/rolc-base.jsonl` | 400 | -0.49 [-0.94, -0.03] | +1.92 [+1.47, +2.36] | -1.67 [-2.14, -1.20] | +0.24 [-0.21, +0.70] |
+| `tmp/v51d/S2/confirm/rolc-R-EX.jsonl` | 400 | -0.72 [-1.15, -0.27] | +2.28 [+1.80, +2.73] | -1.63 [-2.09, -1.19] | +0.08 [-0.36, +0.52] |
+
+**Decision (standing rule): R-EX is not accepted** (−0.30 [−1.06, +0.46]), so nothing is saved and there is
+no `v5.2-cand-ultra.json`. Pooled over the screen and confirmation (800 seeds, descriptive): +0.27 [−0.23,
++0.76], first place +0.96 pp [−0.58, +2.57] (split). **Reading:** the re-fitted root prior predicts Pentobi's moves better offline (+0.07 nats per
+decision, +1.2 pp top-1). In play the effect is at most small: the screen's +0.85 did not replicate. Use at
+interior nodes, where a prior acts on most of the tree, is too expensive with exact mobility counts
+(about 15×), and the cheap counts cost the same because they also need move lists.
