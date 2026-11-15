@@ -1331,3 +1331,110 @@ the bracketing anchors. The 95% interval comes from bootstrapping seeds within e
 intervals are about ±0.1 level at 200 seeds per anchor. Interpolating linearly in level is a choice: the
 points per level are not constant, so interpolating in, say, log simulations would give slightly
 different numbers.
+
+
+## Round 6, Stage 4 — cheap efficiency changes per tier (measured; `tmp/v53/S4/`)
+
+Five one-change arms per tier on `v5.2-<tier>`, at equal time:
+- `RW05`: RAVE weight 0.5
+- `IIV3`: interiorInitVisits 3
+- `T07`: prior temperature 0.7
+- `X02`: priorLog exploration 0.2
+- `CAP6`: rollout move cap 6
+
+Arms outside [0.97, 1.03] in clean cost were re-timed. At the nano and lite budgets the two clean-cost
+rounds disagree by up to 10%, because times are 2–3 ms per move, so re-timing at these tiers is coarse.
+Screens are 400 seeds against the matched level, per-seat, 15:28–16:04. Raw logs
+`tmp/v53/S4/<tier>/screen/rol-<arm>.jsonl`. (The column header says "vs L6" from the shared read-out; it is
+the tier's own level.)
+
+**nano vs level 1** (screen seeds 98,000,000; costs `tmp/v53/S4/nano/cost/`):
+
+| Arm | Change | Seeds | Advantage vs level [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-nano.json unchanged (iterationScale 0.383) | 400 | +6.34 [+5.82, +6.85] | 51.7% | — | — |  | 2.1 | 0/1600 |
+| RW05 | RAVE weight 1.0 -> 0.5 | 400 | +6.66 [+6.15, +7.17] | 53.8% | +0.32 [-0.36, +0.99] | +2.12 [-1.00, +5.19] | 0.990 | 2.1 | 1600/1600 |
+| IIV3 | interiorInitVisits 1 -> 3 | 400 | +6.46 [+5.92, +7.00] | 52.4% | +0.12 [-0.60, +0.83] | +0.69 [-2.69, +4.12] | 1.017 | 2.2 | 1600/1600 |
+| T07 | prior temperature 1 -> 0.7 (sharper prior, root and interior) | 400 | +6.86 [+6.31, +7.45] | 53.8% | +0.52 [-0.18, +1.24] | +2.12 [-1.12, +5.50] | 0.975 | 2.1 | 1600/1600 |
+| X02-ET | priorLog exploration 0.4 -> 0.2 at equal time: search.iterationScale 0.383 -> 0.397 (0.383 / 0.9659); corrected 0.397 -> 0.382 (/ 1.0382) | 400 | +4.14 [+3.62, +4.66] | 44.5% | -2.20 [-2.90, -1.51] | -7.19 [-10.38, -3.94] | 1.038 | 2.1 | 1600/1600 |
+| CAP6 | playoutMoveCap 12 -> 6 (cheaper rollout moves) | 400 | +5.69 [+5.16, +6.22] | 49.4% | -0.65 [-1.35, +0.06] | -2.25 [-5.38, +0.88] | 0.981 | 2.0 | 1600/1600 |
+
+iterationScale played: base 0.383, RW05 0.383, IIV3 0.383, T07 0.383, X02-ET 0.382, CAP6 0.383
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v53/S4/nano/screen/rol-base.jsonl` | 400 | +4.76 [+4.36, +5.14] | -1.08 [-1.42, -0.74] | -2.91 [-3.28, -2.55] | -0.76 [-1.10, -0.43] |
+| `tmp/v53/S4/nano/screen/rol-RW05.jsonl` | 400 | +4.99 [+4.61, +5.38] | -1.09 [-1.40, -0.78] | -3.14 [-3.49, -2.77] | -0.76 [-1.11, -0.42] |
+| `tmp/v53/S4/nano/screen/rol-IIV3.jsonl` | 400 | +4.85 [+4.44, +5.25] | -0.94 [-1.25, -0.62] | -3.14 [-3.49, -2.78] | -0.77 [-1.09, -0.45] |
+| `tmp/v53/S4/nano/screen/rol-T07.jsonl` | 400 | +5.15 [+4.73, +5.58] | -1.05 [-1.38, -0.73] | -3.44 [-3.80, -3.07] | -0.66 [-0.99, -0.34] |
+| `tmp/v53/S4/nano/screen/rol-X02-ET.jsonl` | 400 | +3.11 [+2.71, +3.50] | -0.06 [-0.37, +0.26] | -2.34 [-2.67, -2.00] | -0.70 [-1.03, -0.37] |
+| `tmp/v53/S4/nano/screen/rol-CAP6.jsonl` | 400 | +4.27 [+3.87, +4.66] | -0.55 [-0.88, -0.22] | -3.03 [-3.38, -2.67] | -0.68 [-0.99, -0.37] |
+
+**lite vs level 3** (screen seeds 98,100,000; costs `tmp/v53/S4/lite/cost/`):
+
+| Arm | Change | Seeds | Advantage vs level [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-lite.json unchanged (iterationScale 0.647) | 400 | +1.66 [+1.21, +2.12] | 35.8% | — | — |  | 3.3 | 0/1600 |
+| RW05 | RAVE weight 1.0 -> 0.5 | 400 | +1.70 [+1.22, +2.20] | 36.8% | +0.04 [-0.61, +0.67] | +1.06 [-2.25, +4.38] | 0.972 | 3.3 | 1600/1600 |
+| IIV3 | interiorInitVisits 1 -> 3 | 400 | +1.36 [+0.83, +1.89] | 36.4% | -0.30 [-0.99, +0.38] | +0.69 [-2.56, +3.94] | 1.028 | 3.6 | 1600/1600 |
+| T07 | prior temperature 1 -> 0.7 (sharper prior, root and interior) | 400 | +0.61 [+0.13, +1.10] | 32.8% | -1.05 [-1.70, -0.40] | -3.00 [-6.25, +0.12] | 0.973 | 3.3 | 1600/1600 |
+| X02-ET | priorLog exploration 0.4 -> 0.2 at equal time: search.iterationScale 0.647 -> 0.67 (0.647 / 0.9660) | 400 | +0.42 [-0.07, +0.92] | 30.1% | -1.25 [-1.87, -0.59] | -5.69 [-8.75, -2.50] | 0.982 | 3.3 | 1600/1600 |
+| CAP6-ET | playoutMoveCap 12 -> 6 (cheaper rollout moves) at equal time: search.iterationScale 0.647 -> 0.681 (0.647 / 0.9505) | 400 | +1.17 [+0.68, +1.69] | 33.6% | -0.49 [-1.11, +0.12] | -2.19 [-5.06, +0.75] | 0.985 | 3.3 | 1600/1600 |
+
+iterationScale played: base 0.647, RW05 0.647, IIV3 0.647, T07 0.647, X02-ET 0.67, CAP6-ET 0.681
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v53/S4/lite/screen/rol-base.jsonl` | 400 | +1.25 [+0.90, +1.59] | +0.85 [+0.57, +1.11] | -1.39 [-1.68, -1.09] | -0.71 [-1.00, -0.40] |
+| `tmp/v53/S4/lite/screen/rol-RW05.jsonl` | 400 | +1.27 [+0.92, +1.65] | +0.54 [+0.27, +0.82] | -1.52 [-1.83, -1.19] | -0.30 [-0.60, -0.00] |
+| `tmp/v53/S4/lite/screen/rol-IIV3.jsonl` | 400 | +1.02 [+0.62, +1.41] | +0.81 [+0.54, +1.07] | -0.98 [-1.31, -0.64] | -0.85 [-1.14, -0.56] |
+| `tmp/v53/S4/lite/screen/rol-T07.jsonl` | 400 | +0.46 [+0.10, +0.82] | +1.15 [+0.87, +1.43] | -1.26 [-1.59, -0.95] | -0.35 [-0.64, -0.05] |
+| `tmp/v53/S4/lite/screen/rol-X02-ET.jsonl` | 400 | +0.31 [-0.05, +0.69] | +1.41 [+1.15, +1.67] | -1.14 [-1.46, -0.84] | -0.58 [-0.89, -0.27] |
+| `tmp/v53/S4/lite/screen/rol-CAP6-ET.jsonl` | 400 | +0.87 [+0.51, +1.27] | +1.09 [+0.82, +1.35] | -1.28 [-1.58, -0.99] | -0.69 [-0.99, -0.38] |
+
+**base vs level 5** (screen seeds 98,200,000; costs `tmp/v53/S4/base/cost/`):
+
+| Arm | Change | Seeds | Advantage vs level [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-base.json unchanged (iterationScale 3.545) | 400 | -0.14 [-0.72, +0.43] | 24.1% | — | — |  | 15.4 | 0/1600 |
+| RW05 | RAVE weight 1.0 -> 0.5 | 400 | +0.64 [+0.10, +1.20] | 26.8% | +0.78 [+0.07, +1.49] | +2.69 [-0.06, +5.62] | 1.001 | 15.3 | 1600/1600 |
+| IIV3-ET | interiorInitVisits 1 -> 3 at equal time: search.iterationScale 3.545 -> 3.378 (3.545 / 1.0495) | 400 | +0.15 [-0.37, +0.69] | 25.2% | +0.29 [-0.41, +1.03] | +1.12 [-1.69, +4.12] | 1.001 | 15.6 | 1600/1600 |
+| T07 | prior temperature 1 -> 0.7 (sharper prior, root and interior) | 400 | -0.40 [-0.93, +0.17] | 24.1% | -0.26 [-0.96, +0.45] | +0.00 [-2.62, +2.75] | 1.002 | 15.5 | 1599/1600 |
+| X02-ET | priorLog exploration 0.4 -> 0.2 at equal time: search.iterationScale 3.545 -> 3.665 (3.545 / 0.9673) | 400 | -0.64 [-1.14, -0.15] | 22.3% | -0.50 [-1.19, +0.24] | -1.75 [-4.56, +1.06] | 0.994 | 15.3 | 1600/1600 |
+| CAP6-ET | playoutMoveCap 12 -> 6 (cheaper rollout moves) at equal time: search.iterationScale 3.545 -> 3.723 (3.545 / 0.9522) | 400 | +0.05 [-0.48, +0.58] | 24.6% | +0.19 [-0.48, +0.90] | +0.56 [-2.12, +3.44] | 1.002 | 15.6 | 1600/1600 |
+
+iterationScale played: base 3.545, RW05 3.545, IIV3-ET 3.378, T07 3.545, X02-ET 3.665, CAP6-ET 3.723
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v53/S4/base/screen/rol-base.jsonl` | 400 | -0.10 [-0.54, +0.32] | +2.23 [+1.84, +2.62] | -2.11 [-2.50, -1.72] | -0.02 [-0.42, +0.39] |
+| `tmp/v53/S4/base/screen/rol-RW05.jsonl` | 400 | +0.48 [+0.07, +0.90] | +1.84 [+1.46, +2.23] | -2.20 [-2.61, -1.78] | -0.12 [-0.49, +0.25] |
+| `tmp/v53/S4/base/screen/rol-IIV3-ET.jsonl` | 400 | +0.12 [-0.28, +0.51] | +1.96 [+1.57, +2.37] | -1.76 [-2.17, -1.34] | -0.32 [-0.71, +0.07] |
+| `tmp/v53/S4/base/screen/rol-T07.jsonl` | 400 | -0.30 [-0.70, +0.13] | +2.36 [+1.96, +2.76] | -1.93 [-2.31, -1.55] | -0.14 [-0.51, +0.25] |
+| `tmp/v53/S4/base/screen/rol-X02-ET.jsonl` | 400 | -0.48 [-0.86, -0.11] | +2.03 [+1.61, +2.44] | -1.48 [-1.87, -1.07] | -0.07 [-0.46, +0.32] |
+| `tmp/v53/S4/base/screen/rol-CAP6-ET.jsonl` | 400 | +0.04 [-0.36, +0.44] | +1.92 [+1.56, +2.29] | -1.93 [-2.31, -1.53] | -0.03 [-0.43, +0.35] |
+
+**Confirmation** of base `RW05` (the only clearing arm: +0.78 [+0.07, +1.49] on the screen), 400 seeds
+98,500,000 (raw logs `tmp/v53/S4/base/confirm/`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-base.json unchanged (iterationScale 3.545) | 400 | +0.12 [-0.41, +0.66] | 25.3% | — | — |  | 15.8 | 0/1600 |
+| RW05 | RAVE weight 1.0 -> 0.5 | 400 | -0.06 [-0.58, +0.47] | 25.4% | -0.18 [-0.87, +0.50] | +0.06 [-2.75, +2.88] | 1.001 | 15.9 | 1599/1600 |
+
+- RW05: paired -0.18 [-0.87, +0.50] on 400 seeds; first place +0.06 pp [-2.75, +2.88] -> NOT ACCEPTED
+NEW BASE: (none)
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v53/S4/base/confirm/rolc-base.jsonl` | 400 | +0.09 [-0.31, +0.49] | +1.83 [+1.44, +2.20] | -1.75 [-2.13, -1.35] | -0.17 [-0.56, +0.21] |
+| `tmp/v53/S4/base/confirm/rolc-RW05.jsonl` | 400 | -0.04 [-0.43, +0.35] | +1.74 [+1.35, +2.13] | -1.69 [-2.08, -1.29] | -0.01 [-0.40, +0.37] |
+
+**Decision (standing rule): nothing is accepted**, so no `v5.3-cand-*` config was saved.
+- Nano: nothing clears (T07 +0.52, RW05 +0.32, null).
+- Lite: nothing clears. T07 −1.05 and X02 −1.25 are harmful.
+- Base: RW05 cleared at +0.78 and failed confirmation at −0.18 [−0.87, +0.50].
+- Lower priorLog exploration hurts at every tier: −2.20 nano, −1.25 lite, −0.50 base.
+
+**Reading:** the `v5.1-ultra` settings carry over to small budgets about as well as the alternatives tried,
+and exploration should not be lowered at small budgets.
