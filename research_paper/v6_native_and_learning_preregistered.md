@@ -1043,3 +1043,24 @@ every descent; `false` (every existing version) is byte-identical.
     binary `tmp/v51d/bin2`, same seeds), reads out and selects by the Stage-2 rule, **then plays this
     block**, then the Stage-2 confirmation if one is selected, then the level-7 block (now only if started
     before 23:30), then Stage 3 (each block before 00:30).
+- **2026-11-15 00:00 CST, round 5, Stage 1: equal wall time (no engine code). Arms and seeds set by the
+  supervising session's brief; fixed before any game of it.** Read so far: rounds 1–4 (the round-4 level-7
+  and Stage-3 blocks still running, not read). No game on seeds 93,000,000–95,999,999 exists. Binary
+  `tmp/v51d/bin3` (engine `6e9623b`), per-seat processes with seat-derived seeds throughout.
+  - **Clean timing** (driver starts after the round-4 driver exits, nothing else of ours running; one game
+    thread): `v5.1-ultra`, round 1 on seeds 93,950,000–93,950,004, round 2 on 93,950,005–93,950,009 (40
+    games). Statistic: mean ms over all of Blokee's moves (heuristic opening moves included) and mean ms
+    over all Pentobi moves. **Time-matched config `TM`:** `iterationScale` 14.224 × f, f chosen so that
+    Blokee's mean over all its moves equals Pentobi's if the ms of searched moves (own moves 3+) scale with
+    the iterations (`v52_report.py --tm-scale`); check round with TM on 93,950,000–93,950,004 (20 games);
+    if Blokee/Pentobi is outside [0.97, 1.03], one correction × 1/ratio, not re-checked. TM stays in
+    `tmp/v52/S1/configs/`, not in `engine-rs/configs`, unnamed. (For reference, round 4's 20-game run gives
+    f = 1.62, TM ≈ 23.1.)
+  - **Blocks (10 threads):** `v5.1-ultra` and TM lone vs three level-6 seats, **400 seeds 93,000,000 then
+    93,100,000** (paired TM − base, absolute levels, first place both ways, role table, in-match ms/move both
+    engines). Compute curve on **200 seeds 93,200,000**: ×1, ×2, ×4 iterations (`iterationScale` 14.224 /
+    28.448 / 56.896); ×2 is skipped if round 4's Stage 3 completed it on 91,800,000 (then the slope uses both
+    blocks and says so). Slope per doubling and the multiple at parity from a least-squares line of
+    advantage on log2(multiple). **200 seeds 93,250,000:** one level-6 seat vs three TM seats. Descriptive,
+    no gate. Driver `engine-rs/scripts/v52-stage1.sh`, read-out `engine-rs/scripts/v52_report.py`. No block
+    starts at or after 08:15 CST.
