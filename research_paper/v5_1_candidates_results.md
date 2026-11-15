@@ -708,3 +708,125 @@ blocks are not paired across modes, so they cannot settle it. Either B1's 200-se
 (its interval reaches down to +0.37), or the per-seat seeding change matters (in round 3 all three
 per-seat processes had the game's seed). A paired shared-vs-per-seat block with the new seeding would
 settle it; I did not run it.
+
+
+## Round 4 — paired check of the Pentobi process arrangement (measured; `tmp/v51d/SEED/seed.md`)
+
+The supervising session added this block. Prereg `6543a11`; engine `6e9623b` adds `--per-seat-seed game`,
+which reproduces round 3's identical per-seat seeds. Setup: `v5.1-ultra` lone vs three level-6 seats, the
+same 400 seeds 92,000,000–92,000,399, three arms one after another (22:14–22:52). Raw logs:
+`tmp/v51d/SEED/seed-{shared,perseat,game}.jsonl` (+ `.moves`, `.timing`).
+
+| Arm | Seeds | Blokee advantage [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| shared process | 400 | -1.20 [-1.76, -0.61] | 20.6% | 18.0% |
+| per-seat, seeds per seat | 400 | -0.97 [-1.57, -0.36] | 21.1% | 18.0% |
+| per-seat, identical seeds (round 3) | 400 | -0.98 [-1.55, -0.38] | 21.6% | 18.4% |
+
+- paired per-seat, seeds per seat − shared process: +0.23 [-0.57, +1.04] on 400 seeds; first place (any) +0.50 [-2.25, +3.06] pp, (split) -0.05 [-2.46, +2.23] pp
+- paired per-seat, identical seeds (round 3) − shared process: +0.23 [-0.56, +0.98] on 400 seeds; first place (any) +1.00 [-1.75, +3.75] pp, (split) +0.34 [-2.19, +2.81] pp
+- paired per-seat, identical seeds (round 3) − per-seat, seeds per seat: -0.00 [-0.81, +0.80] on 400 seeds; first place (any) +0.50 [-2.12, +3.00] pp, (split) +0.40 [-2.02, +2.67] pp
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51d/SEED/seed-shared.jsonl` | 400 | -0.90 [-1.32, -0.46] | +2.73 [+2.27, +3.19] | -1.69 [-2.10, -1.29] | -0.13 [-0.56, +0.30] |
+| `tmp/v51d/SEED/seed-perseat.jsonl` | 400 | -0.73 [-1.18, -0.27] | +2.33 [+1.84, +2.83] | -1.82 [-2.30, -1.35] | +0.22 [-0.25, +0.69] |
+| `tmp/v51d/SEED/seed-game.jsonl` | 400 | -0.73 [-1.16, -0.29] | +2.40 [+1.93, +2.90] | -1.79 [-2.25, -1.33] | +0.12 [-0.34, +0.60] |
+
+Pentobi ms/move by role (lone / next / opposite / previous; wall, 10 game threads):
+- shared process: 48 / 71 / 47 / 47
+- per-seat, seeds per seat: 48 / 76 / 79 / 77
+- per-seat, identical seeds (round 3): 48 / 75 / 79 / 77
+
+**Measured:** on the same seeds the three arrangements give the same advantage. Per-seat − shared reads
++0.23 [−0.57, +1.04], identical seeds − shared +0.23 [−0.56, +0.98], and identical − seat seeds 0.00, with
+first place unchanged. Pentobi does take more time per move in its own process (76–79 ms against 47 ms
+for the seats that share a process with the previous mover), which confirms the shared process reuses the
+tree. But at level 6's fixed simulation budget the reuse is not worth a measurable amount of score.
+
+**Correction to round 3 (by the preregistered reading rule):** round 3's Stage-B sentence said every
+lone-seat benchmark so far was "about 1 to 1.5 points harder than a fair arrangement". **This block does
+not support it.** On 400 paired seeds, per-seat processes change Blokee's advantage by +0.23 [−0.57,
++1.04], and identical seeds make no difference either. Round 3's B1 reading (+1.42 [+0.37, +2.47] on
+200 seeds) is therefore attributed to noise, not to identical seeds. Earlier absolute levels stand, to
+within about ±0.8. The round-3 control (a lone own-process level-6 seat −0.78 [−1.29, −0.26] against
+three shared) remains unexplained; it may be noise of the same kind.
+
+**Standard benchmark mode from round 4 on:** per-seat processes with seat-derived seeds. It is fair by
+construction (no Pentobi seat sees another seat's search). On this evidence it reads the same as the
+shared process, so earlier results stay comparable.
+
+## Round 4, Stage 2 — N19: the move prior re-fitted with mobility features
+
+**Offline** (measured; `tmp/v51d/n19/fit.log`, `ml/n19_fit_prior.py`). Data: the 29,991 level-6 decisions
+the current prior was fitted on; held out are seeds ending in 4 or 9 (6,041 decisions). The 39-feature
+refit reproduces the current weights exactly. Mobility columns come from `examples/n19_features.rs`; the
+engine's own computation was checked equal on 347/347 moves of one decision (`examples/n19_check.rs`).
+Held-out results:
+
+| Own moves | current | exact (own gain + removed ×3) | exact without own gain | exact-sum | cheap (pressure ×3 + own corners) |
+|---|---:|---:|---:|---:|---:|
+| 0–2 | −1.961 | −1.945 | −1.945 | −1.946 | −1.947 |
+| 3–8 | −3.718 | −3.687 | −3.704 | −3.697 | −3.696 |
+| 9–14 | −3.071 | **−2.938** | −3.052 | −2.941 | −3.048 |
+| 15+ | −1.451 | −1.409 | −1.431 | −1.407 | −1.436 |
+| 3+ (log-lik / top-1 / top-5) | −2.918 / 0.277 / 0.579 | **−2.846 / 0.289 / 0.600** | −2.901 / 0.280 / 0.582 | −2.850 / 0.289 / 0.600 | −2.897 / 0.279 / 0.582 |
+
+The own-gain count carries most of the gain (+0.072 nats per decision with it, +0.017 without). The cheap
+approximation recovers about a third of it (+0.021).
+
+**Clean cost** (21:12–21:16, quiet machine; `tmp/v51d/S2/cost/`):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 62.9 | 63.0 | 1.000 | 1.000 | 1.000 |
+| R-EX | 150 | 63.6 | 63.9 | 1.012 | 1.015 | 1.013 |
+| R-CH | 150 | 62.8 | 62.5 | 0.999 | 0.992 | 0.996 |
+| A-EX | 150 | 964.3 | 970.5 | 15.335 | 15.410 | 15.372 |
+
+Check round, after re-timing A-EX to `iterationScale` 0.925:
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 62.4 | 63.0 | 1.000 | 1.000 | 1.000 |
+| A-EX-ET | 150 | 85.0 | 84.5 | 1.363 | 1.340 | 1.352 |
+
+A-EX-ET was corrected once to 0.684, as preregistered, and not re-checked; it is still somewhat above
+equal time. **Every use at interior nodes costs about 15×**, the cheap variant included, because the
+features need the opponents' move lists at every expansion. So the interior arm was played at about 5% of
+the iterations. Root-only use costs nothing measurable (R-EX 1.013×, R-CH 0.996×).
+
+**Screen** (400 seeds 91,600,000–91,600,399, per-seat processes, base `v5.1-ultra`, 21:16–22:14; the
+driver was stopped by hand at 21:34 during the R-EX arm and continued by `v51d-stage2b.sh` on the same
+binary and seeds; raw logs `tmp/v51d/S2/screen/rol-<arm>.jsonl`):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.1-ultra.json unchanged (iterationScale 14.224) | 400 | -1.35 [-1.93, -0.77] | 20.3% | — | — |  | 64.8 | 0/1600 |
+| R-EX | root: N19 exact model (39 features + own gain + removed from next/opposite/previous); interior: current model | 400 | -0.50 [-1.11, +0.09] | 23.0% | +0.85 [+0.16, +1.55] | +2.69 [+0.31, +5.19] | 1.013 | 61.6 | 1597/1600 |
+| R-CH | root: N19 cheap model (39 + per-cell pressure on the three opponents + own corner gain); interior: current model | 400 | -0.98 [-1.58, -0.43] | 21.9% | +0.37 [-0.31, +1.06] | +1.56 [-0.75, +3.88] | 0.996 | 60.2 | 1597/1600 |
+| A-EX-ET | root and interior: N19 exact model at equal time: search.iterationScale 14.224 -> 0.925 (14.224 / 15.3723); corrected 0.925 -> 0.684 (/ 1.3517) | 400 | -9.38 [-9.89, -8.85] | 6.5% | -8.03 [-8.74, -7.32] | -13.81 [-15.94, -11.75] | 1.352 | 61.1 | 1600/1600 |
+
+iterationScale played: base 14.224, R-EX 14.224, R-CH 14.224, A-EX-ET 0.684
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51d/S2/screen/rol-base.jsonl` | 400 | -1.01 [-1.45, -0.58] | +2.24 [+1.75, +2.71] | -1.64 [-2.08, -1.20] | +0.41 [-0.06, +0.87] |
+| `tmp/v51d/S2/screen/rol-R-EX.jsonl` | 400 | -0.38 [-0.83, +0.07] | +2.23 [+1.79, +2.69] | -1.84 [-2.29, -1.40] | -0.01 [-0.45, +0.45] |
+| `tmp/v51d/S2/screen/rol-R-CH.jsonl` | 400 | -0.74 [-1.18, -0.33] | +1.97 [+1.55, +2.39] | -1.81 [-2.27, -1.37] | +0.58 [+0.15, +1.00] |
+| `tmp/v51d/S2/screen/rol-A-EX-ET.jsonl` | 400 | -7.03 [-7.42, -6.63] | +3.99 [+3.54, +4.44] | +1.64 [+1.21, +2.10] | +1.40 [+0.97, +1.83] |
+
+| Arm | Δ next legal (%) | Δ opposite legal (%) | Δ previous legal (%) | own Δ legal |
+|---|---:|---:|---:|---:|
+| base | -32.8 (-5.83%) | -16.4 (-3.15%) | -31.1 (-5.41%) | +50.2 |
+| R-EX | -33.9 (-6.01%) | -16.9 (-3.29%) | -30.8 (-5.34%) | +50.7 |
+| R-CH | -34.2 (-6.09%) | -17.0 (-3.31%) | -31.3 (-5.40%) | +50.4 |
+| A-EX-ET | -34.5 (-6.24%) | -15.8 (-2.95%) | -30.9 (-5.41%) | +49.7 |
+
+**Selection (standing rule): R-EX clears, +0.85 [+0.16, +1.55], with first place +2.69 pp [+0.31, +5.19].**
+It goes to confirmation on 91,700,000. R-CH reads +0.37 (null). A-EX-ET reads −8.03, the price of 5%
+of the iterations.
+
+**Reading:** the middle-game placement numbers barely move (next seat −6.01% against −5.83%; own gain
++50.7 against +50.2). So the root prior's gain, if real, does not show up as more blocking or expanding on
+average. It is in which move is chosen, not in the averages Stage C measured.
