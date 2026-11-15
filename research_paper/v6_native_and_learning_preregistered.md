@@ -957,3 +957,29 @@ every descent; `false` (every existing version) is byte-identical.
     `engine-rs/configs/v5.2-cand-ultra.json` (naming left to the supervising session). The role table (own /
     next / opposite / previous) is reported for every arm. Driver `engine-rs/scripts/v51c-stageD.sh`
     (starts after the Stage-B driver exits). No block starts at or after 22:00 CST.
+- **2026-11-14 19:55 CST, round 4, Stage 1: the fair benchmark (per-seat Pentobi processes). Fixed before
+  any game of it; arms and seeds set by the supervising session's brief.** Read so far: rounds 1–3. No game
+  on any seed at or above 91,000,000 exists except the clean-timing run below (91,950,000–91,950,004,
+  declared here, timing only).
+  - **Seeding (engine `1b74f36`, kept in `ef39432`):** in `--gtp-processes per-seat` mode each Pentobi
+    process is seeded with `seed ^ (0x9E3779B9 · (seat + 1))` (game seed, seat in turn order) instead of
+    the game seed. Shared mode and the control mode are unchanged: bridge games in `one-blokee`,
+    `one-pentobi`, `two-two` (2 seeds × `v5.0-ultra`, `v4.2-ultra`) equal the round-2 pin, and
+    `pentobi-control` equals the round-3 pin (`tmp/v51d/identity/`). `ef39432` adds an optional
+    `--pentobi-log DIR` (per-process Pentobi logs without `--quiet`; one per-seat seed checked move-for-move
+    equal with and without it). Binary pinned in `tmp/v51d/bin`.
+  - **Clean time (measured 19:46–19:48, one game thread, per-seat, `v5.1-ultra` vs three level-6 seats,
+    5 seeds 91,950,000, 20 games; `tmp/v51d/time/`; nothing else of ours running, but the unrelated Docker
+    VM used about 2.4 cores):** Blokee 43.8 ms/move mean (median 29.6; 52.3 on own moves 3+), a per-seat
+    level-6 process 71.1 ms/move mean (median 52.1). Pentobi's search statistics (simulations, root visits,
+    reused nodes) are collected from logged per-seat games on the same 5 seeds at the start of the chain.
+    Report only; no `iterationScale` changes.
+  - **Blocks (all per-seat, book, budget 300, 10 threads):** `v5.0-ultra` and `v5.1-ultra` lone vs three
+    level-6 seats, **400 seeds 91,000,000–91,000,399 then 91,100,000–91,100,399** (paired v5.1 − v5.0,
+    first place both ways, role table); `v4.2-ultra` vs three level-6 seats, **200 seeds 91,200,000**; one
+    level-6 seat vs three `v5.1-ultra`, **200 seeds 91,400,000**; two-two `v5.1-ultra` with level 6, **200
+    seeds 91,500,000** (six seat pairs per seed). Then, in the Stage-2 driver after Stage 2's confirmation
+    (to give Stage 2 the time first), `v5.1-ultra` vs three **level-7** seats, **200 seeds 91,300,000**.
+    Descriptive, no gate. Driver `engine-rs/scripts/v51d-stage1.sh`, read-out `v51d_report.py --stage1`.
+    No block starts at or after 00:30 CST. Protected and unread: 83,100,000; 83,200,000; 84,800,000;
+    87,200,000; 87,300,000; 87,500,000; 88,200,000; 88,300,000; 89,900,000; also 90,600,000 unplayed.
