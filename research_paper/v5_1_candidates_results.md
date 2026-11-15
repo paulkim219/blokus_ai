@@ -1058,3 +1058,105 @@ iterationScale played: base 14.224, MID 14.224, REV 14.224, FLAT 14.224, PSHAPE 
   late moves, where each iteration buys little.
 
 The flat iteration count Blokee uses now is as good as any of these shapes.
+
+
+## Round 5, Stage 3 — CEM tuner on `v5.1-ultra` (measured; `tmp/v52/S3/`)
+
+**Run.** Stage 2 saved nothing, so the base was `v5.1-ultra`. The stage started at 03:18 with 221 minutes to
+07:00, so the tuner ran: 29 generations, 03:18–06:55, about 7.5 minutes each. Each generation was 12
+candidates × 25 seeds × 4 games, all on the shared Pentobi process. Training seeds were 94,000,000 + 100·g
+… +24 for g = 0…28, each used once. Log `tmp/v52/S3/tune.log`; per-generation results and the CEM state in
+`tmp/v52/S3/tune/state.json`; every candidate's games in `tmp/v52/S3/tune/gen-XX/`.
+
+**Trajectory (measured).**
+- The fitness of the mean candidate (each generation on new seeds) averaged −0.41 over generations 0–9,
+  −0.95 over 10–19 and −0.75 over 20–28. There is no upward trend; the swings are mostly seed difficulty.
+- The per-generation mean over all 12 candidates ranges from −2.2 to +0.1, also with no trend.
+- σ shrank to near its floor on every dimension.
+
+**Final point**, fixed at 06:55 before any validation game (`tmp/v52/S3/tune/final.json`):
+
+```
+{
+ "generations": 29,
+ "values": {
+  "raveWeight": 0.6998,
+  "raveEquivalence": 112.3591,
+  "raveDecay": 0.5836,
+  "exploration": 0.3176,
+  "qualityWeight": 0.5058,
+  "qualitySlope": 1.0997,
+  "lengthWeight": 0.083,
+  "firstWeight": 0.0311,
+  "priorTemperature": 0.8891,
+  "rootInitVisits": 2.5354,
+  "interiorInitVisits": 1.0487,
+  "historyWeight": 0.4895,
+  "playoutEps": 0.5927
+ }
+}
+```
+
+It moved little from the start. RAVE weight 1.0 → 0.70, exploration 0.40 → 0.32, root initial visits 3 →
+2.5, prior temperature 1 → 0.89, history weight 0.6 → 0.49; the rest are within about 10%.
+
+**Clean cost** (06:55, quiet machine):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 58.9 | 57.8 | 1.000 | 1.000 | 1.000 |
+| TUNED | 150 | 58.2 | 58.1 | 0.988 | 1.005 | 0.997 |
+
+At 0.997× it is inside [0.97, 1.03], so it was validated as itself.
+
+**Validation** (per-seat processes, base and TUNED on 400 seeds 95,000,000 and on 400 seeds 95,100,000,
+06:55–07:50; raw logs `tmp/v52/S3/val/{v1,v2}-{base,TUNED}.jsonl` + `.moves`, `.timing`; pooled copies
+`all-*.jsonl`):
+
+| Arm | Seeds | Advantage | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| base | 800 | -0.52 [-0.95, -0.08] | 22.2% | 19.5% |
+| TUNED | 800 | -0.48 [-0.88, -0.08] | 21.8% | 18.5% |
+- block v1: -0.22 [-0.91, +0.47] on 400 seeds; first place (split) -1.65 [-4.03, +0.69] pp
+- block v2: +0.29 [-0.47, +1.02] on 400 seeds; first place (split) -0.35 [-2.99, +2.06] pp
+
+- TUNED − base, 800 seeds: +0.03 [-0.47, +0.52]; first place (any) -0.44 [-2.38, +1.47] pp, (split) -1.00 [-2.72, +0.65] pp -> NOT ACCEPTED
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v52/S3/val/all-base.jsonl` | 800 | -0.39 [-0.71, -0.06] | +1.99 [+1.68, +2.31] | -1.94 [-2.27, -1.61] | +0.34 [+0.03, +0.65] |
+| `tmp/v52/S3/val/all-TUNED.jsonl` | 800 | -0.36 [-0.66, -0.06] | +2.04 [+1.71, +2.36] | -1.95 [-2.28, -1.62] | +0.27 [-0.06, +0.60] |
+
+**Decision (preregistered rule): not accepted** (+0.03 [−0.47, +0.52]; first place −1.0 pp split). Nothing
+is saved.
+
+**Reading:** with 25 seeds per candidate the fitness noise (about ±1.2 per candidate) is larger than any
+effect these settings can have near the current point. CEM then mostly averages noise, and its mean
+stayed close to where it started. This agrees with round 1's single-change screen, where the package's
+constants were already near a flat optimum. A tuner on this search space would need several times more
+games per candidate to resolve effects of ±0.3.
+
+## Round 5 — seed blocks, what I did not get to, things to check
+
+**Seed blocks played:**
+- 93,950,000–93,950,009 (clean timing)
+- 93,000,000 and 93,100,000 (TM vs base, 400 each)
+- 93,200,000 (×1 / ×2 / ×4, 200 each)
+- 93,250,000 (reverse vs TM)
+- 93,300,000 (N20 screen)
+- 94,000,000–94,002,824 (tuner training, generations 0–28, 25 seeds per generation at a stride of 100)
+- 95,000,000 and 95,100,000 (validation)
+
+**Preregistered and unplayed:** 93,400,000 (no N20 arm cleared); 95,200,000 and 95,300,000 (the fallback
+replication was not needed). **Protected and unread:** 83,100,000; 83,200,000; 84,800,000; 87,200,000;
+87,300,000; 87,500,000; 88,200,000; 88,300,000; 89,900,000; and the old N10 validation seeds
+79,800,000–79,800,199. Also unplayed: 90,600,000 and 91,800,000.
+
+**Not done:** a re-check of the time-matched config after the 800-seed block (the in-match times, 77.1 for
+Blokee against 77.6 for Pentobi, agree with the clean check); per-seat training games for the tuner (I used
+the shared process as allowed); a larger tuner budget per candidate.
+
+**Worth checking:** N20's MID, FLAT and PSHAPE were each scaled once after the cost check and not
+re-checked, so their final cost is about 1 ± 0.03 by construction only. TM is kept only in
+`tmp/v52/S1/configs/TM.json` (not committed, since `tmp/` is ignored); its only change is `iterationScale`
+23.222.
