@@ -610,3 +610,101 @@ Preregistered and unplayed: 90,600,000 (no Stage-D arm cleared).
 
 Untouched and unread: 83,100,000; 83,200,000; 84,800,000; 87,200,000; 87,300,000; 87,500,000; 88,200,000;
 88,300,000; 89,900,000.
+
+
+# Round 4 (2026-11-14 night, 19:45–01:00 CST) — the per-seat benchmark, N19 (prior with mobility features)
+
+Preregistration: entries "2026-11-14 19:55 / 20:10 CST, round 4, Stage 1 / Stage 2". Their commits are
+`6225697` and `72261c2`. The Stage-2 entry's heading says 20:10, but it was committed at 19:59, before any
+Stage-2 game. The base for new candidates is `v5.1-ultra`, as set by the supervising session.
+
+## Round 4, Stage 1 — the fair benchmark, one Pentobi process per seat (measured; `tmp/v51d/S1/`)
+
+**Seeding fix (engine `1b74f36`).** Each per-seat Pentobi process is now seeded with
+`seed ^ (0x9E3779B9 · (seat + 1))`. Shared and control modes are byte-identical to their pins
+(`tmp/v51d/identity/`). `ef39432` adds an optional `--pentobi-log DIR`; play was checked to be the same
+with and without it.
+
+**Clean time** (19:46–19:48, one game thread, per-seat, `v5.1-ultra` vs three level-6 seats, 5 seeds
+91,950,000, 20 games; `tmp/v51d/time/`). Nothing else of ours was running; the unrelated Docker VM used
+about 2.4 cores.
+- Blokee: **43.8 ms/move** mean, median 29.6, 52.3 on own moves 3+.
+- A per-seat level-6 Pentobi process: **71.1 ms/move** mean, median 52.1.
+
+**Pentobi's search statistics** (the same 5 seeds replayed with logging, so the same games, 1,046 searched
+Pentobi moves; `tmp/v51d/S1/stats/logs/`): **6,688 new simulations per move** (median 6,269), 6,978 root
+visits, and a reused subtree of 6.2% of the tree on the 329 moves where Pentobi reported reuse. Blokee's
+budget is 300 × 14.224 ≈ 4,270 iterations at most (about 3,300–3,450 on average on recorded positions; the
+early exit stops some searches). **Reading:** at "equal compute" in the old sense (same nominal budget),
+Blokee uses about 62% of Pentobi's wall time per move and about half its simulations. Pentobi's
+simulations are cheaper (about 10 µs against 13 µs).
+
+**Matches** (per-seat processes, 10 threads, 19:52–21:12; raw logs `tmp/v51d/S1/c{1,2}/lone-<cfg>.jsonl`,
+`v42-l6.jsonl`, `rev-l6.jsonl`, `par-v51.jsonl`, each with `.moves` and `.timing`):
+
+### Lone seat vs three level-6 seats, per-seat Pentobi processes
+
+| Arm / block | Seeds | Advantage [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| v5.0-ultra `tmp/v51d/S1/c1/lone-v5.0-ultra.jsonl` | 400 | -1.64 [-2.23, -1.09] | 22.6% | 19.6% |
+| v5.0-ultra `tmp/v51d/S1/c2/lone-v5.0-ultra.jsonl` | 400 | -1.93 [-2.51, -1.36] | 20.7% | 18.3% |
+| v5.0-ultra `tmp/v51d/S1/pooled/lone-v5.0-ultra.jsonl` | 800 | -1.79 [-2.18, -1.39] | 21.6% | 18.9% |
+| v5.1-ultra `tmp/v51d/S1/c1/lone-v5.1-ultra.jsonl` | 400 | -0.95 [-1.56, -0.37] | 21.1% | 18.4% |
+| v5.1-ultra `tmp/v51d/S1/c2/lone-v5.1-ultra.jsonl` | 400 | -1.34 [-1.95, -0.71] | 20.8% | 18.3% |
+| v5.1-ultra `tmp/v51d/S1/pooled/lone-v5.1-ultra.jsonl` | 800 | -1.14 [-1.58, -0.72] | 20.9% | 18.3% |
+
+Paired v5.1 − v5.0 on 800 seeds: +0.64 [+0.08, +1.20]; first place (any) -0.69 [-2.50, +1.16] pp, (split) -0.59 [-2.20, +1.12] pp
+- block c1: +0.69 [-0.04, +1.47] on 400 seeds; first place (split) -1.22 [-3.59, +1.24] pp
+- block c2: +0.60 [-0.20, +1.41] on 400 seeds; first place (split) +0.04 [-2.32, +2.38] pp
+
+### Other blocks
+
+| Match | Seeds | Lone seat's advantage [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| v4.2-ultra vs 3 x L6 (91,200,000) | 200 | -8.91 [-9.75, -8.08] | 10.9% | 9.7% |
+| v5.1-ultra vs 3 x L7 (91,300,000) | — | not played | | |
+| one L6 vs 3 x v5.1-ultra (91,400,000; Pentobi's advantage) | 200 | +0.80 [-0.17, +1.73] | 36.1% | 32.6% |
+
+### Role tables (score − game mean by position relative to the lone seat)
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51d/S1/pooled/lone-v5.0-ultra.jsonl` | 800 | -1.34 [-1.64, -1.04] | +2.33 [+2.01, +2.65] | -1.38 [-1.70, -1.07] | +0.39 [+0.06, +0.71] |
+| `tmp/v51d/S1/pooled/lone-v5.1-ultra.jsonl` | 800 | -0.86 [-1.18, -0.54] | +2.17 [+1.82, +2.50] | -1.64 [-1.94, -1.33] | +0.33 [-0.01, +0.66] |
+| `tmp/v51d/S1/v42-l6.jsonl` | 200 | -6.68 [-7.31, -6.06] | +3.62 [+3.01, +4.23] | +2.20 [+1.62, +2.78] | +0.87 [+0.32, +1.45] |
+| `tmp/v51d/S1/rev-l6.jsonl` | 200 | +0.60 [-0.13, +1.30] | -1.58 [-2.35, -0.82] | +0.55 [-0.15, +1.27] | +0.43 [-0.25, +1.15] |
+
+**Two-two `v5.1-ultra` with level 6** (200 seeds 91,500,000, six seat pairs per seed):
+
+| Arrangements | Seeds | Games | Our mean − Pentobi mean [95% CI by seed] | First-place share of our seats (par 50%) [95% CI by seed] | Our seats among the winners (any share) |
+|---|---:|---:|---:|---:|---:|
+| all six | 200 | 1200 | -0.56 [-1.24, +0.15] | +43.88% [+41.36, +46.40] * | 48.2% |
+| alternating (2) | 200 | 400 | -3.68 [-4.52, -2.85] * | +37.50% [+33.38, +41.62] * | 42.0% |
+| adjacent (4) | 200 | 800 | +1.00 [+0.08, +1.93] * | +47.06% [+43.96, +50.21] * | 51.2% |
+
+- adjacent blue+green: 200 games, our mean − Pentobi mean +10.56, first-place share 73.2%
+- adjacent green+purple: 200 games, our mean − Pentobi mean -0.05, first-place share 43.8%
+- adjacent purple+yellow: 200 games, our mean − Pentobi mean -5.86, first-place share 26.8%
+- adjacent yellow+blue: 200 games, our mean − Pentobi mean -0.65, first-place share 44.5%
+- alternating blue+purple: 200 games, our mean − Pentobi mean -0.59, first-place share 49.8%
+- alternating green+yellow: 200 games, our mean − Pentobi mean -6.78, first-place share 25.2%
+
+ms/move (wall, under match load): Blokee 54.7 over 43174 moves; Pentobi 86.3 over 43753 moves
+
+**Measured:**
+- With per-seat processes, `v5.1-ultra` is still ahead of `v5.0-ultra`: **+0.64 [+0.08, +1.20]** on 800
+  fresh seeds, with first place unchanged (−0.6 pp split). The levels are v5.0 −1.79 [−2.18, −1.39] and
+  v5.1 −1.14 [−1.58, −0.72].
+- `v4.2-ultra` reads −8.91 [−9.75, −8.08].
+- A lone level-6 seat against three `v5.1-ultra` reads +0.80 [−0.17, +1.73] for Pentobi.
+- Two-two: −0.56 [−1.24, +0.15], 43.9% of first places. Alternating −3.68, adjacent +1.00.
+- The next seat's windfall remains (+2.33 / +2.17).
+- Level 7: played later in the Stage-2 driver (see below).
+
+**What this does to the round-3 benchmark claim (reading — I am unsure here).** The per-seat level of
+`v5.0-ultra` on these 800 seeds, −1.79, is about the same as its shared-process level on other seeds
+(−1.84 over 1,600). B1's paired +1.42 [+0.37, +2.47] on 200 seeds would have predicted about −0.4. These
+blocks are not paired across modes, so they cannot settle it. Either B1's 200-seed estimate was high
+(its interval reaches down to +0.37), or the per-seat seeding change matters (in round 3 all three
+per-seat processes had the game's seed). A paired shared-vs-per-seat block with the new seeding would
+settle it; I did not run it.
