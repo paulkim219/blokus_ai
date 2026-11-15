@@ -510,7 +510,10 @@ seat after Blokee's move. That is consistent with Pentobi reusing the shared pro
 its own consecutive seats. The control agrees: a level-6 seat alone in its own process scores
 −0.78 [−1.29, −0.26] against three seats that share a process. **Every lone-seat benchmark so far, from
 `v4.2-ultra`'s −10.68 to `v5.1-ultra`, therefore gave the three Pentobi seats an advantage worth about
-1 to 1.5 points over a fair per-seat arrangement.** Paired comparisons between our own arms are not biased
+1 to 1.5 points over a fair per-seat arrangement.** **[Corrected in round 4: a paired 400-seed block with the new seeding shows no
+arrangement effect (per-seat − shared +0.23 [−0.57, +1.04]; identical seeds the same). This B1 reading is
+attributed to noise, and earlier absolute levels stand. See "Round 4 — paired check of the Pentobi process
+arrangement".]** Paired comparisons between our own arms are not biased
 by this (both arms face the same arrangement), but absolute levels are.
 
 **Verdict (the preregistered reading rule): REAL.**

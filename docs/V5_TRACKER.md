@@ -64,7 +64,7 @@ at equal time (`iterationScale` 14.224 = 13.528 / 0.9511). `research_paper/v5_1_
 | 1 × `v5.1-ultra` vs 3 × level 7 (200 seeds, 89,300,000) | −6.88 [−7.69, −6.02] (`v5.0-ultra` X4: −7.85, other seeds) | 12.5% |
 | 2 × `v5.0-ultra` + 2 × level 6, all six seat pairs (200 seeds, 89,700,000; parity diagnostic) | ours − Pentobi's −0.91 [−1.56, −0.28]; alternating −3.91, adjacent +0.58 | our share 44.3% (par 50%) |
 
-Caveat (reading): the two 400-seed blocks disagree (+1.15 / +0.02), and the direct match against `v5.0-ultra` reads −0.53. Round 3 replicated the gain against level 6 (+0.70 on 800 fresh seeds; +0.64 [+0.28, +0.99] over 1,600) but not in direct play (−0.51 / +0.06 on 400 seeds each way). **Benchmark note (round 3 B):** with a separate Pentobi process per seat, Blokee's advantage is +1.42 [+0.37, +2.47] higher than with the shared process used for every result in this file.
+Caveat (reading): the two 400-seed blocks disagree (+1.15 / +0.02), and the direct match against `v5.0-ultra` reads −0.53. Round 3 replicated the gain against level 6 (+0.70 on 800 fresh seeds; +0.64 [+0.28, +0.99] over 1,600) but not in direct play (−0.51 / +0.06 on 400 seeds each way). **Benchmark note (round 3 B, corrected in round 4):** round 3 read +1.42 [+0.37, +2.47] for per-seat Pentobi processes over the shared one on 200 seeds. A paired 400-seed check in round 4 with per-seat seeding found +0.23 [−0.57, +1.04] (identical seeds also +0.23), so the arrangement makes no measurable difference and earlier levels stand. The standard benchmark mode from round 4 on is per-seat processes with seat-derived seeds.
 
 **`v5.0-ultra` (named 2026-11-14; `engine-rs/configs/v5.0-ultra.json`, identical to `v5.0-pk-ultra.json`, the id the matches below were logged under):**
 
