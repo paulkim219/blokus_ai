@@ -1064,3 +1064,54 @@ every descent; `false` (every existing version) is byte-identical.
     advantage on log2(multiple). **200 seeds 93,250,000:** one level-6 seat vs three TM seats. Descriptive,
     no gate. Driver `engine-rs/scripts/v52-stage1.sh`, read-out `engine-rs/scripts/v52_report.py`. No block
     starts at or after 08:15 CST.
+- **2026-11-15 00:20 CST, round 5, Stage 2: N20, how iterations are spread over a seat's own moves. Fixed
+  before any game of it.** No engine change: the existing option `search.iterationShape` (a multiplier per
+  own move number, used once in S5) does this; absent, nothing changes.
+  - **Shapes measured from existing logs (`engine-rs/scripts/v52_shapes.py`, `tmp/v52/shape/shapes.md`):**
+    `v5.1-ultra` searches about the same number of iterations at every own move 3–16 (≈3,200–3,700 on
+    recorded positions), so its wall time per move falls steeply (in-match, per-seat 800 seeds: 150 ms at own
+    move 3, 60 at 9, 19 at 14, under 4 from 17). Pentobi level 6 (per-seat logs, 1,046 searched moves)
+    raises its simulations through the game: about 2,700 at own move 3, 6,600 at 9, 9,700 at 14, 14,000–16,500 at
+    17–19.
+  - **Arms** (`engine-rs/scripts/v52_n20configs.py`; multipliers on own moves 3–20, moves 0–2 are the opening
+    heuristic; each normalised so that Σ_k ms_k·m_k over the measured in-match ms profile equals the base's,
+    capped at ×6): `MID` (a) 6–12 ×1.5, 13+ ×0.5, 3–5 ×0.54; `FLAT` (b) equal wall time per own move
+    (m_k ∝ 1/ms_k: 3 ×0.42 … 9 ×1.05 … 13 ×2.66, 16+ ×6 capped); `PSHAPE` (c) iterations ∝ Pentobi's
+    simulations (3 ×0.51 … 9 ×1.25 … 14 ×1.83 … 18 ×3.02); `REV` (d) the reverse of (a): 6–12 ×0.667, 13+ ×2,
+    3–5 ×1.19. Base `v5.1-ultra`.
+  - **Cost check** (driver, after Stage 1, nothing else running): `p4_cost`, 150 recorded positions (own moves
+    3+), two rounds, mean ms ratio to base; an arm outside [0.97, 1.03] has its whole shape scaled by 1/ratio
+    once, not re-checked.
+  - **Screen:** base + four arms, per-seat, **400 seeds 93,300,000–93,300,399**; standing rule (clears: paired
+    lower bound > 0; the clearing arm with the largest point estimate confirmed with a fresh base, started
+    together, on **400 seeds 93,400,000–93,400,399**; accepted if lower bound > 0 and first-place interval not
+    entirely below 0) → `engine-rs/configs/v5.2-cand-ultra.json`. Role table for every arm. Driver
+    `engine-rs/scripts/v52-stage2.sh` (after the Stage-1 driver). No block at or after 08:15.
+- **2026-11-15 00:30 CST, round 5, Stage 3: CEM tuner on `v5.1-ultra` (or on `v5.2-cand-ultra` if Stage 2
+  saves one). Fixed before any game of it.** Driver `engine-rs/scripts/v52-stage3.sh` (after Stage 2), tuner
+  `engine-rs/scripts/v52_tune.py` (a lean re-implementation of N10's CEM for this search space; smoke-tested
+  on seeds 12,300+).
+  - **Dimensions** (start = the base's value; log = tuned in log space): RAVE weight log [0.25, 3]; RAVE
+    equivalence log [20, 600]; RAVE distance decay [0, 1]; priorLog exploration log [0.1, 1.2]; reward
+    quality weight [0, 1.2]; quality slope log [0.3, 3]; length weight [0, 0.4]; first weight [0, 0.5]; prior
+    temperature log [0.5, 2]; root initial visits log [1, 10]; interior initial visits log [0.5, 6]; history
+    weight log [0.05, 2]; playout ε [0.3, 0.9]. Left out because they are dead in this configuration: `cPuct`
+    (priorLog selection replaces the PUCT term; only the unused fast path reads it) and `rankBlend` (the rank
+    reward replaces the blend; only the never-reached truncated-rollout path reads it). Playout ε may change
+    cost slightly, so the final point's cost is checked (below).
+  - **Method:** 12 candidates per generation (candidate 0 = the current mean), common seeds per generation:
+    generation g plays **94,000,000 + 100·g … + 24** (25 seeds, 100 games per candidate), never reused; lone
+    seat vs three level-6 seats, **shared Pentobi process** for training (faster; round 4 showed no level
+    difference), book, budget 300, 12 candidates at once with one game thread each. Fitness = mean advantage.
+    Elite 4; mean and σ move halfway to the elite's mean and standard deviation; σ floored at ¼ of its start
+    (0.3 in log units, 15% of the range otherwise). A generation starts only if the previous one's wall time
+    fits before **07:00**. If fewer than 90 minutes remain when the stage starts, no tuning: the Stage-2 screen
+    arm with the largest point estimate is replayed against the base on 800 seeds 95,200,000 + 95,300,000.
+  - **The single candidate** is the mean after the last completed generation, written to
+    `tmp/v52/S3/tune/final.json` before any validation game. Clean cost vs base (`p4_cost`, quiet, two
+    rounds); outside [0.97, 1.03] it is validated at equal time (`iterationScale` / cost). **Validation:**
+    per-seat, base then candidate on **400 seeds 95,000,000** and on **400 seeds 95,100,000**; accepted if
+    the paired lower bound over the 800 seeds is above 0 and the paired first-place interval (ties split)
+    is not entirely below 0; saved as `engine-rs/configs/v5.2-cand-ultra.json` (or `v5.3-cand-ultra.json`
+    if Stage 2 saved a v5.2 candidate). The old N10 validation seeds 79,800,000–79,800,199 stay unread.
+    No block at or after 08:15.
