@@ -193,6 +193,10 @@ fn main() {
         other => panic!("--mode must be one-blokee, one-pentobi, two-two or pentobi-control, not {other}"),
     };
     let control = mode == "pentobi-control";
+    let pentobi_log: Option<String> = argv.iter().position(|a| a == "--pentobi-log").and_then(|i| argv.get(i + 1)).cloned();
+    if let Some(dir) = &pentobi_log {
+        std::fs::create_dir_all(dir).unwrap();
+    }
     let per_seat = match &arg(&argv, "gtp-processes", "shared")[..] {
         "shared" => false,
         "per-seat" => true,
@@ -262,6 +266,7 @@ fn main() {
             let (assignments, blokee, spec, mapping) = (assignments.clone(), blokee.clone(), Arc::clone(&spec), Arc::clone(&mapping));
             let (label, challenger_name, champion_name, failures_out) = (label.clone(), challenger_name.clone(), champion_name.clone(), failures_out.clone());
             let moves_log = moves_log.clone();
+            let pentobi_log = pentobi_log.clone();
             std::thread::spawn(move || {
                 let mut pool = vec![Engine::new(blokee.0, blokee.1).unwrap_or_else(|e| panic!("blokee: {e}"))];
                 loop {
@@ -305,7 +310,15 @@ fn main() {
                             process_seed = vec![seed; count];
                         }
                         (0..count)
-                            .map(|p| spec.spawn(process_seed[p]))
+                            .map(|p| match &pentobi_log {
+                                // Round 4: per-process Pentobi logs (search statistics) for diagnostics.
+                                Some(dir) => {
+                                    // Without --quiet so that Pentobi writes its search statistics.
+                                    let args: Vec<String> = spec.args(process_seed[p]).into_iter().filter(|a| a != "--quiet").collect();
+                                    Gtp::spawn_logged(&spec.program, &args, &std::path::Path::new(dir).join(format!("{seed}-{display_seat}-{p}.log")))
+                                }
+                                None => spec.spawn(process_seed[p]),
+                            })
                             .collect::<Result<Vec<_>, _>>()
                             .and_then(|mut gtps| play_bridge_game_multi(&mut pool, players, &options(seed), &mut gtps, seat_process, &mapping, check_legal))
                     } else {
