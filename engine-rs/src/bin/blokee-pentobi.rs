@@ -193,6 +193,13 @@ fn main() {
         other => panic!("--mode must be one-blokee, one-pentobi, two-two or pentobi-control, not {other}"),
     };
     let control = mode == "pentobi-control";
+    // Round 4: `--per-seat-seed game` seeds every per-seat process with the game seed (round 3's behaviour);
+    // the default `seat` derives one seed per seat.
+    let same_seed = match &arg(&argv, "per-seat-seed", "seat")[..] {
+        "seat" => false,
+        "game" => true,
+        other => panic!("--per-seat-seed must be seat or game, not {other}"),
+    };
     let pentobi_log: Option<String> = argv.iter().position(|a| a == "--pentobi-log").and_then(|i| argv.get(i + 1)).cloned();
     if let Some(dir) = &pentobi_log {
         std::fs::create_dir_all(dir).unwrap();
@@ -300,7 +307,7 @@ fn main() {
                             if matches!(players[s], Player::Gtp) && (per_seat || (control && s == challenger_seat)) {
                                 seat_process[s] = if per_seat { n - 1 } else { 1 };
                                 if per_seat {
-                                    process_seed.push(per_seat_seed(seed, s));
+                                    process_seed.push(if same_seed { seed } else { per_seat_seed(seed, s) });
                                     n += 1;
                                 }
                             }
