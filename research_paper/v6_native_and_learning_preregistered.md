@@ -1155,3 +1155,23 @@ every descent; `false` (every existing version) is byte-identical.
   - **Stage 4 (efficiency screens per tier) is not scheduled**: the brief arrived at 13:27 with the 17:30
     limit, and Stages 1–3 fill the time. No block starts at or after 17:30 CST. Driver
     `engine-rs/scripts/v53-chain.sh`.
+- **2026-11-15 15:10 CST, round 6, Stage 4 and a change of order. Fixed before any Stage-4 game.** Read so
+  far: Stage 1 (calibration) and Stage 2 (nano, lite, base, their reverses, pro) of round 6; nothing of
+  Stage 3. Stage 2's blocks at low levels took 1–3 minutes, so Stage 4 fits. The driver `v53-chain.sh` was
+  stopped by hand at 15:06 during its third ladder block (that block keeps running); the continuation
+  `engine-rs/scripts/v53-chain2.sh` finishes Stage 3 as preregistered (resumable, same binary and seeds),
+  then runs Stage 4, then one ladder rung of k = 6 (lone level 7 vs three level 6, **100 seeds 97,500,000**,
+  only if started before 16:45), then the ultra tail (unchanged: 24 seeds 96,700,000, 3 threads, only if
+  started before 17:30).
+  - **Stage 4, per tier (nano vs level 1, lite vs 3, base vs 5), base = `engine-rs/configs/v5.2-<tier>.json`;
+    five one-change arms** (`engine-rs/scripts/v53_s4configs.py`): `RW05` RAVE weight 1.0 → 0.5; `IIV3`
+    interiorInitVisits 1 → 3; `T07` prior temperature 1 → 0.7; `X02` priorLog exploration 0.4 → 0.2; `CAP6`
+    playoutMoveCap 12 → 6. Chosen because at budgets of 100–1,000 iterations the prior and the first visits
+    carry more of the decision, exploration is spread over fewer visits, and rollout cost per iteration matters
+    more. Clean cost per arm (`p4_cost`, 150 positions, two rounds, quiet); outside [0.97, 1.03] played at
+    equal time (`iterationScale` / cost), check round, one correction. Screens: **400 seeds**, nano
+    98,000,000, lite 98,100,000, base 98,200,000. Standing rule: clears if the paired lower bound vs base is
+    above 0; the clearing arm with the largest point estimate is confirmed with a fresh base arm (started
+    together) on **400 seeds** (nano 98,300,000, lite 98,400,000, base 98,500,000); accepted if the paired
+    lower bound is above 0 and the first-place interval is not entirely below 0; saved as
+    `engine-rs/configs/v5.3-cand-<tier>.json`. No block starts at or after 17:30.
