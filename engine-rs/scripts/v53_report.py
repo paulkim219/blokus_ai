@@ -137,6 +137,10 @@ def bench(root):
     for e, d in engines.items():
         lv = sorted(d)
         advs = {l: seeds_adv(d[l]) for l in lv}
+        advs = {l: a for l, a in advs.items() if a}
+        lv = sorted(advs)
+        if not lv:
+            continue
         means = {l: sum(a.values()) / len(a) for l, a in advs.items()}
         cells = "; ".join(f"L{l}: {fmt_ci(bootstrap(list(advs[l].values())))}" for l in lv)
         def be(m):
