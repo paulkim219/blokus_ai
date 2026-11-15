@@ -190,9 +190,15 @@ fn main() {
         "one-pentobi" => (false, false),
         "two-two" => (true, true),
         "pentobi-control" => (false, false),
-        other => panic!("--mode must be one-blokee, one-pentobi, two-two or pentobi-control, not {other}"),
+        "pentobi-ladder" => (false, false),
+        other => panic!("--mode must be one-blokee, one-pentobi, two-two, pentobi-control or pentobi-ladder, not {other}"),
     };
     let control = mode == "pentobi-control";
+    // Round 6: `--mode pentobi-ladder --lone-level A --level B`: one Pentobi seat at level A against three at
+    // level B, every seat in its own process (seat-derived seeds).
+    let ladder = mode == "pentobi-ladder";
+    let lone_level: u32 = arg(&argv, "lone-level", &spec.level.to_string()).parse().unwrap();
+    let spec_lone = Arc::new(PentobiSpec { program: spec.program.clone(), level: lone_level, book: spec.book.clone() });
     // Round 4: `--per-seat-seed game` seeds every per-seat process with the game seed (round 3's behaviour);
     // the default `seat` derives one seed per seat.
     let same_seed = match &arg(&argv, "per-seat-seed", "seat")[..] {
@@ -204,16 +210,21 @@ fn main() {
     if let Some(dir) = &pentobi_log {
         std::fs::create_dir_all(dir).unwrap();
     }
-    let per_seat = match &arg(&argv, "gtp-processes", "shared")[..] {
-        "shared" => false,
-        "per-seat" => true,
-        other => panic!("--gtp-processes must be shared or per-seat, not {other}"),
-    };
-    let slots = if two_two { PAIRS.len() } else { 4 };
+    let per_seat = ladder
+        || match &arg(&argv, "gtp-processes", "shared")[..] {
+            "shared" => false,
+            "per-seat" => true,
+            other => panic!("--gtp-processes must be shared or per-seat, not {other}"),
+        };
+    // Round 6: `--rotations K` plays only the first K seat rotations of each seed (timing runs of slow levels).
+    let rotations: usize = arg(&argv, "rotations", "4").parse().unwrap();
+    let slots = if two_two { PAIRS.len() } else { rotations.clamp(1, 4) };
     let slot_name = move |k: usize| if two_two { pair_name(k) } else { DISPLAY[k].to_string() };
     let blokee_name = arg(&argv, "blokee-name", &stem(&blokee_path));
     let pentobi_name = format!("pentobi-{}-L{}", version.trim_start_matches("Pentobi ").replace(' ', "_"), spec.level);
-    let (challenger_name, champion_name) = if control {
+    let (challenger_name, champion_name) = if ladder {
+        (format!("pentobi-{}-L{lone_level}", version.trim_start_matches("Pentobi ").replace(' ', "_")), pentobi_name.clone())
+    } else if control {
         (format!("{pentobi_name}-own-process"), pentobi_name.clone())
     } else if one_blokee {
         (blokee_name.clone(), pentobi_name.clone())
@@ -274,6 +285,7 @@ fn main() {
             let (label, challenger_name, champion_name, failures_out) = (label.clone(), challenger_name.clone(), champion_name.clone(), failures_out.clone());
             let moves_log = moves_log.clone();
             let pentobi_log = pentobi_log.clone();
+            let spec_lone = Arc::clone(&spec_lone);
             std::thread::spawn(move || {
                 let mut pool = vec![Engine::new(blokee.0, blokee.1).unwrap_or_else(|e| panic!("blokee: {e}"))];
                 loop {
@@ -291,7 +303,7 @@ fn main() {
                     if two_two {
                         players[PAIRS[display_seat].1] = lone;
                     }
-                    if control {
+                    if control || ladder {
                         players = [Player::Gtp; 4];
                     }
                     let game_started = Instant::now();
@@ -302,12 +314,14 @@ fn main() {
                         // Round 4: in per-seat mode each process gets its own seed, derived from the
                         // game seed and the seat it plays (the control mode keeps the game seed).
                         let mut process_seed: Vec<u32> = Vec::new();
+                        let mut process_lone: Vec<bool> = Vec::new();
                         let mut n = 1;
                         for s in 0..4 {
                             if matches!(players[s], Player::Gtp) && (per_seat || (control && s == challenger_seat)) {
                                 seat_process[s] = if per_seat { n - 1 } else { 1 };
                                 if per_seat {
                                     process_seed.push(if same_seed { seed } else { per_seat_seed(seed, s) });
+                                    process_lone.push(ladder && s == challenger_seat);
                                     n += 1;
                                 }
                             }
@@ -317,7 +331,9 @@ fn main() {
                             process_seed = vec![seed; count];
                         }
                         (0..count)
-                            .map(|p| match &pentobi_log {
+                            .map(|p| {
+                                let spec = if process_lone.get(p).copied().unwrap_or(false) { &spec_lone } else { &spec };
+                                match &pentobi_log {
                                 // Round 4: per-process Pentobi logs (search statistics) for diagnostics.
                                 Some(dir) => {
                                     // Without --quiet so that Pentobi writes its search statistics.
@@ -325,7 +341,7 @@ fn main() {
                                     Gtp::spawn_logged(&spec.program, &args, &std::path::Path::new(dir).join(format!("{seed}-{display_seat}-{p}.log")))
                                 }
                                 None => spec.spawn(process_seed[p]),
-                            })
+                            }})
                             .collect::<Result<Vec<_>, _>>()
                             .and_then(|mut gtps| play_bridge_game_multi(&mut pool, players, &options(seed), &mut gtps, seat_process, &mapping, check_legal))
                     } else {
