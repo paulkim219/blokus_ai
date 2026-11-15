@@ -6,7 +6,8 @@
 //! seed six times (every pair of Blokee seats: four adjacent in turn order, two alternating; the
 //! JSONL `seat` is the pair, e.g. "blue+green", with `seats`, `arrangement` and `blokeeAdvantage`).
 //! Round 3: `--gtp-processes per-seat` gives every Pentobi seat its own `pentobi-gtp` process (each fed
-//! every move; default `shared`, one process for all Pentobi seats). `--mode pentobi-control` plays
+//! every move; default `shared`, one process for all Pentobi seats); since round 4 each per-seat process
+//! is seeded with `seed ^ (0x9E3779B9 · (seat + 1))`, seat in turn order. `--mode pentobi-control` plays
 //! Pentobi in all four seats: the rotated lone seat in its own process, the other three in one shared
 //! process (the JSONL `seat` is the lone seat; `challenger` is "<pentobi>-own-process"). One `pentobi-gtp` process per game plays every Pentobi
 //! colour and receives every Blokee move with `play`. Blokee seats search and choose exactly as the
@@ -53,6 +54,11 @@ const DISPLAY: [&str; 4] = ["blue", "yellow", "purple", "green"];
 /// `--mode two-two`: the Blokee seat pairs (indices into SEAT_COLORS, i.e. turn order).
 const PAIRS: [(usize, usize, &str); 6] =
     [(0, 1, "adjacent"), (1, 2, "adjacent"), (2, 3, "adjacent"), (3, 0, "adjacent"), (0, 2, "alternating"), (1, 3, "alternating")];
+
+/// Round 4: the Pentobi seed of a per-seat process (game seed and seat, turn order).
+fn per_seat_seed(seed: u32, seat: usize) -> u32 {
+    seed ^ 0x9E37_79B9u32.wrapping_mul(seat as u32 + 1)
+}
 
 fn pair_name(k: usize) -> String {
     format!("{}+{}", SEAT_COLORS[PAIRS[k].0], SEAT_COLORS[PAIRS[k].1])
@@ -281,18 +287,25 @@ fn main() {
                         // Process 0 plays the shared seats; the lone control seat, or every Pentobi seat
                         // with per-seat processes, gets its own.
                         let mut seat_process = [0usize; 4];
+                        // Round 4: in per-seat mode each process gets its own seed, derived from the
+                        // game seed and the seat it plays (the control mode keeps the game seed).
+                        let mut process_seed: Vec<u32> = Vec::new();
                         let mut n = 1;
                         for s in 0..4 {
                             if matches!(players[s], Player::Gtp) && (per_seat || (control && s == challenger_seat)) {
                                 seat_process[s] = if per_seat { n - 1 } else { 1 };
                                 if per_seat {
+                                    process_seed.push(per_seat_seed(seed, s));
                                     n += 1;
                                 }
                             }
                         }
                         let count = if per_seat { (n - 1).max(1) } else { 2 };
+                        if process_seed.is_empty() {
+                            process_seed = vec![seed; count];
+                        }
                         (0..count)
-                            .map(|_| spec.spawn(seed))
+                            .map(|p| spec.spawn(process_seed[p]))
                             .collect::<Result<Vec<_>, _>>()
                             .and_then(|mut gtps| play_bridge_game_multi(&mut pool, players, &options(seed), &mut gtps, seat_process, &mapping, check_legal))
                     } else {
