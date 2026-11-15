@@ -472,3 +472,52 @@ Combined (descriptive): per seed (fwd − rev) / 2 = -0.28 [-0.72, +0.15] on 400
 against v5.0. Its changes (wider priorLog exploration, stronger RAVE, more quality bonus, fewer initial
 visits) seem to help against Pentobi's style specifically rather than in general strength. Which
 benchmark should define a version is the supervising session's call. No config was renamed or deleted.
+
+
+## Round 3, Stage B — is the windfall a process artefact? (measured; `tmp/v51c/B/stageB.md`, `tmp/v51c/D/verdictB.txt`)
+
+The bridge change (engine `dfc727e`, pinned `tmp/v51c/bin`) adds `--gtp-processes per-seat` and
+`--mode pentobi-control`. It is identity-checked against the round-2 pin in `one-blokee`, `one-pentobi`
+and `two-two` (`tmp/v51c/identity/bridge.log`). Played 18:12–18:31:
+- B1: lone `v5.0-ultra` vs three level-6 seats on 200 seeds 90,300,000, once with the shared process and once
+  with per-seat processes.
+- B2: Pentobi-only control on 200 seeds 90,400,000.
+
+Raw logs: `tmp/v51c/B/b1-shared.jsonl`, `b1-perseat.jsonl`, `b2-control.jsonl` (+ `.moves`, `.timing`).
+
+### Score relative to the game mean, by position relative to the lone seat (bootstrap by seed)
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51c/B/b1-shared.jsonl` | 200 | -1.85 [-2.40, -1.28] | +2.69 [+2.02, +3.37] | -0.59 [-1.27, +0.07] | -0.24 [-0.90, +0.42] |
+| `tmp/v51c/B/b1-perseat.jsonl` | 200 | -0.78 [-1.40, -0.15] | +2.00 [+1.33, +2.69] | -1.20 [-1.79, -0.61] | -0.02 [-0.68, +0.65] |
+| `tmp/v51c/B/b2-control.jsonl` | 200 | -0.78 [-1.29, -0.26] | +0.13 [-0.43, +0.69] | +0.86 [+0.28, +1.46] | -0.21 [-0.81, +0.40] |
+
+ms/move by role (lone / next / opposite / previous; wall, under match load):
+- `tmp/v51c/B/b1-shared.jsonl`: 50 / 72 / 48 / 47
+- `tmp/v51c/B/b1-perseat.jsonl`: 49 / 76 / 79 / 78
+- `tmp/v51c/B/b2-control.jsonl`: 76 / 67 / 45 / 46
+
+Paired, Blokee's advantage per-seat − shared processes, 200 seeds: +1.42 [+0.37, +2.47]; first place (any) +4.75 [+1.00, +8.38] pp, (split) +3.56 [+0.19, +6.90] pp
+- shared: 200 | -2.47 [-3.21, -1.71] | 17.5% | 15.3% |
+- per-seat: 200 | -1.04 [-1.86, -0.20] | 22.2% | 18.8% |
+
+**⚠ Benchmark issue (measured): per-seat Pentobi processes raise Blokee's advantage by +1.42 [+0.37, +2.47]
+and its first-place share by +4.75 pp [+1.00, +8.38] on the same seeds** (shared −2.47, per-seat −1.04).
+Pentobi's wall time per move rises from 55.8 to 77.7 ms with per-seat processes. In the shared process, the
+seats that follow another Pentobi seat (opposite, previous) take 47–48 ms per move against 72 ms for the
+seat after Blokee's move. That is consistent with Pentobi reusing the shared process's search tree between
+its own consecutive seats. The control agrees: a level-6 seat alone in its own process scores
+−0.78 [−1.29, −0.26] against three seats that share a process. **Every lone-seat benchmark so far, from
+`v4.2-ultra`'s −10.68 to `v5.1-ultra`, therefore gave the three Pentobi seats an advantage worth about
+1 to 1.5 points over a fair per-seat arrangement.** Paired comparisons between our own arms are not biased
+by this (both arms face the same arrangement), but absolute levels are.
+
+**Verdict (the preregistered reading rule): REAL.**
+- In the control, the seat after the own-process seat gets no windfall: +0.13 [−0.43, +0.69].
+- With per-seat processes, the seat after Blokee still gets +2.00 [+1.33, +2.69]. Against +2.69 with the
+  shared process, the drop is not "clearly smaller" by the rule.
+
+So the next seat's windfall is a property of playing after Blokee, not of the shared process. About 0.7 of
+it may be process-related (point estimates 2.69 → 2.00), but that is within noise. As preregistered,
+Stage D therefore runs with per-seat processes.
