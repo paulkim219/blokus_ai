@@ -884,3 +884,92 @@ Unplayed: 91,800,000. Protected and unread: 83,100,000; 83,200,000; 84,800,000; 
 **Not done in round 4:** the compute doubling (moved to round 5), and a cheaper interior-node
 approximation for the N19 features. An approximation without move generation would only re-express existing
 prior features.
+
+
+# Round 5 (2026-11-15 overnight, 00:30–08:45 CST) — equal wall time, iteration shapes, a tuner
+
+Preregistrations: "2026-11-15 00:00 / 00:20 / 00:30 CST, round 5, Stage 1 / 2 / 3" (commits `e2a174b` and
+`9524f8e`; both committed before 23:55, ahead of their heading times and before any of their games).
+Benchmark mode throughout: per-seat Pentobi processes with seat-derived seeds. Binary `tmp/v51d/bin3`
+(engine `6e9623b`).
+
+## Round 5, Stage 1 — where we stand at equal wall time (measured; `tmp/v52/S1/`)
+
+**Clean timing** (00:31–00:36, nothing else of ours running, one game thread, per-seat, `v5.1-ultra`; rounds
+on seeds 93,950,000–004 and 93,950,005–009, 40 games, then the check on 93,950,000–004; raw logs
+`tmp/v52/S1/time/*.jsonl`):
+
+```
+Blokee mean 43.12 ms/move over 365 moves; Pentobi mean 70.34 ms/move over 1093 moves; ratio 0.6131
+Blokee mean 42.86 ms/move over 363 moves; Pentobi mean 70.04 ms/move over 1080 moves; ratio 0.6120
+Blokee mean 42.99 ms/move over 728 moves; Pentobi mean 70.19 ms/move over 2173 moves; ratio 0.6125
+Blokee mean 68.85 ms/move over 362 moves; Pentobi mean 67.70 ms/move over 1095 moves; ratio 1.0170
+```
+
+So Blokee uses **43.0 ms** per move (all its moves, opening heuristic included) against **70.2 ms** for a
+per-seat level-6 process (ratio 0.61). The time-matched config **TM** has `iterationScale` **23.222** (×1.633;
+`tmp/v52/S1/configs/TM.json`, unnamed, not in `engine-rs/configs`). Its check reads 68.9 against 67.7 ms
+(ratio 1.017), inside ±3%.
+
+**Matches** (10 threads, 00:36–02:07; raw logs `tmp/v52/S1/e{1,2}/lone-{base,TM}.jsonl`,
+`tmp/v52/S1/curve/x{1,2,4}.jsonl`, `tmp/v52/S1/rev-TM.jsonl`, each with `.moves` and `.timing`). Round 4's
+compute curve was never played, so ×2 was played here.
+
+### Lone seat vs three level-6 seats, per-seat processes (93,000,000 + 93,100,000)
+
+| Arm / block | Seeds | Advantage [95% CI] | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| base `tmp/v52/S1/e1/lone-base.jsonl` | 400 | -0.67 [-1.25, -0.10] | 21.9% | 18.8% |
+| base `tmp/v52/S1/e2/lone-base.jsonl` | 400 | -0.74 [-1.33, -0.16] | 21.2% | 18.3% |
+| base `tmp/v52/S1/pooled/lone-base.jsonl` | 800 | -0.71 [-1.11, -0.30] | 21.6% | 18.6% |
+| TM `tmp/v52/S1/e1/lone-TM.jsonl` | 400 | +0.16 [-0.43, +0.77] | 24.8% | 21.1% |
+| TM `tmp/v52/S1/e2/lone-TM.jsonl` | 400 | +0.46 [-0.14, +1.06] | 25.2% | 21.9% |
+| TM `tmp/v52/S1/pooled/lone-TM.jsonl` | 800 | +0.31 [-0.10, +0.74] | 25.0% | 21.5% |
+
+Paired TM − base on 800 seeds: +1.02 [+0.54, +1.48]; first place (any) +3.41 [+1.62, +5.16] pp, (split) +2.90 [+1.32, +4.50] pp
+
+Role tables:
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v52/S1/pooled/lone-base.jsonl` | 800 | -0.53 [-0.83, -0.22] | +2.33 [+2.02, +2.66] | -1.95 [-2.26, -1.62] | +0.15 [-0.18, +0.47] |
+| `tmp/v52/S1/pooled/lone-TM.jsonl` | 800 | +0.23 [-0.07, +0.56] | +2.03 [+1.70, +2.36] | -2.14 [-2.46, -1.81] | -0.12 [-0.44, +0.19] |
+- base: in-match ms/move Blokee 48.7, Pentobi 77.8
+- TM: in-match ms/move Blokee 77.1, Pentobi 77.6
+
+### Compute curve (200 seeds 93,200,000)
+
+| Multiple | Seeds | Advantage [95% CI] | First place (split) | Paired vs ×1 |
+|---|---:|---:|---:|---:|
+| x1 | 200 | -1.00 [-1.84, -0.19] | 18.5% | — |
+| x2 | 200 | +0.59 [-0.24, +1.46] | 20.8% | +1.60 [+0.62, +2.59] |
+| x4 | 200 | +1.36 [+0.50, +2.24] | 22.8% | +2.36 [+1.34, +3.41] |
+
+Least-squares line over the multiples played: advantage = -0.87 + +1.18·log2(multiple); parity (advantage 0) at multiple 1.66
+
+### One level-6 seat vs three time-matched seats (200 seeds 93,250,000)
+
+| Match | Seeds | Pentobi's advantage | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| one L6 vs three TM | 200 | -0.33 [-1.25, +0.67] | 32.1% | 29.1% |
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v52/S1/rev-TM.jsonl` | 200 | -0.25 [-0.94, +0.50] | -1.51 [-2.25, -0.84] | +1.24 [+0.63, +1.86] | +0.52 [-0.16, +1.20] |
+
+**Measured:**
+- **At equal wall time Blokee is level with Pentobi level 6.** TM reads **+0.31 [−0.10, +0.74]** against
+  three level-6 seats, with first place 25.0% (21.5% with ties split). A lone level-6 seat against three TM
+  seats reads −0.33 [−1.25, +0.67] for Pentobi.
+- Paired TM − `v5.1-ultra` (×1.63 iterations): **+1.02 [+0.54, +1.48]**, first place **+2.9 pp [+1.3, +4.5]**
+  (split).
+- Compute curve on 93,200,000 (paired against ×1): ×2 **+1.60 [+0.62, +2.59]**, ×4 **+2.36 [+1.34, +3.41]**.
+  Per doubling that is +1.6 for the first and +0.8 for the second. The least-squares line through the
+  three levels gives +1.18 per doubling, and parity with level 6 at ×1.66 the base's iterations on these
+  seeds. That is about where TM sits (×1.63).
+- First place grows with compute: 18.5% → 20.8% → 22.8%.
+- The next seat's windfall stays at about +2 whatever the compute.
+
+**Reading:** "equal compute" in the old sense (same nominal budget) gave Pentobi about 1.6× Blokee's wall time
+per move. At equal wall time against a per-seat process, `v5.1-ultra` is at parity with level 6, both as a
+lone seat and as three seats. The returns to iterations are flattening: the second doubling is worth about
+half the first.
