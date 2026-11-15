@@ -58,8 +58,30 @@ def time_report(path):
     print(f"Blokee ms/move mean {bm:.1f} median {bmed:.1f} over {len(ms_b)} moves; Pentobi (per-seat process) mean {pm:.1f} median {pmed:.1f} over {len(ms_p)} moves")
 
 
-if __name__ == "__main__" and sys.argv[1] in ("--stage1", "--time"):
-    {"--stage1": stage1, "--time": time_report}[sys.argv[1]](sys.argv[2])
+def seed_block(root):
+    """Paired seeding block (92,000,000): shared vs per-seat (seat seeds) vs per-seat (identical seeds)."""
+    from v51c_report import role_times
+    logs = {t: os.path.join(root, f"seed-{t}.jsonl") for t in ("shared", "perseat", "game")}
+    logs = {t: p for t, p in logs.items() if os.path.exists(p) and os.path.getsize(p)}
+    print("| Arm | Seeds | Blokee advantage [95% CI] | First place (any) | First place (split) |")
+    print("|---|---:|---:|---:|---:|")
+    names = {"shared": "shared process", "perseat": "per-seat, seeds per seat", "game": "per-seat, identical seeds (round 3)"}
+    for t, p in logs.items():
+        print(arm_line(names[t], p))
+    print()
+    for a, b in (("perseat", "shared"), ("game", "shared"), ("game", "perseat")):
+        if a in logs and b in logs:
+            n, d, f1, f2 = paired(logs[a], logs[b])
+            print(f"- paired {names[a]} − {names[b]}: {fmt_ci(d)} on {n} seeds; first place (any) {fmt_ci(f1)} pp, (split) {fmt_ci(f2)} pp")
+    print()
+    roles(list(logs.values()))
+    print("\nPentobi ms/move by role (lone / next / opposite / previous; wall, 10 game threads):")
+    for t, p in logs.items():
+        print(f"- {names[t]}: {role_times(p)}")
+
+
+if __name__ == "__main__" and sys.argv[1] in ("--stage1", "--time", "--seed"):
+    {"--stage1": stage1, "--time": time_report, "--seed": seed_block}[sys.argv[1]](sys.argv[2])
 
 
 def cmoves(root, arms, sub="screen", prefix="rol"):

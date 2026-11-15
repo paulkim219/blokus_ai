@@ -1020,3 +1020,26 @@ every descent; `false` (every existing version) is byte-identical.
     before 23:20); **Stage 3:** `v5.1-ultra` at `iterationScale` ×1 / ×2 / ×0.5 (14.224 / 28.448 / 7.112),
     per-seat, **200 seeds 91,800,000**, each block only if started before 00:30. Driver
     `engine-rs/scripts/v51d-stage2.sh` (starts after the Stage-1 driver exits).
+- **2026-11-14 21:40 CST, round 4 addition (the supervising session's request): paired check of the
+  Pentobi process arrangement with the new seeding. Fixed before any game of it.** Read so far: Stage 1 of
+  round 4 (per-seat `v5.0-ultra` −1.79 on 800 seeds, about the shared-process level on other seeds, against
+  round 3's B1 paired +1.42 for per-seat); the first screen arm of Stage 2 (base) has finished, nothing of it
+  was read. Engine `6e9623b` (pinned `tmp/v51d/bin3`) adds `--per-seat-seed game|seat` (game = every
+  per-seat process seeded with the game seed, round 3's behaviour; default `seat`); identity: per-seat
+  default equals the `6616c10` pin, `game` equals round 3's per-seat play (`9e2df31` pin), shared mode equals
+  the `6616c10` pin (one seed each).
+  - **Arms (same 400 seeds 92,000,000–92,000,399, `v5.1-ultra` lone vs three level-6 seats, book, budget
+    300, 10 threads, one after another):** shared process; per-seat with seat-derived seeds; per-seat with
+    identical seeds. Reported: Blokee's advantage and first place per arm, the paired differences per-seat −
+    shared, identical − shared, identical − per-seat (95% bootstrap by seed), the role table, Pentobi
+    ms/move by role. No gate. **Reading rule for the write-up:** the round-3 statement about earlier
+    absolute levels is kept only if per-seat − shared (seat seeds) has an interval excluding 0; if only the
+    identical-seed arm differs from shared, the round-3 effect is attributed to identical seeds; otherwise
+    to noise. Per-seat with seat-derived seeds is the standard benchmark mode from round 4 on either way
+    (fair by construction: no Pentobi seat sees another's search).
+  - **Order:** the Stage-2 driver (`v51d-stage2.sh`) was stopped by hand at 21:34 after its second screen
+    arm (`rol-R-EX`) had started; that arm keeps running. The continuation driver
+    `engine-rs/scripts/v51d-stage2b.sh` waits for it, plays the remaining screen arms (resumable; same
+    binary `tmp/v51d/bin2`, same seeds), reads out and selects by the Stage-2 rule, **then plays this
+    block**, then the Stage-2 confirmation if one is selected, then the level-7 block (now only if started
+    before 23:30), then Stage 3 (each block before 00:30).
