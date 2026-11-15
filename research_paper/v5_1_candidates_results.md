@@ -521,3 +521,92 @@ by this (both arms face the same arrangement), but absolute levels are.
 So the next seat's windfall is a property of playing after Blokee, not of the shared process. About 0.7 of
 it may be process-related (point estimates 2.69 → 2.00), but that is within noise. As preregistered,
 Stage D therefore runs with per-seat processes.
+
+
+## Round 3, Stage D — options aimed at the next seat's windfall (measured; `tmp/v51c/D/`)
+
+This stage ran because Stage B returned REAL. It used per-seat Pentobi processes, because Stage B's paired
+change excluded 0. Engine `9e2df31` (pinned `tmp/v51c/binD`) adds two options, both off by default, with
+identity checked:
+- **D1** `native.candidates.nextPressure`: a standardised next-seat pressure term added to the fitted prior.
+- **D2** `native.reward.nextWeight`: the next seat's weight in the rank term.
+
+The reason, from Stage C: Blokee removes fewer of its successor's legal placements than Pentobi does.
+
+**Clean cost** (18:30, quiet machine; `tmp/v51c/D/cost/`):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 59.0 | 59.3 | 1.000 | 1.000 | 1.000 |
+| NP05 | 150 | 63.7 | 64.0 | 1.078 | 1.080 | 1.079 |
+| NP10 | 150 | 63.4 | 63.6 | 1.074 | 1.073 | 1.074 |
+| NW2 | 150 | 60.7 | 60.2 | 1.028 | 1.016 | 1.022 |
+| NW3 | 150 | 58.9 | 59.6 | 0.998 | 1.005 | 1.001 |
+
+NP05 and NP10 are above 1.03, so they are played at equal time. Check round:
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 150 | 59.3 | 59.1 | 1.000 | 1.000 | 1.000 |
+| NP05-ET | 150 | 59.3 | 59.2 | 1.000 | 1.002 | 1.001 |
+| NP10-ET | 150 | 59.2 | 59.7 | 0.999 | 1.011 | 1.005 |
+
+**Screen** (400 seeds 90,500,000–90,500,399, per-seat processes, 18:32–19:41; raw logs
+`tmp/v51c/D/screen/rol-<arm>.jsonl` + `.moves`, `.timing`). The role table is each seat's score minus the
+game mean, by position relative to Blokee's seat:
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.0-ultra.json unchanged (iterationScale 13.528) | 400 | -1.94 [-2.49, -1.34] | 21.2% | — | — |  | 60.4 | 0/1600 |
+| NP05-ET | native.candidates.nextPressure -> 0.5 at equal time: search.iterationScale 13.528 -> 12.539 (13.528 / 1.0789) | 400 | -2.51 [-3.07, -1.94] | 19.5% | -0.57 [-1.35, +0.17] | -1.75 [-4.44, +0.94] | 1.001 | 60.7 | 1600/1600 |
+| NP10-ET | native.candidates.nextPressure -> 1.0 at equal time: search.iterationScale 13.528 -> 12.599 (13.528 / 1.0737) | 400 | -5.71 [-6.31, -5.15] | 14.2% | -3.78 [-4.51, -3.05] | -7.06 [-9.56, -4.62] | 1.005 | 62.6 | 1600/1600 |
+| NW2 | native.reward.nextWeight -> 2.0 | 400 | -2.27 [-2.81, -1.75] | 20.0% | -0.33 [-1.05, +0.36] | -1.25 [-3.75, +1.25] | 1.022 | 60.7 | 1599/1600 |
+| NW3 | native.reward.nextWeight -> 3.0 | 400 | -2.93 [-3.45, -2.40] | 18.9% | -1.00 [-1.73, -0.28] | -2.38 [-4.94, +0.25] | 1.001 | 60.9 | 1599/1600 |
+
+iterationScale played: base 13.528, NP05-ET 12.539, NP10-ET 12.599, NW2 13.528, NW3 13.528
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v51c/D/screen/rol-base.jsonl` | 400 | -1.45 [-1.87, -1.00] | +2.21 [+1.73, +2.70] | -0.81 [-1.27, -0.36] | +0.05 [-0.46, +0.53] |
+| `tmp/v51c/D/screen/rol-NP05-ET.jsonl` | 400 | -1.88 [-2.30, -1.46] | +0.23 [-0.26, +0.70] | +0.41 [-0.07, +0.91] | +1.25 [+0.79, +1.69] |
+| `tmp/v51c/D/screen/rol-NP10-ET.jsonl` | 400 | -4.29 [-4.73, -3.86] | -1.27 [-1.75, -0.80] | +3.09 [+2.62, +3.57] | +2.47 [+2.05, +2.89] |
+| `tmp/v51c/D/screen/rol-NW2.jsonl` | 400 | -1.70 [-2.11, -1.31] | +0.98 [+0.54, +1.44] | -0.71 [-1.16, -0.26] | +1.43 [+0.93, +1.91] |
+| `tmp/v51c/D/screen/rol-NW3.jsonl` | 400 | -2.20 [-2.59, -1.80] | -0.02 [-0.45, +0.41] | +0.40 [-0.03, +0.83] | +1.82 [+1.40, +2.25] |
+
+**Decision (standing rule): no arm clears, so there is no confirmation; 90,600,000 is unplayed and nothing is
+saved.** NP10 and NW3 are harmful: −3.78 [−4.51, −3.05] and −1.00 [−1.73, −0.28].
+
+**Measured, what the options did to the roles:**
+- Both options remove the windfall. With the base, the next seat reads +2.21 [+1.73, +2.70]. With NP05 it
+  reads +0.23, with NW3 −0.02, with NP10 −1.27, and with NW2 +0.98.
+- The points go to the previous and opposite seats, not to Blokee. The previous seat reads +1.25 with
+  NP05, +1.82 with NW3 and +2.47 with NP10, against +0.05 with the base.
+- Replaying the screen games with `c_moves` (Blokee movers, middle game) shows the mechanism of NP05.
+  It cuts the next seat's legal placements by 8.1% per move against 6.2% for the base, more than Pentobi's
+  7.4%. But it cuts the previous seat less (4.5% against 5.2%) and gains slightly less for itself (+47.5
+  against +48.9).
+- NW3 removes the windfall with almost no change in those counts (next −6.5%).
+
+**Reading:** the next seat's windfall is real, and these options can shift it. But in this four-player game
+it is a redistribution. Whatever Blokee takes from its successor is given back to its predecessor (and the
+opposite seat), and Blokee's own score does not improve; it gets worse as the push gets stronger. The
+windfall looks like the price of Blokee's play towards its predecessor rather than a leak Blokee can
+plug for free. A change that cuts the successor's room without loosening play towards the predecessor
+was not tested.
+
+## Round 3 — what I did not get to
+
+- Stage C on `v5.1-ultra`'s logs (only the role split was computed: next +2.58, against +2.84 for v5.0 on
+  the same fresh 800 seeds; `tmp/v51c/A/roles.md`).
+- Re-measuring earlier benchmarks with per-seat processes. Stage B suggests their absolute levels are
+  about 1–1.5 points too pessimistic for Blokee.
+- A Stage-D option that targets the next seat without giving up pressure on the previous seat.
+
+## Round 3 — seed blocks
+
+Played: 90,000,000; 90,100,000 (Stage A, 400 each); 90,200,000 (direct matches, 400 × 2); 90,300,000
+(B1, 200 × 2); 90,400,000 (B2, 200); 90,500,000 (Stage D screen, 400).
+
+Preregistered and unplayed: 90,600,000 (no Stage-D arm cleared).
+
+Untouched and unread: 83,100,000; 83,200,000; 84,800,000; 87,200,000; 87,300,000; 87,500,000; 88,200,000;
+88,300,000; 89,900,000.
