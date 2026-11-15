@@ -1283,3 +1283,51 @@ the corrected scales are approximate, as Stage 1 warned.
 time runs about 115–200 iterations with a fitted prior. At level 7 Pentobi's 80,000 simulations outplay
 our roughly 67,000 iterations. The seat after Blokee still gains at base and pro (+2.2, +4.0), but not at
 nano and lite. There our seat takes most of the slack itself.
+
+
+## Round 6, Stage 3 — data for a standard benchmark (measured; DRAFT read-out; `tmp/v53/S3/bench.md`)
+
+The bridge mode `--mode pentobi-ladder --lone-level A --level B` (engine `6f63202`) plays one Pentobi seat at
+level A against three at level B, each seat in its own process. Played 15:04–15:28, 200 seeds per block:
+- the ladder, k = 1…5, both directions (seeds 97,000,000 + 50,000·i);
+- tiers against their bracketing levels: nano vs 2, lite vs 2 and 4, base vs 4 and 6 (seeds 97,600,000 …
+  97,950,000).
+
+Raw logs `tmp/v53/S3/ladder-L<a>-vs-L<b>.jsonl` and `tmp/v53/S3/<tier>-vs-L<k>.jsonl`. The read-out
+(`engine-rs/scripts/v53_report.py --bench`) is a draft: for each engine, the lone-seat advantage against three
+seats of each anchor level, and the level at which the advantage would be 0 by linear interpolation between
+the bracketing anchors. The 95% interval comes from bootstrapping seeds within each match.
+
+**DRAFT read-out (design to be settled by the supervising session with Paul).**
+
+| Engine | ms/move (own 4+) | Advantage vs anchors played (level: adv [95% CI]) | Break-even level [95% CI] |
+|---|---:|---|---:|
+| v5.2-nano | 1.9 | L1: +6.30 [+5.78, +6.83]; L2: +2.19 [+1.50, +2.92] | not bracketed (above all anchors) |
+| v5.2-lite | 2.8 | L2: +5.22 [+4.47, +5.96]; L3: +1.61 [+1.11, +2.14]; L4: -2.33 [-3.01, -1.66] | 3.41 [3.31, 3.52] |
+| v5.2-base | 13.0 | L4: +3.89 [+3.18, +4.63]; L5: +0.33 [-0.20, +0.85]; L6: -4.89 [-5.70, -4.07] | 5.06 [4.96, 5.15] |
+| v5.2-pro | 823.6 | L7: -2.02 [-3.14, -0.84] | not bracketed (below all anchors) |
+| Pentobi L2 |  | L1: +3.68 [+3.17, +4.24]; L3: -3.73 [-4.24, -3.22] | 1.99 [1.89, 2.09] |
+| Pentobi L1 |  | L2: -4.37 [-4.95, -3.81] | not bracketed (below all anchors) |
+| Pentobi L3 |  | L2: +3.83 [+3.37, +4.29]; L4: -4.20 [-4.69, -3.70] | 2.95 [2.87, 3.03] |
+| Pentobi L4 |  | L3: +5.36 [+4.77, +5.95]; L5: -4.87 [-5.47, -4.28] | 4.05 [3.97, 4.13] |
+| Pentobi L5 |  | L4: +5.19 [+4.54, +5.88]; L6: -6.87 [-7.63, -6.06] | 4.86 [4.78, 4.94] |
+| Pentobi L6 |  | L5: +7.69 [+6.97, +8.46] | not bracketed (above all anchors) |
+
+**Measured:**
+- **The ladder is monotone and self-consistent.** Read as engines, Pentobi's levels land at their own
+  numbers: L2 1.99 [1.89, 2.09], L3 2.95 [2.87, 3.03], L4 4.05 [3.97, 4.13], L5 4.86 [4.78, 4.94].
+- One level is worth about +3.7 to +7.7 points for the stronger lone seat and −3.7 to −6.9 for the weaker
+  one, and the gap widens up the scale.
+- **Our tiers:** `v5.2-lite` sits at **level 3.41 [3.31, 3.52]** (its target is 3); `v5.2-base` at **5.06
+  [4.96, 5.15]** (target 5).
+- `v5.2-nano` is above both anchors played (+6.30 vs level 1, +2.19 vs level 2), so it needs a level-3
+  anchor to be bracketed.
+- `v5.2-pro` has only its own level (−2.02 vs 7), so it needs level 6 (and the k = 6 rung) to be read.
+
+**Not done:** ladder rungs k = 6 (the driver plays lone 7 vs three 6 on 100 seeds if time allows; see below),
+7 and 8; anchors at level 3 for nano and level 6 for pro; `v5.2-l6` against levels 5 and 7.
+
+**Reading for the design:** a one-number score per engine works with two anchors bracketing it, and the
+intervals are about ±0.1 level at 200 seeds per anchor. Interpolating linearly in level is a choice: the
+points per level are not constant, so interpolating in, say, log simulations would give slightly
+different numbers.
