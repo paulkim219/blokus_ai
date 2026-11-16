@@ -1652,3 +1652,48 @@ more points the higher the level: +3.7 at 1→2, +8.2 at 6→7.
 
 **Reading:** at equal time our score rises with compute more slowly than Pentobi's. We are about two levels
 above Pentobi at its fastest setting, level with it from level 5 to 6, and a third of a level below at 7.
+
+
+## Round 7, Stage E — IIV3 settled at the pro budget, IIV3 + RAVE 0.5 screened (measured; `tmp/v54/E/`)
+
+Prereg `36fbda0`. Lone seat vs three level-7 seats, per-seat processes, the same **100 seeds 99,300,000** for
+each arm, one arm after another (05:40–07:50). Raw logs `tmp/v54/E/games/e-{base,IIV3-ET,COMBO-ET}.jsonl`
+(+ `.moves`, `.timing`).
+
+**COMBO cost** (one round in each order, 60 positions, quiet, 05:38–05:40):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 60 | 889.8 | 914.6 | 1.000 | 1.000 | 1.000 |
+| COMBO | 60 | 913.4 | 930.7 | 1.027 | 1.018 | 1.022 |
+
+So COMBO-ET ran at `iterationScale` 224.487 / 1.0221 = **219.633**, from the measured round (the
+product-of-ratios fallback was not needed).
+
+| Arm | Seeds | Advantage vs three level-7 seats | First place (any) | First place (split) |
+|---|---:|---:|---:|---:|
+| base | 100 | -0.92 [-2.24, +0.39] | 21.8% | 19.6% |
+| IIV3-ET | 100 | -1.46 [-2.75, -0.14] | 17.8% | 15.5% |
+| COMBO-ET | 100 | -1.09 [-2.29, +0.10] | 19.2% | 17.4% |
+
+- IIV3-ET − base, 100 seeds: -0.54 [-2.21, +1.07]; first place (any) -4.00 [-8.25, +0.25] pp, (split) -4.17 [-8.42, -0.04] pp -> NOT ACCEPTED (second confirmation rule)
+- COMBO-ET − base, 100 seeds: -0.17 [-1.64, +1.32]; first place (any) -2.50 [-6.75, +1.75] pp, (split) -2.25 [-6.38, +1.88] pp -> does not clear (screen only)
+
+- DESCRIPTIVE, not the decision: IIV3-ET − base pooled over 300 seeds (99,000,000 + 99,100,000 + 99,300,000): +0.62 [-0.29, +1.49]; first place (split) +0.64 [-1.97, +3.18] pp
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v54/E/games/e-base.jsonl` | 100 | -0.69 [-1.68, +0.29] | +2.72 [+1.80, +3.64] | -0.59 [-1.62, +0.37] | -1.44 [-2.35, -0.54] |
+| `tmp/v54/E/games/e-IIV3-ET.jsonl` | 100 | -1.09 [-2.06, -0.10] | +2.83 [+1.73, +3.92] | -0.92 [-1.95, +0.08] | -0.82 [-1.97, +0.33] |
+| `tmp/v54/E/games/e-COMBO-ET.jsonl` | 100 | -0.82 [-1.72, +0.07] | +2.79 [+1.74, +3.83] | -0.76 [-1.80, +0.26] | -1.21 [-2.28, -0.13] |
+
+**Decisions (preregistered):**
+- **IIV3-ET is not accepted.** On these fresh seeds it reads −0.54 [−2.21, +1.07], and first place is down
+  4.2 pp [−8.4, −0.04] with ties split.
+- Descriptive, not the decision: pooled over its three 100-seed blocks (300 seeds) it reads +0.62
+  [−0.29, +1.49].
+- **COMBO-ET does not clear** (−0.17 [−1.64, +1.32]).
+- No `v5.3-cand-pro.json`; the level-6 check was not run.
+
+**Reading:** IIV3's screen reading (+1.62) shrank to +0.79 and then −0.54. Its pooled +0.6 is
+indistinguishable from 0. Raising the prior's pseudo-visits does not close the pro-tier gap.
