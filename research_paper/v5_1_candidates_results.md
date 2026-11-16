@@ -1533,3 +1533,122 @@ In the profile, `semaphore_wait_trap` is the idle main thread of `p4_cost`. Amon
 
 The rest, and probably most, is the quality of each simulation: our rollout policy and Pentobi's. These
 measurements cannot separate that.
+
+
+## Round 6 — ultra tail (measured, partial; `tmp/v53/S2/ultra-L9.jsonl`)
+
+`v5.2-ultra` against three level-9 seats ran with 3 game threads from 16:17 and was stopped at 22:00 as
+preregistered in round 7. It completed 45 games, which is **11 complete seeds**. Result: **−4.14 [−8.55,
++0.68]**, first place 13.6% (12.5% with ties split). Role split: own −3.11, next +2.01, opposite +2.05,
+previous −0.95. In-match time per move, under load: ours 15.3 s against Pentobi's 18.9 s (moves 5+). The
+corrected ultra scale therefore ran about 20% under level 9's time. Seeds 96,700,011–96,700,023 are partly
+played (incomplete rotations) and should not be reused.
+
+## Round 7, C — pro-tier screen (measured; `tmp/v54/C/`)
+
+**Clean cost** (22:02–22:20, quiet machine, 60 positions, two rounds):
+
+| Arm | positions (own moves 3+) | ms/move round 1 | ms/move round 2 | × base round 1 | × base round 2 | × base (mean) |
+|---|---:|---:|---:|---:|---:|---:|
+| base | 60 | 943.3 | 939.6 | 1.000 | 1.000 | 1.000 |
+| X03 | 60 | 947.1 | 941.3 | 1.004 | 1.002 | 1.003 |
+| X025 | 60 | 948.3 | 952.0 | 1.005 | 1.013 | 1.009 |
+| RW05 | 60 | 947.6 | 950.7 | 1.005 | 1.012 | 1.008 |
+| IIV3 | 60 | 977.3 | 977.6 | 1.036 | 1.040 | 1.038 |
+
+IIV3 was re-timed to `iterationScale` 216.227 and not re-checked. Screen: lone `v5.2-pro` seat against three
+level-7 seats, per-seat, **100 seeds 99,000,000**, 22:20–01:41. Raw logs `tmp/v54/C/screen/rol-<arm>.jsonl`.
+
+| Arm | Change | Seeds | Advantage vs level 7 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-pro.json unchanged (iterationScale 224.487) | 100 | -2.82 [-4.02, -1.64] | 18.0% | — | — |  | 916.3 | 0/400 |
+| X03 | priorLog exploration 0.4 -> 0.3 | 100 | -3.22 [-4.37, -2.10] | 16.0% | -0.41 [-1.70, +0.89] | -2.00 [-6.75, +2.50] | 1.003 | 934.7 | 399/400 |
+| X025 | priorLog exploration 0.4 -> 0.25 | 100 | -2.27 [-3.50, -1.00] | 19.2% | +0.55 [-0.87, +1.99] | +1.25 [-3.25, +5.75] | 1.009 | 901.1 | 398/400 |
+| RW05 | RAVE weight 1.0 -> 0.5 | 100 | -1.64 [-2.90, -0.32] | 21.0% | +1.18 [-0.07, +2.45] | +3.00 [-1.75, +7.75] | 1.008 | 923.2 | 398/400 |
+| IIV3-ET | interiorInitVisits 1 -> 3 at equal time: search.iterationScale 224.487 -> 216.227 (224.487 / 1.0382) | 100 | -1.20 [-2.53, +0.13] | 21.8% | +1.62 [+0.19, +3.03] | +3.75 [-0.75, +8.25] |  | 895.7 | 400/400 |
+
+iterationScale played: base 224.487, X03 224.487, X025 224.487, RW05 224.487, IIV3-ET 216.227
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v54/C/screen/rol-base.jsonl` | 100 | -2.11 [-3.01, -1.23] | +2.30 [+1.32, +3.30] | +0.01 [-0.93, +0.97] | -0.20 [-1.08, +0.69] |
+| `tmp/v54/C/screen/rol-X03.jsonl` | 100 | -2.42 [-3.28, -1.57] | +3.02 [+2.10, +3.98] | +0.16 [-0.81, +1.16] | -0.76 [-1.81, +0.30] |
+| `tmp/v54/C/screen/rol-X025.jsonl` | 100 | -1.70 [-2.62, -0.75] | +1.79 [+0.74, +2.84] | -0.12 [-1.10, +0.84] | +0.03 [-0.90, +0.98] |
+| `tmp/v54/C/screen/rol-RW05.jsonl` | 100 | -1.23 [-2.18, -0.24] | +2.76 [+1.77, +3.86] | -0.44 [-1.38, +0.45] | -1.10 [-2.13, -0.09] |
+| `tmp/v54/C/screen/rol-IIV3-ET.jsonl` | 100 | -0.90 [-1.90, +0.10] | +2.12 [+1.08, +3.10] | -0.57 [-1.62, +0.46] | -0.65 [-1.70, +0.40] |
+
+**Confirmation** of IIV3-ET (the only clearing arm: +1.62 [+0.19, +3.03]), fresh base, **100 seeds
+99,100,000**, 01:41–03:07:
+
+| Arm | Change | Seeds | Advantage vs level 7 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-pro.json unchanged (iterationScale 224.487) | 100 | -1.09 [-2.42, +0.25] | 20.5% | — | — |  | 896.9 | 0/400 |
+| IIV3-ET | interiorInitVisits 1 -> 3 at equal time: search.iterationScale 224.487 -> 216.227 (224.487 / 1.0382) | 100 | -0.29 [-1.58, +0.98] | 23.8% | +0.79 [-0.80, +2.39] | +3.25 [-2.25, +9.00] |  | 888.1 | 400/400 |
+
+- IIV3-ET: incomplete -> NOT ACCEPTED
+NEW BASE: (none)
+
+| Log | Seeds | Lone seat | Next | Opposite | Previous |
+|---|---:|---:|---:|---:|---:|
+| `tmp/v54/C/confirm/rolc-base.jsonl` | 100 | -0.82 [-1.81, +0.19] | +3.00 [+2.01, +4.05] | -1.10 [-2.09, -0.10] | -1.09 [-2.07, -0.11] |
+| `tmp/v54/C/confirm/rolc-IIV3-ET.jsonl` | 100 | -0.22 [-1.18, +0.73] | +3.00 [+1.99, +4.01] | -1.73 [-2.87, -0.51] | -1.05 [-1.96, -0.15] |
+
+**Decision: not accepted.** The confirmation reads +0.79 [−0.80, +2.39], lower bound below 0, so no
+`v5.3-cand-pro.json` was saved and the l6-budget check was not run. Note: the read-out line says
+"incomplete" because the shared confirmation script expects 400 seeds. By the preregistered rule (lower
+bound above 0) the arm fails all the same, on its 100 complete seeds.
+
+**Reading:**
+- Lower exploration did not help at pro: 0.3 read −0.41, 0.25 read +0.55. So the ln N growth of the
+  exploration term is not what holds us back.
+- RAVE weight 0.5 (+1.18 [−0.07, +2.45]) and interior initial visits 3 (+1.62 screen, +0.79 confirmation)
+  point the same way: less RAVE bias and more prior weight in a big tree. Neither is confirmed at 100
+  seeds, where the interval half-width is about ±1.3.
+- The pro base itself read −2.82 and −1.09 on the two blocks, consistent with round 6's −2.02.
+
+## Round 7, D — benchmark fill-ins and the draft read-out (measured; `tmp/v53/S3/bench.md`)
+
+Played 03:07–04:32, per-seat:
+
+| Block | Seeds | Seed block |
+|---|---:|---|
+| nano vs level 3 | 200 | 97,960,000 |
+| nano vs level 4 | 200 | 97,970,000 |
+| `v5.2-l6` vs level 5 | 200 | 97,980,000 |
+| pro vs level 6 | 100 | 97,995,000 |
+| `v5.2-l6` vs level 7 | 100 | 97,990,000 |
+| ladder: lone level 6 vs three level 7 | 100 | 97,550,000 |
+
+Raw logs `tmp/v53/S3/*.jsonl`. DRAFT read-out (`engine-rs/scripts/v53_report.py --bench`):
+
+**DRAFT read-out (design to be settled by the supervising session with Paul).**
+
+| Engine | ms/move (own 4+) | Advantage vs anchors played (level: adv [95% CI]) | Break-even level [95% CI] |
+|---|---:|---|---:|
+| v5.2-nano | 1.9 | L1: +6.30 [+5.78, +6.83]; L2: +2.19 [+1.50, +2.92]; L3: -0.41 [-1.06, +0.23]; L4: -4.64 [-5.32, -4.00] | 2.84 [2.65, 3.04] |
+| v5.2-lite | 2.8 | L2: +5.22 [+4.47, +5.96]; L3: +1.61 [+1.11, +2.14]; L4: -2.33 [-3.01, -1.66] | 3.41 [3.31, 3.52] |
+| v5.2-base | 13.0 | L4: +3.89 [+3.18, +4.63]; L5: +0.33 [-0.20, +0.85]; L6: -4.89 [-5.70, -4.07] | 5.06 [4.95, 5.15] |
+| v5.2-pro | 773.0 | L6: +4.10 [+2.91, +5.31]; L7: -2.02 [-3.14, -0.84] | 6.67 [6.53, 6.83] |
+| v5.2-ultra | 15287.7 | L9: -4.14 [-8.55, +0.68] | not bracketed (below all anchors) |
+| v5.2-l6 | 77.5 | L5: +5.02 [+4.26, +5.76]; L6: +0.31 [-0.10, +0.74]; L7: -4.28 [-5.44, -3.06] | 6.07 [5.98, 6.16] |
+| Pentobi L2 |  | L1: +3.68 [+3.17, +4.24]; L3: -3.73 [-4.24, -3.22] | 1.99 [1.89, 2.09] |
+| Pentobi L1 |  | L2: -4.37 [-4.95, -3.81] | not bracketed (below all anchors) |
+| Pentobi L3 |  | L2: +3.83 [+3.37, +4.29]; L4: -4.20 [-4.69, -3.70] | 2.95 [2.87, 3.04] |
+| Pentobi L4 |  | L3: +5.36 [+4.77, +5.95]; L5: -4.87 [-5.47, -4.28] | 4.05 [3.97, 4.13] |
+| Pentobi L5 |  | L4: +5.19 [+4.54, +5.88]; L6: -6.87 [-7.63, -6.06] | 4.86 [4.77, 4.95] |
+| Pentobi L6 |  | L5: +7.69 [+6.97, +8.46]; L7: -7.05 [-8.38, -5.81] | 6.04 [5.95, 6.15] |
+| Pentobi L7 |  | L6: +8.22 [+7.18, +9.30] | not bracketed (above all anchors) |
+
+**Measured:** the break-even levels (DRAFT method) are:
+- `v5.2-nano` **2.84 [2.65, 3.04]** (target 1)
+- `v5.2-lite` **3.41 [3.31, 3.52]** (target 3)
+- `v5.2-base` **5.06 [4.95, 5.15]** (target 5)
+- `v5.2-l6` **6.07 [5.98, 6.16]** (target 6)
+- `v5.2-pro` **6.67 [6.53, 6.83]** (target 7)
+- `v5.2-ultra`: not bracketed (−4.14 against level 9 on 11 seeds)
+
+The Pentobi ladder reads back its own levels within 0.15 (level 6: 6.04 [5.95, 6.15]). One level is worth
+more points the higher the level: +3.7 at 1→2, +8.2 at 6→7.
+
+**Reading:** at equal time our score rises with compute more slowly than Pentobi's. We are about two levels
+above Pentobi at its fastest setting, level with it from level 5 to 6, and a third of a level below at 7.
