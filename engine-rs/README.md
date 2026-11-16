@@ -107,8 +107,9 @@ compiled to `wasm32-unknown-unknown`. `engine-wasm/` is a small separate crate t
 one and exposes only what the app needs: create an engine from a config JSON (plus the rollout
 table's JSON), and search a position for a seat with a seed and a base budget, returning the
 ranked root moves (`mv`, `visits`, `value`, as `Engine::search` returns them). The interface is
-four plain `extern "C"` exports with JSON through linear memory; the module imports nothing, so
-there is no wasm-bindgen CLI to keep in step with the crate.
+seven plain `extern "C"` exports (allocate/free a buffer, create/free an engine, search, read the
+result) with JSON through linear memory; the module imports nothing, so there is no wasm-bindgen
+CLI to keep in step with the crate.
 
 ```bash
 rustup target add wasm32-unknown-unknown

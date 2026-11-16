@@ -8,8 +8,8 @@
 //! nothing else.
 //!
 //! Interface: plain `extern "C"` exports and UTF-8 JSON through linear memory, no wasm-bindgen.
-//! The app needs four calls, the module imports nothing, and there is no generated JS glue whose
-//! version has to match a CLI.
+//! The app needs a handful of calls, the module imports nothing, and there is no generated JS glue
+//! whose version has to match a CLI.
 //!
 //! - `blokee_alloc(len) -> ptr` / `blokee_free(ptr, len)`: buffers the host writes requests into.
 //! - `blokee_engine_new(config_ptr, config_len, table_ptr, table_len) -> handle` (0 on error).
