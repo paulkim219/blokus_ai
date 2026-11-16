@@ -1,5 +1,6 @@
 import {
   DEFAULT_UI_ALGO_VERSION,
+  UI_ALGO_VERSION_LABELS,
   UI_ALGO_VERSIONS,
   type UiAlgoVersion,
 } from '../ai/algoVersions';
@@ -24,7 +25,7 @@ export function AlgoVersionSelect({ value, onChange }: AlgoVersionSelectProps) {
       >
         {UI_ALGO_VERSIONS.map((id) => (
           <option key={id} value={id}>
-            {id === DEFAULT_UI_ALGO_VERSION ? `${id} (default)` : id}
+            {id === DEFAULT_UI_ALGO_VERSION ? `${id} (default)` : (UI_ALGO_VERSION_LABELS[id] ?? id)}
           </option>
         ))}
       </select>

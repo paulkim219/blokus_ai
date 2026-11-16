@@ -23,6 +23,7 @@ import { solveSealedEndgame } from './endgame';
 import { rankMovesGreedyV12, searchBestMoveV12 } from './bitboard';
 import { rankMovesGreedyCommittee, searchBestMoveCommittee } from './committee';
 import { searchBestMoveOracle } from './oracle/oneLap';
+import { rankMovesGreedyNativeWasm, searchBestMoveNativeWasm } from './nativeWasm/search';
 
 export type { RankedMove, SearchResult };
 
@@ -437,6 +438,9 @@ export async function rankMovesGreedy(
   if (greedyConfig.engine === 'bitboard') {
     return rankMovesGreedyV12(state, rootPlayer, bitboardParamsFor(greedyConfig));
   }
+  if (greedyConfig.engine === 'native-wasm' && greedyConfig.native) {
+    return rankMovesGreedyNativeWasm(state, rootPlayer, greedyConfig.native, greedyConfig.id);
+  }
   await emit(onProgress, {
     phase: 'starting',
     percent: 1,
@@ -556,6 +560,14 @@ export async function searchBestMove(
       onProgress,
       { iterationBudget: options.iterationBudget, engineKey: config.id },
     );
+  }
+  // The native engine in WebAssembly. The budget goes in unscaled: the engine applies the native
+  // config's own `iterationScale`.
+  if (config.engine === 'native-wasm' && config.native) {
+    return searchBestMoveNativeWasm(state, rootPlayer, timeLimitMs, config.native, onProgress, {
+      iterationBudget: options.iterationBudget,
+      engineKey: config.id,
+    });
   }
   const startedAt = performance.now();
   const cache = syncActiveLegalMoveCache(state, rootPlayer, undefined, version);

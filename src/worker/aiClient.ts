@@ -1,3 +1,4 @@
+import { getAlgo } from '../ai/algoVersions';
 import type { SearchProgress } from '../ai/progress';
 import {
   runAnalyzePlayedMove,
@@ -233,6 +234,17 @@ async function runOnMainThread(
   }
 }
 
+/**
+ * Versions whose search must never fall back to the main thread: the native engine in WebAssembly
+ * runs a whole search in one synchronous call and would freeze the page for its duration.
+ */
+function workerOnlyVersion(request: WorkerRequest): string | null {
+  if (!('version' in request) || !request.version) {
+    return null;
+  }
+  return getAlgo(request.version).engine === 'native-wasm' ? request.version : null;
+}
+
 async function sendRequest<T extends Exclude<WorkerResponse['type'], 'progress' | 'error' | 'oddsProgress'>>(
   request: WorkerRequest,
   options?: {
@@ -243,10 +255,18 @@ async function sendRequest<T extends Exclude<WorkerResponse['type'], 'progress' 
 ): Promise<Extract<WorkerResponse, { type: T }>> {
   const kind = options?.workerKind ?? 'search';
   const failed = kind === 'odds' ? oddsWorkerFailed : searchWorkerFailed;
+  const workerOnly = workerOnlyVersion(request);
+  if (failed && workerOnly) {
+    throw new Error(`${workerOnly} runs only in the AI worker, which is unavailable`);
+  }
   if (!failed) {
     try {
       return await sendViaWorker<T>(request, options);
-    } catch {
+    } catch (error) {
+      // A worker-only version reports its own errors; never retry it on the main thread.
+      if (workerOnly) {
+        throw error;
+      }
       if (kind === 'odds') {
         oddsWorkerFailed = true;
       } else {

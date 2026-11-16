@@ -5,6 +5,8 @@ import { V2_VERSIONS } from './versions/v2';
 import { V3_VERSIONS } from './versions/v3';
 import { V4_VERSIONS } from './versions/v4';
 import { V5_VERSIONS } from './versions/v5';
+import { V5_NATIVE_VERSIONS } from './versions/v5native';
+import type { NativeWasmSpec } from './nativeWasm/types';
 import {
   DEFAULT_BITBOARD_PARAMS,
   withOverrides,
@@ -161,14 +163,20 @@ export interface AlgoConfig {
    *
    * `committee` is not a fourth engine but a layer over one: it delegates the whole search to
    * `committee.primary` and only re-ranks the root children that search left tied.
+   *
+   * `native-wasm` is the native engine (`engine-rs`) compiled to WebAssembly, playing a native
+   * config (`native` below) in the AI worker. It ignores every field above, `bitboard` included,
+   * and `iterationScale`: the native config's own scale is applied by the engine.
    */
-  engine?: 'legacy' | 'bitboard' | 'committee' | 'oracle';
+  engine?: 'legacy' | 'bitboard' | 'committee' | 'oracle' | 'native-wasm';
   /** Overrides on `DEFAULT_BITBOARD_PARAMS`; only read when `engine === 'bitboard'`. */
   bitboard?: DeepPartial<BitboardParams> | null;
   /** Committee membership and arbitration band; only read when `engine === 'committee'`. */
   committee?: CommitteeParams | null;
   /** Opponent-response layer; only read when `engine === 'oracle'`. */
   oracle?: OracleSearchConfig | null;
+  /** The native config this version plays; only read when `engine === 'native-wasm'`. */
+  native?: NativeWasmSpec | null;
 }
 
 /** Same shape with every optional field filled in. What the search actually reads. */
@@ -199,6 +207,7 @@ type OptionalAlgoFields = Required<
     | 'bitboard'
     | 'committee'
     | 'oracle'
+    | 'native'
     | 'rolloutSteps'
     | 'rolloutStepsLight'
     | 'iterationScale'
@@ -220,6 +229,7 @@ const DEFAULT_OPTIONALS: OptionalAlgoFields = {
   bitboard: null,
   committee: null,
   oracle: null,
+  native: null,
   rolloutSteps: 24,
   rolloutStepsLight: 14,
   iterationScale: 1,
@@ -239,6 +249,7 @@ export const ALGO_VERSIONS: Record<AlgoVersionId, AlgoConfig> = {
   ...V3_VERSIONS,
   ...V4_VERSIONS,
   ...V5_VERSIONS,
+  ...V5_NATIVE_VERSIONS,
 };
 
 export const DEFAULT_ALGO_VERSION: AlgoVersionId = 'v1';
@@ -247,6 +258,10 @@ export const DEFAULT_ALGO_VERSION: AlgoVersionId = 'v1';
  * Versions offered in the live-game dropdown. `v3.1` is the default next-move engine; the others
  * are the same family at less/more compute, generation 2's full-rollout player, the promoted
  * v3.7 Pro Max effort tier, and the v4.1 lite and Pro Max tiers.
+ *
+ * The v5 line follows: `v5.0-ultra`, where the v5 line starts, and the v5.2 tiers nano, lite, base
+ * (`v5.2`) and pro. They are the native engine in WebAssembly (`engine: 'native-wasm'`), so they
+ * search in the AI worker only; `v5.2-ultra` is left out (about 10 GB, past wasm32's 4 GB).
  *
  * The UI search uses a shared base iteration count so each config's `iterationScale` (and rollout
  * length) is what actually distinguishes lite from pro — a wall-clock budget would collapse the
@@ -263,8 +278,17 @@ export const UI_ALGO_VERSIONS = [
   'v3.7-pro-max',
   'v4.1-lite',
   'v4.1-pro-max',
+  'v5.0-ultra',
+  'v5.2-nano',
+  'v5.2-lite',
+  'v5.2',
+  'v5.2-pro',
 ] as const;
 export type UiAlgoVersion = (typeof UI_ALGO_VERSIONS)[number];
+/** Dropdown text where the id alone does not say enough. */
+export const UI_ALGO_VERSION_LABELS: Partial<Record<UiAlgoVersion, string>> = {
+  'v5.0-ultra': 'v5.0-ultra (start of the v5 line)',
+};
 export const DEFAULT_UI_ALGO_VERSION: UiAlgoVersion = 'v3.1';
 /** Tournament/measurement base; lite/default/pro multiply this by their authored `iterationScale`. */
 export const UI_SEARCH_ITERATIONS = 300;
@@ -318,6 +342,7 @@ function resolve(config: AlgoConfig): ResolvedAlgoConfig {
     bitboard: config.bitboard ?? DEFAULT_OPTIONALS.bitboard,
     committee: config.committee ?? DEFAULT_OPTIONALS.committee,
     oracle: config.oracle ?? DEFAULT_OPTIONALS.oracle,
+    native: config.native ?? DEFAULT_OPTIONALS.native,
   };
 }
 
