@@ -162,6 +162,7 @@ fn main() {
                         max_plies: usize::MAX,
                         opening_random_plies: orp,
                         opening_top_k: otk,
+                        opening_fixed_seat: None,
                     };
                     let mut buffer: Vec<u8> = Vec::with_capacity(90 * RECORD_BYTES);
                     let result = play_game_observed(&mut pool, [0; 4], [Policy::Search; 4], &options, &mut |d| {

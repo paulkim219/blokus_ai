@@ -482,6 +482,16 @@ pub struct RewardOptions {
     /// the rank stays in [0, 1]). 0 (default) is off, i.e. every opponent weighs 1.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub next_weight: f64,
+    /// Squeeze benchmark (`kind` "squeeze", SQ-P): added to every fitted score of a non-target
+    /// seat's candidates, `squeezePrior · z`, z the move's standardised pressure on the target
+    /// (as `nextPressure`, with the target in place of the next seat). 0 (default) is off.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub squeeze_prior: f64,
+    /// Squeeze benchmark (`kind` "squeeze", SQ-R): in rollouts, the probability that a non-target
+    /// seat plays the sampled candidate covering the most of the target's corner cells (when any
+    /// covers one) instead of its usual choice. 0 (default) is off.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub squeeze_rollout: f64,
 }
 
 fn is_zero(x: &f64) -> bool {
@@ -495,6 +505,13 @@ fn blend() -> String {
 impl RewardOptions {
     pub fn rank(&self) -> bool {
         self.kind == "rank"
+    }
+
+    /// Squeeze benchmark adversary: every seat but the target scores a finished game as
+    /// `1 − (target's placed squares) / 89`, the target as `(placed squares) / 89`. The target seat
+    /// is set per game by the match driver (`Engine::set_squeeze_target`).
+    pub fn squeeze(&self) -> bool {
+        self.kind == "squeeze"
     }
 }
 
@@ -644,7 +661,25 @@ impl BitboardParams {
             reject(r.size_weight.abs() > 20.0 || r.local_weight.abs() > 20.0 || r.local_own_extra > 20.0, "native.rollout weights out of range (|w| <= 20)");
         }
         if let Some(r) = native.and_then(|n| n.reward.as_ref()) {
-            reject(!matches!(r.kind.as_str(), "blend" | "rank"), "native.reward.kind must be blend or rank");
+            reject(!matches!(r.kind.as_str(), "blend" | "rank" | "squeeze"), "native.reward.kind must be blend, rank or squeeze");
+            if r.squeeze() {
+                // The squeeze value replaces the whole reward; nothing of the margin/rank scale may mix in.
+                reject(r.quality_weight != 0.0 || r.length_weight != 0.0, "native.reward squeeze with qualityWeight or lengthWeight");
+                reject(native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.reward squeeze with native.net or native.prior");
+                reject(s.leaf_material_blend > 0.0, "native.reward squeeze with leafMaterialBlend");
+                // A game has at most 84 placements and each seat passes out once, so a cutoff of 88 or
+                // more always ends the rollout with known final scores, which the squeeze value needs.
+                reject(s.playout_cutoff < 88.0, "native.reward squeeze needs playoutCutoff >= 88");
+                reject(s.opponent_policy == "brs", "native.reward squeeze with opponentPolicy brs");
+                reject(!(r.squeeze_prior.is_finite() && r.squeeze_prior.abs() <= 10.0), "native.reward.squeezePrior must be in [-10, 10]");
+                reject(!(0.0..=1.0).contains(&r.squeeze_rollout), "native.reward.squeezeRollout must be in [0, 1]");
+                reject(
+                    r.squeeze_rollout > 0.0 && native.and_then(|n| n.rollout.as_ref()).is_some_and(|o| o.all_moves()),
+                    "native.reward.squeezeRollout needs the sampled rollout",
+                );
+            } else {
+                reject(r.squeeze_prior != 0.0 || r.squeeze_rollout != 0.0, "native.reward.squeezePrior/squeezeRollout need kind squeeze");
+            }
             reject(!(r.quality_weight >= 0.0 && r.quality_weight.is_finite()), "native.reward.qualityWeight must be >= 0");
             reject(!(r.quality_slope > 0.0 && r.quality_slope.is_finite()), "native.reward.qualitySlope must be > 0");
             reject(!(r.length_weight >= 0.0 && r.length_weight.is_finite()), "native.reward.lengthWeight must be >= 0");
