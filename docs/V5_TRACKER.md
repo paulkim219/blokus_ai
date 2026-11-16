@@ -23,6 +23,22 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
   improvement over it, by the acceptance rule, is **v5.1**. New candidates are measured against
   `v5.0-ultra`.
 
+- **Named 2026-11-16 (Paul): the round-6 tier configs are the v5.2 models.** Each is `v5.1-ultra`'s settings at equal
+  wall time with one Pentobi level (round 6 calibration, engine `6f63202`):
+
+  | Name | Config | `iterationScale` | Time-matched to |
+  |---|---|---:|---|
+  | `v5.2-nano` | `engine-rs/configs/v5.2-nano.json` | 0.383 | Pentobi level 1 (1.7 ms/move) |
+  | `v5.2-lite` | `engine-rs/configs/v5.2-lite.json` | 0.647 | level 3 (2.5 ms) |
+  | `v5.2` (base tier, no suffix) | `engine-rs/configs/v5.2.json` (was `v5.2-base.json`) | 3.545 | level 5 (10.6 ms) |
+  | `v5.2-pro` | `engine-rs/configs/v5.2-pro.json` | 224.487 | level 7 (903 ms) |
+  | `v5.2-ultra` | `engine-rs/configs/v5.2-ultra.json` | 3948.432 | level 9 (17,069 ms) |
+
+  `v5.2-l6.json` (23.222, level 6) stays a reference config, not a tier. The benchmark is accepted as designed
+  (`docs/BENCHMARK.md`): Pentobi levels 1–9 are fixed anchors, and an engine's score is the level at which its
+  lone-seat advantage crosses zero, interpolated linearly, with ms/move as the second axis. New candidates are
+  measured against the v5.2 config of their tier. The next clear improvement is **v5.3**.
+
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
 before each run.
@@ -317,3 +333,4 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-15 16:20 — Round 6 (prereg `f994698`, `f5d8cc7`). Paul's tier scheme at equal wall time: `engine-rs/configs/v5.2-{nano,lite,base,pro,ultra}.json` = `v5.1-ultra`'s settings calibrated to Pentobi levels 1/3/5/7/9 (`iterationScale` 0.383 / 0.647 / 3.545 / 224.487 / 3948.432), and `v5.2-l6.json` (23.222, the level-6 time match). Pentobi ms/move by level: 1.7, 2.0, 2.5, 4.1, 10.6, 72, 903, 3,932, 17,069. Each tier vs its level: nano +6.30, lite +1.61, base +0.33 (parity), pro −2.02 (100 seeds); reverse matches agree. Draft benchmark: the Pentobi ladder is monotone (levels read back as 1.99 / 2.95 / 4.05 / 4.86); lite breaks even at level 3.41, base at 5.06; lone level 7 beats three level 6 by +8.22. Stage 4 (five cheap arms per tier for nano/lite/base): nothing accepted. Ultra vs level 9 started 16:17 (3 threads, about 8 GB per search).
 - 2026-11-16 04:35 — Round 7 (prereg `0f31eb0`). Scaling diagnosis (no games): from the l6 to the pro budget, 9× iterations add only 1.5 plies of mean depth; iterations per second fall 8%; subtree reuse would carry 1.3% of the pro budget (not built). Pro-tier screen vs level 7 (100 seeds 99,000,000): exploration 0.3 −0.41, 0.25 +0.55, RAVE weight 0.5 +1.18 [−0.07, +2.45], interiorInitVisits 3 (equal time) +1.62 [+0.19, +3.03]. Its confirmation (99,100,000) read +0.79 [−0.80, +2.39]: not accepted. `v5.2-ultra` vs level 9, stopped at 22:00 after 11 complete seeds: −4.14 [−8.55, +0.68]. Draft benchmark break-even levels: nano 2.84, lite 3.41, base 5.06, `v5.2-l6` 6.07, pro 6.67; the Pentobi ladder reads back its own levels within 0.15.
 - 2026-11-16 07:50 — Round 7 Stage E (prereg `36fbda0`), vs three level-7 seats on 100 seeds 99,300,000. IIV3-ET −0.54 [−2.21, +1.07], first place −4.2 pp: not accepted. Pooled over 300 seeds (descriptive) +0.62 [−0.29, +1.49]. IIV3 + RAVE weight 0.5 at equal time (cost 1.022, `iterationScale` 219.633): −0.17 [−1.64, +1.32], does not clear. No pro candidate.
+- 2026-11-16 10:20 — Paul names the round-6 tier configs the **v5.2** models: `v5.2-nano`, `v5.2-lite`, `v5.2` (base tier; `engine-rs/configs/v5.2.json`, renamed from `v5.2-base.json`), `v5.2-pro`, `v5.2-ultra`; `v5.2-l6` stays a reference. The benchmark is accepted as designed (`docs/BENCHMARK.md`, runner `engine-rs/scripts/bench.sh`, read-out `v53_report.py --bench`, no longer a draft); regenerated from the raw logs, identical to round 7's numbers. Next accepted improvement: v5.3.

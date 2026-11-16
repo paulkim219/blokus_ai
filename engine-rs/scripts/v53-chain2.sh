@@ -34,8 +34,8 @@ done
 before 1655 && bp $G/v5.2-nano.json $R/S3/nano-vs-L2.jsonl one-blokee 2 200 97600000 10
 before 1655 && bp $G/v5.2-lite.json $R/S3/lite-vs-L2.jsonl one-blokee 2 200 97700000 10
 before 1655 && bp $G/v5.2-lite.json $R/S3/lite-vs-L4.jsonl one-blokee 4 200 97800000 10
-before 1655 && bp $G/v5.2-base.json $R/S3/base-vs-L4.jsonl one-blokee 4 200 97900000 10
-before 1655 && bp $G/v5.2-base.json $R/S3/base-vs-L6.jsonl one-blokee 6 200 97950000 10
+before 1655 && bp $G/v5.2.json $R/S3/base-vs-L4.jsonl one-blokee 4 200 97900000 10
+before 1655 && bp $G/v5.2.json $R/S3/base-vs-L6.jsonl one-blokee 6 200 97950000 10
 python3 engine-rs/scripts/v53_report.py --bench $R > $R/S3/bench.md 2>&1
 echo "R6 S3 DONE $(date '+%F %T')"
 # ---------------- Stage 4

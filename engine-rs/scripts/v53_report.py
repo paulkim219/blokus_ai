@@ -2,7 +2,13 @@
 
     python3 engine-rs/scripts/v53_report.py --cal tmp/v53/cal            # calibration table + scales.json
     python3 engine-rs/scripts/v53_report.py --tiers tmp/v53              # Stage 2 tables
-    python3 engine-rs/scripts/v53_report.py --bench tmp/v53              # Stage 3 DRAFT break-even read-out
+    python3 engine-rs/scripts/v53_report.py --bench tmp/v53              # benchmark: break-even levels (docs/BENCHMARK.md)
+    python3 engine-rs/scripts/v53_report.py --bench tmp/v53 --engine NAME DIR [--engine NAME DIR ...]
+        # also reads a new engine's lone-seat logs DIR/vs-L<k>.jsonl (written by engine-rs/scripts/bench.sh)
+
+Names: the base tier is plain `v5.2` (Paul, 2026-11-16; its config was `v5.2-base.json` when the round 6-7
+logs were played). Raw log files keep their old names (`S2/base-L5.jsonl`, `S3/base-vs-L<k>.jsonl`); the
+read-outs map the tier key "base" to the name `v5.2`.
 
 Time per move is the mean over each seat's moves from its fifth move on (index >= 4), for both engines:
 Pentobi's first searched move in a process carries a one-off memory set-up (150-700 ms), and Blokee's first
@@ -21,6 +27,11 @@ from v51c_report import arm_line, roles, fmt_ci, per_seed, bootstrap  # noqa: E4
 TURN = ["blue", "green", "purple", "yellow"]
 DISPLAY = ["blue", "yellow", "purple", "green"]
 TIERS = [("nano", 1), ("lite", 3), ("base", 5), ("pro", 7), ("ultra", 9)]
+
+
+def tier_name(tier, version="v5.2"):
+    """Model name of a tier: the base tier has no suffix (v5.2), the others do (v5.2-pro)."""
+    return version if tier == "base" else f"{version}-{tier}"
 
 
 def times(path, lone_blokee=True):
@@ -97,7 +108,7 @@ def tiers(root):
     print("|---|---:|---:|---:|---:|")
     logs = []
     for tier, k in TIERS:
-        for name, p in ((f"v5.2-{tier} vs 3 x L{k}", f"{root}/S2/{tier}-L{k}.jsonl"), (f"one L{k} vs 3 x v5.2-{tier} (Pentobi's advantage)", f"{root}/S2/rev-{tier}-L{k}.jsonl")):
+        for name, p in ((f"{tier_name(tier)} vs 3 x L{k}", f"{root}/S2/{tier}-L{k}.jsonl"), (f"one L{k} vs 3 x {tier_name(tier)} (Pentobi's advantage)", f"{root}/S2/rev-{tier}-L{k}.jsonl")):
             if os.path.exists(p) and os.path.getsize(p):
                 print(arm_line(name, p))
                 logs.append(p)
@@ -113,24 +124,32 @@ def seeds_adv(path):
     return {s: v[0] for s, v in per_seed(path).items()}
 
 
-def bench(root):
-    """DRAFT. For each engine, lone-seat advantages against three seats of each anchor level played; the
-    break-even level by linear interpolation between the bracketing anchors; 95% interval by bootstrap."""
-    print("**DRAFT read-out (design to be settled by the supervising session with Paul).**\n")
+def bench(root, extra=()):
+    """The benchmark (accepted by Paul 2026-11-16; docs/BENCHMARK.md). For each engine, lone-seat advantages
+    against three seats of each anchor level played; the break-even level by linear interpolation between the
+    bracketing anchors; 95% interval by bootstrap over seeds within each match. `extra` = [(name, dir)] adds
+    engines whose logs are dir/vs-L<k>.jsonl."""
     engines = {}
+    blokee = set()
     def add(engine, level, path):
         if os.path.exists(path) and os.path.getsize(path):
             engines.setdefault(engine, {})[level] = path
     for tier, k in TIERS:
-        add(f"v5.2-{tier}", k, f"{root}/S2/{tier}-L{k}.jsonl")
+        blokee.add(tier_name(tier))
+        add(tier_name(tier), k, f"{root}/S2/{tier}-L{k}.jsonl")
         for lv in range(1, 10):
-            add(f"v5.2-{tier}", lv, f"{root}/S3/{tier}-vs-L{lv}.jsonl")
+            add(tier_name(tier), lv, f"{root}/S3/{tier}-vs-L{lv}.jsonl")
+    blokee.add("v5.2-l6")
     add("v5.2-l6", 6, "tmp/v52/S1/pooled/lone-TM.jsonl")
     for lv in range(1, 10):
         add("v5.2-l6", lv, f"{root}/S3/l6-vs-L{lv}.jsonl")
     for k in range(1, 9):
         add(f"Pentobi L{k + 1}", k, f"{root}/S3/ladder-L{k + 1}-vs-L{k}.jsonl")
         add(f"Pentobi L{k}", k + 1, f"{root}/S3/ladder-L{k}-vs-L{k + 1}.jsonl")
+    for name, d in extra:
+        blokee.add(name)
+        for lv in range(1, 10):
+            add(name, lv, os.path.join(d, f"vs-L{lv}.jsonl"))
     print("| Engine | ms/move (own 4+) | Advantage vs anchors played (level: adv [95% CI]) | Break-even level [95% CI] |")
     print("|---|---:|---|---:|")
     rnd = random.Random(7)
@@ -168,7 +187,7 @@ def bench(root):
         ms = ""
         try:
             b4, _, p4, _, _, _ = times(d[lv[0]][:-6] + ".timing.jsonl")
-            ms = f"{b4:.1f}" if e.startswith("v5.2") else ""
+            ms = f"{b4:.1f}" if e in blokee else ""
         except Exception:
             pass
         print(f"| {e} | {ms} | {cells} | {bes} |")
@@ -182,4 +201,5 @@ if __name__ == "__main__":
     elif a[1] == "--tiers":
         tiers(a[2])
     elif a[1] == "--bench":
-        bench(a[2])
+        extra = [(a[i + 1], a[i + 2]) for i in range(3, len(a)) if a[i] == "--engine"]
+        bench(a[2], extra)

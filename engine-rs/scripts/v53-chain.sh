@@ -57,17 +57,18 @@ for t in ("nano", "lite", "base", "pro", "ultra"):
         print(f"{t}: check ratio {r:.3f} inside [0.97, 1.03]; iterationScale {c['search']['iterationScale']}")
 PY
 python3 engine-rs/scripts/v53_report.py --cal $C > $C/cal.md 2>&1
-for t in nano lite base pro ultra; do cp $R/configs/v5.2-$t.json engine-rs/configs/v5.2-$t.json; done
+# base tier saved as plain v5.2 (named 2026-11-16 by Paul; it was v5.2-base.json when this ran)
+for t in nano lite base pro ultra; do n=v5.2-$t; [ $t = base ] && n=v5.2; cp $R/configs/v5.2-$t.json engine-rs/configs/$n.json; done
 cp tmp/v52/S1/configs/TM.json engine-rs/configs/v5.2-l6.json
 echo "R6 CAL DONE $(date '+%F %T')"
 # ---------------- Stage 2
 G=engine-rs/configs
 bp $G/v5.2-nano.json $R/S2/nano-L1.jsonl one-blokee 1 400 96000000 10
 bp $G/v5.2-lite.json $R/S2/lite-L3.jsonl one-blokee 3 400 96100000 10
-bp $G/v5.2-base.json $R/S2/base-L5.jsonl one-blokee 5 400 96200000 10
+bp $G/v5.2.json $R/S2/base-L5.jsonl one-blokee 5 400 96200000 10
 bp $G/v5.2-nano.json $R/S2/rev-nano-L1.jsonl one-pentobi 1 200 96300000 10
 bp $G/v5.2-lite.json $R/S2/rev-lite-L3.jsonl one-pentobi 3 200 96400000 10
-bp $G/v5.2-base.json $R/S2/rev-base-L5.jsonl one-pentobi 5 200 96500000 10
+bp $G/v5.2.json $R/S2/rev-base-L5.jsonl one-pentobi 5 200 96500000 10
 before 1630 && bp $G/v5.2-pro.json $R/S2/pro-L7.jsonl one-blokee 7 100 96600000 10
 python3 engine-rs/scripts/v53_report.py --tiers $R > $R/S2/tiers.md 2>&1
 echo "R6 S2 DONE $(date '+%F %T')"
@@ -83,8 +84,8 @@ done
 before 1655 && bp $G/v5.2-nano.json $R/S3/nano-vs-L2.jsonl one-blokee 2 200 97600000 10
 before 1655 && bp $G/v5.2-lite.json $R/S3/lite-vs-L2.jsonl one-blokee 2 200 97700000 10
 before 1655 && bp $G/v5.2-lite.json $R/S3/lite-vs-L4.jsonl one-blokee 4 200 97800000 10
-before 1655 && bp $G/v5.2-base.json $R/S3/base-vs-L4.jsonl one-blokee 4 200 97900000 10
-before 1655 && bp $G/v5.2-base.json $R/S3/base-vs-L6.jsonl one-blokee 6 200 97950000 10
+before 1655 && bp $G/v5.2.json $R/S3/base-vs-L4.jsonl one-blokee 4 200 97900000 10
+before 1655 && bp $G/v5.2.json $R/S3/base-vs-L6.jsonl one-blokee 6 200 97950000 10
 python3 engine-rs/scripts/v53_report.py --bench $R > $R/S3/bench.md 2>&1
 echo "R6 S3 DONE $(date '+%F %T')"
 # ---------------- ultra tail (24 seeds, 3 game threads: about 8 GB per ultra search)
