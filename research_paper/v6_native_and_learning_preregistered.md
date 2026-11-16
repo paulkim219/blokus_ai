@@ -1203,3 +1203,25 @@ every descent; `false` (every existing version) is byte-identical.
     `v5.2-l6` vs 5 (200, 97,980,000) and vs 7 (100, 97,990,000); pro vs 6 (100, 97,995,000); ladder lone 6 vs
     three 7 (100, 97,550,000). The draft read-out also counts round 5's 800-seed `v5.2-l6` vs level 6 block.
   - No block starts at or after 07:30 CST. Driver `engine-rs/scripts/v54-chain.sh`.
+- **2026-11-16 05:40 CST, round 7, Stage E (the supervising session's follow-up): settle IIV3 at the pro
+  budget and screen IIV3 + RAVE weight 0.5. Fixed before any game of it.** Read so far: all of rounds 1–7
+  (IIV3-ET screen +1.62 [+0.19, +3.03], confirmation +0.79 [−0.80, +2.39], not accepted; RW05 screen +1.18
+  [−0.07, +2.45]). No game on seeds 99,300,000+ exists. Binary `tmp/v53/bin` (engine `6f63202`).
+  - **Arms** (lone seat vs three level-7 seats, per-seat processes, book, budget 300, 10 threads, **100 seeds
+    99,300,000–99,300,099** each, in this order): `base` = `engine-rs/configs/v5.2-pro.json`; `IIV3-ET` =
+    exactly the screen/confirmation config (`tmp/v54/C/configs/IIV3-ET.json`, interiorInitVisits 3,
+    `iterationScale` 216.227); `COMBO-ET` = interiorInitVisits 3 + RAVE weight 0.5, `iterationScale` 224.487 /
+    c with c from one cost round (`p4_cost`, 60 positions, base and COMBO, two rounds in reverse order, quiet,
+    before the games). If that round would push COMBO-ET's start past 07:30 the scale would come from the
+    product of the two measured ratios (1.0382 × 1.008); expected start ≈ 07:15, so the cost round is run.
+    COMBO-ET is dropped if it cannot start before 07:30. 99,200,000 stays reserved.
+  - **Rules:** IIV3-ET is a second, separately registered confirmation: **accepted only if its paired
+    difference vs base on these 100 seeds has a lower bound above 0 and the paired first-place interval
+    (ties split) is not entirely below 0**; then saved as `engine-rs/configs/v5.3-cand-pro.json` (no level-6
+    check tonight). Reported beside it, descriptive and not the decision: the pooled paired difference over
+    the 300 seeds 99,000,000 + 99,100,000 + 99,300,000 (paired by seed, bootstrap over seeds). COMBO-ET is a
+    screen only: clearing (lower bound above 0) makes it a candidate for a later confirmation; nothing is
+    accepted from it here. Driver `engine-rs/scripts/v54-E.sh`, read-out `engine-rs/scripts/v54_E_report.py`.
+  - `v51b_report.py --roll-confirm` now takes an optional expected seed count (default 400 unchanged); re-run
+    on round 7 C with 100 it gives the same verdict (+0.79 [−0.80, +2.39], not accepted) without the
+    "incomplete" label.

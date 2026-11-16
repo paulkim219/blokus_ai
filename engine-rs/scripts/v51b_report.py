@@ -145,13 +145,13 @@ def roll_select(root):
     print(best)
 
 
-def roll_confirm(root):
+def roll_confirm(root, expected=400):
     arm = open(os.path.join(root, "selected.txt")).read().strip()
     stem, rs = roll_rows(root, "confirm", "rolc", [arm])
     print(table(rs, stem, jload(root, "COSTS", {})))
     print()
     r = {x["arm"]: x for x in rs}.get(arm)
-    if not r or not r["paired"] or r["paired_n"] < 400:
+    if not r or not r["paired"] or r["paired_n"] < expected:
         print(f"- {arm}: incomplete -> NOT ACCEPTED")
         print("NEW BASE: (none)")
         return
@@ -175,6 +175,9 @@ def main():
     a = sys.argv
     if len(a) < 3:
         print(__doc__)
+        return
+    if a[1] == "--roll-confirm" and len(a) > 3:
+        roll_confirm(a[2], int(a[3]))  # optional expected seed count (default 400)
         return
     {"--rep": rep, "--parity": parity, "--roll-screen": roll_screen, "--roll-select": roll_select,
      "--roll-confirm": roll_confirm, "--extra": extra}[a[1]](a[2])
