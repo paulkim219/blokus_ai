@@ -94,6 +94,13 @@ impl Node {
     fn move_count(&self) -> usize {
         self.moves.len()
     }
+
+    /// Heap bytes held by this node's vectors (their capacities).
+    fn heap_bytes(&self) -> usize {
+        self.moves.capacity() * 4 + self.priors.capacity() * 8 + self.children.capacity() * 4 + self.child_visits.capacity() * 4
+            + self.amaf.capacity() * 16 + self.touched.capacity() * 4 + self.edge_cp.capacity() * 8 + self.edge_ratio.capacity() * 8
+            + self.prior_suffix.capacity() * 8 + self.ratio_suffix.capacity() * 8
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -246,6 +253,8 @@ pub struct V12Search {
     interior_full: bool,
     interior_no_widening: bool,
     interior_init_visits: f64,
+    /// Round 8 W1 (`native.candidates.interiorCap`). None leaves selection exactly as before.
+    interior_cap: Option<crate::config::InteriorCap>,
     /// Diagnostics: the tree part of each simulation (edges descended), summed and maximum.
     depth_sum: u64,
     depth_max: u32,
@@ -289,7 +298,8 @@ impl V12Search {
             && net_options.is_none()
             && params.native.as_ref().is_none_or(|n| n.prior.is_none())
             && params.search.c_puct >= 0.0
-            && params.search.c_puct.is_finite();
+            && params.search.c_puct.is_finite()
+            && candidates.as_ref().is_none_or(|c| c.interior_cap.is_none());
         V12Search {
             fast_select,
             selection,
@@ -298,6 +308,7 @@ impl V12Search {
             interior_full,
             interior_no_widening,
             interior_init_visits,
+            interior_cap: candidates.as_ref().and_then(|c| c.interior_cap.clone()),
             depth_sum: 0,
             depth_max: 0,
             last_good_reply: lgr.is_some(),
@@ -1176,7 +1187,15 @@ impl V12Search {
         }
         let mut best_index = None;
         let mut best_score = f64::NEG_INFINITY;
-        for index in 0..node.opened {
+        // Round 8 W1: interior nodes consider only the first `cap(N)` children in prior order.
+        let limit = match (&self.interior_cap, id != self.root) {
+            (Some(c), true) => {
+                let cap = (c.init + c.growth * node.visits.powf(c.exponent)).floor().max(1.0);
+                if cap < node.opened as f64 { cap as usize } else { node.opened }
+            }
+            _ => node.opened,
+        };
+        for index in 0..limit {
             let child = node.children[index];
             let edge_visits = node.child_visits[index] as f64;
             let q = if init_value {
@@ -1466,6 +1485,25 @@ impl V12Search {
     pub fn root_edge_stats(&self) -> Vec<(i32, f64)> {
         let root = &self.nodes[self.root as usize];
         (0..root.move_count()).map(|i| (root.child_visits[i], root.amaf.get(i).map_or(0.0, |a| a[1]))).collect()
+    }
+
+    /// Diagnostics (read only, round 8): mean and largest tree depth of the last search's simulations.
+    pub fn depth_stats(&self) -> (f64, u32) {
+        (if self.iterations > 0 { self.depth_sum as f64 / self.iterations as f64 } else { 0.0 }, self.depth_max)
+    }
+
+    /// Diagnostics (read only, round 8): (nodes, initialised nodes, edges, heap bytes held by the tree:
+    /// the node records plus every per-node vector's capacity, plus the transposition table's buckets).
+    pub fn tree_memory(&self) -> (usize, usize, usize, usize) {
+        let mut bytes = self.nodes.capacity() * std::mem::size_of::<Node>();
+        let (mut initialised, mut edges) = (0, 0);
+        for n in &self.nodes {
+            initialised += n.initialised as usize;
+            edges += n.moves.len();
+            bytes += n.heap_bytes();
+        }
+        bytes += self.table.capacity() * (4 + std::mem::size_of::<Vec<u32>>()) + self.table.values().map(|b| b.capacity() * 4).sum::<usize>();
+        (self.nodes.len(), initialised, edges, bytes)
     }
 
     /// Diagnostics (read only): the shape of the tree the last search left.

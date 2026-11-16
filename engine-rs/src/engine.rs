@@ -195,6 +195,16 @@ impl Engine {
         self.last_tree.map(|_| self.search.tree_shape())
     }
 
+    /// Diagnostics (round 8): the last search's mean and largest simulation depth in the tree.
+    pub fn depth_stats(&self) -> Option<(f64, u32)> {
+        self.last_tree.map(|_| self.search.depth_stats())
+    }
+
+    /// Diagnostics (round 8): the last search tree's (nodes, initialised, edges, heap bytes).
+    pub fn tree_memory(&self) -> Option<(usize, usize, usize, usize)> {
+        self.last_tree.map(|_| self.search.tree_memory())
+    }
+
     pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
         self.search.reply_stats()
     }

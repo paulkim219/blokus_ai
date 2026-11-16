@@ -548,6 +548,26 @@ pub struct CandidateOptions {
     /// N19 (round 4): a separate model for interior nodes (default: `model` everywhere).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interior_model: Option<PriorModel>,
+    /// Round 8 W1: at interior nodes, selection considers only the first
+    /// `floor(init + growth · N^exponent)` children in prior order (N the node's visits; at least
+    /// one). Unlike progressive widening nothing is forced open: a child entering the window is
+    /// scored like any other. Absent (default) is off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interior_cap: Option<InteriorCap>,
+}
+
+/// `native.candidates.interiorCap` (round 8 W1).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InteriorCap {
+    pub init: f64,
+    pub growth: f64,
+    #[serde(default = "half")]
+    pub exponent: f64,
+}
+
+fn half() -> f64 {
+    0.5
 }
 
 impl CandidateOptions {
@@ -610,6 +630,9 @@ impl BitboardParams {
         let native = self.native.as_ref();
         reject(native.is_some_and(|n| n.prior.is_some() && n.net.is_some()), "native.prior and native.net together (use one)");
         reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
+        if let Some(c) = native.and_then(|n| n.candidates.as_ref()).and_then(|c| c.interior_cap.as_ref()) {
+            reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
+        }
         if let Some(r) = native.and_then(|n| n.rollout.as_ref()) {
             reject(!matches!(r.policy.as_str(), "sampled" | "all"), "native.rollout.policy must be sampled or all");
             reject(!(r.size_weight.is_finite() && r.local_weight.is_finite()), "native.rollout weights must be finite");
