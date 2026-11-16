@@ -12,7 +12,9 @@
 
 use crate::prior::{MAX_CANDIDATES, REQUEST_BYTES};
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
+#[cfg(not(target_arch = "wasm32"))]
 use std::os::unix::net::UnixStream;
 
 pub const UTILITIES: usize = 12;
@@ -74,11 +76,30 @@ impl NetOutput {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub struct NetClient {
     stream: UnixStream,
     writer: UnixStream,
 }
 
+/// The WASM build has no sockets: connecting fails, so `Engine::new` refuses a `native.net` config.
+#[cfg(target_arch = "wasm32")]
+pub struct NetClient {
+    _none: (),
+}
+
+#[cfg(target_arch = "wasm32")]
+impl NetClient {
+    pub fn connect(_path: &str) -> Result<NetClient, String> {
+        Err(format!("native.net {}", crate::prior::WASM_NO_SOCKETS))
+    }
+
+    pub fn evaluate(&mut self, _records: &[[u8; REQUEST_BYTES]], _candidates: &[usize]) -> Result<Vec<NetOutput>, String> {
+        Err(format!("native.net {}", crate::prior::WASM_NO_SOCKETS))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl NetClient {
     pub fn connect(path: &str) -> Result<NetClient, String> {
         let stream = UnixStream::connect(path).map_err(|e| format!("net server at {path}: {e}"))?;
