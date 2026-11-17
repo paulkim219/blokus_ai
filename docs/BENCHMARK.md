@@ -82,7 +82,7 @@ Round 8 (named v5.3 on 2026-11-16: `v5.3.json` and `v5.3-turbo.json`, byte copie
 
 \* In-match times under heavier load (18 game threads on 14 cores) than the v5.2 rows; by clean single-thread cost the candidates are time-matched to their v5.2 tier.
 
-Round 9 (2026-11-17; interior cap W1C, floor(2 + 0.5·√N), accepted at nano and lite; not yet named by Paul; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds; `tmp/bench/v5.3-cand-{nano,lite}/bench.md`):
+Round 9 (2026-11-17; interior cap W1C, floor(2 + 0.5·√N), accepted at nano and lite; named `v5.3-nano` and `v5.3-lite` by Paul on 2026-11-17, byte copies of the `-cand` files; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds; `tmp/bench/v5.3-cand-{nano,lite}/bench.md`):
 
 | Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
 |---|---:|---|---:|

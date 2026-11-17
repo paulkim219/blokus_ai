@@ -60,6 +60,18 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
   else) is confirmed there. New candidates are measured against these; the next clear improvement is v5.4.
   The `-cand` files stay as the configs the round-8 logs were recorded under.
 
+- **Named 2026-11-17 (Paul): v5.3-nano and v5.3-lite.** Paul chose a cap shape per tier ("Option 1 sounds
+  good"): at nano and lite v5.3 uses round 9's narrow cap W1C, floor(2 + 0.5·√N), which beat v5.3's W1A shape
+  there on the same seeds (N23). Base and turbo keep W1A.
+
+  | Name | Config | Cap | `iterationScale` | Time-matched to | v5.3 − v5.2 (confirmation) | Benchmark |
+  |---|---|---|---:|---|---|---:|
+  | `v5.3-nano` | `engine-rs/configs/v5.3-nano.json` (byte copy of `v5.3-cand-nano.json`) | W1C (2, 0.5) | 0.363 | level 1 | +0.94 [+0.42, +1.47] | 3.01 [2.84, 3.15] |
+  | `v5.3-lite` | `engine-rs/configs/v5.3-lite.json` (byte copy of `v5.3-cand-lite.json`) | W1C (2, 0.5) | 0.647 | level 3 | +1.10 [+0.62, +1.57] | 3.53 [3.44, 3.64] |
+
+  The current best family is `v5.3-nano`, `v5.3-lite`, `v5.3`, `v5.3-turbo`, `v5.2-pro`, `v5.2-ultra`. Pro
+  (W1D-ET cleared a 300-seed screen, N24) goes to a fresh-seed confirmation in round 10.
+
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
 before each run.
