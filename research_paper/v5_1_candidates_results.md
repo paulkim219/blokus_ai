@@ -2028,3 +2028,51 @@ Driver `v56-chain.sh` (`bench.sh`, 12 threads, `tmp/v56/bin`). The own-level anc
   - a pro confirmation of W1D-ET on fresh seeds;
   - W1C or W1D shapes at base and turbo for a per-tier window (round 8 has W1D-ET +0.59 base / +0.84 turbo screens);
   - ultra.
+
+# Round 10 (2026-11-17 CST) — pro confirmation of the interior cap W1D-ET
+
+## Round 10 — preregistration (2026-11-17 09:29 CST, this commit's time; fixed before any game of it)
+
+**Read so far:** rounds 1–9 and Paul's naming of v5.3-nano / v5.3-lite (`1d751d4`). No game on seeds 102,000,000+ exists (`grep` of `research_paper/`, `docs/`, `engine-rs/scripts/`; `tmp/v57/` is new).
+
+**Question.** Does round 9's pro screen winner hold on fresh seeds? W1D-ET is the interior cap floor(16 + 4·√N) at equal time. Round 9's screen, 300 seeds 101,500,000, vs three level-7 seats: base −1.52, W1D-ET −0.37, paired Δ +1.16 [+0.41, +1.91]. Nothing else is played this round.
+
+**Setup (reused from round 9, nothing changed):**
+- **Binary:** `tmp/v57/bin`, a byte copy of `tmp/v56/bin`, which is itself round 8's `tmp/v55/bin-w1` (engine `f2c01ee`). SHA-256 values in `tmp/v57/bin/PROVENANCE.txt`; they match round 9's. No rebuild and no engine code change.
+- **Arms:**
+  - base = `tmp/v57/pro/configs/base.json`, a byte copy of `tmp/v56/pro/configs/base.json`. `cmp` shows it is identical to `engine-rs/configs/v5.2-pro.json` (`iterationScale` 224.487).
+  - W1D-ET = `tmp/v57/pro/configs/W1D-ET.json`, a byte copy of `tmp/v56/pro/configs/W1D-ET.json`. By `jq -S` diff it differs from base only by `interiorCap` {init 16, growth 4, exponent 0.5} and `iterationScale` 239.172 (224.487 / 0.9386, round 8's clean cost).
+  - No re-timing: the round-9 timing stands.
+- **Match:** `blokee-pentobi --mode one-blokee --gtp-processes per-seat --level 7 --budget 300`. Opening book on (`book_classic.blksgf`), Pentobi 31.0 built binary, 12 game threads, four seat rotations per seed. Same command line as `v56-chain.sh`.
+- **Seeds:** 800 fresh, 102,000,000–102,000,799. Played in eight 100-seed chunks (chunk k = 102,000,000 + 100k), both arms in each chunk before the next starts, so a stop leaves paired data. The order alternates: even chunks base first, odd chunks W1D-ET first.
+- **Driver:** `engine-rs/scripts/v57-chain.sh`, run under `caffeinate -i -s -m -w <pid>`, sequential, with nothing else CPU-heavy started on the Mac.
+  - It is resumable. A chunk-arm with a `.done` marker and 400 result lines is skipped; any other chunk-arm is deleted and replayed from scratch.
+  - Merge: per extension and per chunk by explicit file names, so the `.jsonl` results never pick up `.moves`/`.timing` (round 9's glob bug). Output goes to `tmp/v57/pro/confirm/rolc-<arm>.{jsonl,moves.jsonl,timing.jsonl}`.
+- **Raw output:** `tmp/v57/`.
+
+**Decision rule (the standard one, fixed now):** W1D-ET is **accepted** if, over the 800 seeds, both hold:
+- its paired-by-seed 95% percentile bootstrap Δ advantage (W1D-ET − base) has a lower bound > 0;
+- the upper bound of its paired first-place Δ (any) interval is ≥ 0, i.e. first place is not clearly down.
+
+Complete seeds only (all four rotations). Read by `python3 engine-rs/scripts/v51b_report.py --roll-confirm tmp/v57/pro 800` (`tmp/v57/pro/confirm.md`, `NEW BASE` line). With fewer than 800 complete paired seeds, it is not accepted. A stop leaves the paired seeds played; those are reported, and no verdict is taken on them.
+
+**Descriptive only** (`engine-rs/scripts/v57_pro_report.py` → `tmp/v57/pro/report.md`):
+- per-chunk Δ;
+- in-match ms/move (own moves 3+) of both arms and their ratio;
+- pooled with round 9's 300 seeds and round 8's 100 (screen data: selection-biased, since W1D-ET was chosen on them);
+- scores by position relative to the lone seat.
+
+**Time check:** if W1D-ET's in-match ms/move (own moves 3+) is outside 0.97–1.03× base, it is reported and nothing is changed. Round 9 measured 1028.0 / 1074.5 = 0.957 on the same configs, so a reading below the band is expected. Below the band means W1D-ET is under time, which works against it.
+
+**If accepted:**
+- `engine-rs/configs/v5.3-cand-pro.json` = byte copy of `W1D-ET.json`. Paul names versions; no `v5.3-pro.json` is created.
+- Benchmark fill-in (`bench.sh`, 12 threads, `tmp/v57/bin`, seed base 102,100,000), run by the same driver:
+  - the L7 anchor is the 800-seed confirmation block (linked into `tmp/bench/v5.3-cand-pro/vs-L7.*`);
+  - plus **L6, 200 seeds 102,160,000**.
+- Read by `v53_report.py --bench` (`tmp/bench/v5.3-cand-pro/bench.md`).
+- If the L7 advantage is ≥ 0, the score is not bracketed. L8 (about 4 s/move) would then be added only by a dated amendment committed before its games, with 50 seeds at 102,180,000.
+- Rows go into `docs/BENCHMARK.md` and `docs/V5_TRACKER.md` (N24 updated, N25, a log line).
+
+**If not accepted:** it is written up as not accepted, with the numbers; nothing is saved and there is no benchmark.
+
+**Seed blocks:** 102,000,000–102,000,799 (800); 102,160,000–102,160,199 (200, only if accepted); 102,180,000 (50, only by amendment). Nothing else is touched.
