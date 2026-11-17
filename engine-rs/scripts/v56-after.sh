@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Round 9 amendment (prereg 2026-11-16 20:40 entry): after v56-chain.sh ends ("R9 DONE"), W1A (the v5.3 shape) on
+# Round 9 amendment (prereg 2026-11-16 20:34 entry): after v56-chain.sh ends ("R9 DONE"), W1A (the v5.3 shape) on
 # the nano and lite confirmation seeds, paired with each tier's confirmation base arm. Same binary, threads and
 # guard as the chain. ROOT tmp/v56/<tier>-w1a links the base arm in; read with v51b_report.py --roll-confirm.
 set -u
