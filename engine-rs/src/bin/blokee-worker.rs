@@ -108,6 +108,7 @@ impl Worker {
             max_plies: a.max_plies.unwrap_or(usize::MAX),
             opening_random_plies: a.opening_random_plies.unwrap_or(0),
             opening_top_k: a.opening_top_k.unwrap_or(3),
+            opening_fixed_seat: None,
         };
         let started = Instant::now();
         let record = play_game(&mut self.pool, seat_engine, policies, &options)?;

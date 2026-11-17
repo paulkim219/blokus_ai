@@ -223,6 +223,11 @@ pub struct V12Search {
     init_ratio: Vec<f64>,
     /// `native.reward` kind "rank" (P3). None leaves every value exactly as it was.
     reward: Option<RankReward>,
+    /// `native.reward` kind "squeeze" (squeeze benchmark adversary): (SQ-P weight, SQ-R probability).
+    /// None leaves every value, prior and rollout exactly as before.
+    squeeze: Option<(f64, f64)>,
+    /// The seat the squeeze adversary plays against, set per game by the driver.
+    squeeze_target: Option<usize>,
     /// `native.rollout` "all" with a local weight (P1): the rollout needs the recent placements.
     rollout_local: bool,
     /// `native.rollout` "all" (P1/P2): the rollouts' move lists are derived from the root's.
@@ -271,6 +276,8 @@ impl V12Search {
         let candidates = params.native.as_ref().and_then(|n| n.candidates.clone());
         let reward = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
             .map(|r| RankReward::new(r.quality_weight, r.quality_slope, r.length_weight).with_first_weight(r.first_weight).with_next_weight(r.next_weight));
+        let squeeze = params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.squeeze())
+            .map(|r| (r.squeeze_prior, r.squeeze_rollout));
         let rollout_local = params.native.as_ref().and_then(|n| n.rollout.as_ref())
             .is_some_and(|r| r.all_moves() && r.local_weight != 0.0);
         let rollout_all = params.native.as_ref().and_then(|n| n.rollout.as_ref()).is_some_and(|r| r.all_moves());
@@ -322,6 +329,8 @@ impl V12Search {
             rave,
             candidates,
             reward,
+            squeeze,
+            squeeze_target: None,
             rollout_local,
             rollout_all,
             root_recent: Vec::new(),
@@ -387,6 +396,21 @@ impl V12Search {
         self.root_recent.extend_from_slice(&recent[recent.len().saturating_sub(3)..]);
     }
 
+    /// SQ-P: (target, weight) when a non-target seat's fitted scores get the target-pressure term.
+    fn squeeze_prior_for(&self, position: &Position, seat: usize) -> Option<(usize, f64)> {
+        let (weight, _) = self.squeeze?;
+        let target = self.squeeze_target?;
+        (weight != 0.0 && seat != target && position.out[target] == 0 && position.hand[target] != 0).then_some((target, weight))
+    }
+
+    /// Squeeze benchmark: the seat a `native.reward` kind "squeeze" search plays against, for every
+    /// later search until changed. Ignored by every other reward.
+    pub fn set_squeeze_target(&mut self, target: Option<usize>) {
+        self.squeeze_target = target;
+        let rollout = self.squeeze.map_or(0.0, |(_, r)| r);
+        self.playout.set_squeeze(target.map(|t| (t, rollout)));
+    }
+
     /// The root's candidate moves and priors, in tree order, for the move last prepared.
     pub fn root_candidates(&self) -> (&[i32], &[f64]) {
         let root = &self.nodes[self.root as usize];
@@ -441,6 +465,11 @@ impl V12Search {
         let s = &self.params.search;
         self.rank_blend = objective_blend(s.rank_blend, lead, s.objective_shift);
         self.paranoid = s.opponent_policy == "paranoid" || (s.opponent_policy == "auto" && lead >= s.paranoid_lead);
+        if self.squeeze.is_some() {
+            // Paranoid search would have the adversary's allies play against it.
+            assert!(self.squeeze_target.is_some(), "native.reward kind squeeze needs a target seat (Engine::set_squeeze_target)");
+            self.paranoid = false;
+        }
 
         let root = self.node_for(position);
         self.initialise_node(root, position, true);
@@ -603,6 +632,9 @@ impl V12Search {
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
             }
+            if let Some((target, weight)) = self.squeeze_prior_for(position, seat) {
+                seat_pressure(position, target, &moves, &mut scores, weight, &mut self.pressure_buffer);
+            }
             sort_by_score(&mut moves, &mut scores);
             let mut priors = vec![0.0; moves.len()];
             softmax_priors(&scores, c.temperature, &mut priors);
@@ -650,6 +682,9 @@ impl V12Search {
             }
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept], c.next_pressure, &mut self.pressure_buffer);
+            }
+            if let Some((target, weight)) = self.squeeze_prior_for(position, seat) {
+                seat_pressure(position, target, &self.scratch_moves[..kept], &mut self.scratch_scores[..kept], weight, &mut self.pressure_buffer);
             }
             sort_by_score(&mut self.scratch_moves[..kept], &mut self.scratch_scores[..kept]);
             let shortlist = kept.min(s.node_shortlist as usize);
@@ -699,6 +734,9 @@ impl V12Search {
             }
             if c.next_pressure != 0.0 {
                 next_pressure(position, seat, &moves, &mut scores, c.next_pressure, &mut self.pressure_buffer);
+            }
+            if let Some((target, weight)) = self.squeeze_prior_for(position, seat) {
+                seat_pressure(position, target, &moves, &mut scores, weight, &mut self.pressure_buffer);
             }
             temperature = c.temperature;
         } else {
@@ -1016,6 +1054,11 @@ impl V12Search {
             if self.last_good_reply
                 && let Some(scores) = self.sim_scores
             {
+                // Squeeze: the target wins a simulation when it places more than half its squares.
+                let scores = match self.squeeze_target.filter(|_| self.squeeze.is_some()) {
+                    Some(target) => squeeze_value(&scores, target),
+                    None => scores,
+                };
                 let best = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
                 let won: [bool; SEAT_COUNT] = std::array::from_fn(|seat| scores[seat] == best);
                 let prev = self.root_previous();
@@ -1295,9 +1338,10 @@ impl V12Search {
             if self.last_good_reply {
                 self.sim_scores = Some(position.scores());
             }
-            let value = match &mut self.reward {
-                Some(reward) => reward.value(&position.scores(), Some(position.ply as f64)),
-                None => value_vector(&position.scores(), s.sigmoid_scale, self.rank_blend, Aggregation::Max),
+            let value = match (&mut self.reward, self.squeeze_target.filter(|_| self.squeeze.is_some())) {
+                (_, Some(target)) => squeeze_value(&position.scores(), target),
+                (Some(reward), None) => reward.value(&position.scores(), Some(position.ply as f64)),
+                (None, None) => value_vector(&position.scores(), s.sigmoid_scale, self.rank_blend, Aggregation::Max),
             };
             self.nodes[id as usize].proven = Some(value);
             return value;
@@ -1335,10 +1379,11 @@ impl V12Search {
             if self.last_good_reply {
                 self.sim_scores = Some(scores);
             }
-            let value = match &mut self.reward {
+            let value = match (&mut self.reward, self.squeeze_target.filter(|_| self.squeeze.is_some())) {
+                (_, Some(target)) => squeeze_value(&scores, target),
                 // The packer gives scores, not the number of pieces it places: no length term.
-                Some(reward) => reward.value(&scores, None),
-                None => value_vector(&scores, s.sigmoid_scale, self.rank_blend, self.aggregation),
+                (Some(reward), None) => reward.value(&scores, None),
+                (None, None) => value_vector(&scores, s.sigmoid_scale, self.rank_blend, self.aggregation),
             };
             self.nodes[id as usize].proven = Some(value);
             return value;
@@ -1367,12 +1412,19 @@ impl V12Search {
             if self.last_good_reply {
                 self.sim_scores = Some(outcome.values);
             }
+            if let Some(target) = self.squeeze_target.filter(|_| self.squeeze.is_some()) {
+                return squeeze_value(&outcome.values, target);
+            }
             if let Some(reward) = &mut self.reward {
                 // With sealed seats left out of the rollout, their pieces are not in the length.
                 let length = if sealed_count > 0 { None } else { Some(outcome.plies as f64) };
                 return reward.value(&outcome.values, length);
             }
             return value_vector(&outcome.values, s.sigmoid_scale, self.rank_blend, self.aggregation);
+        }
+        if let Some(target) = self.squeeze_target.filter(|_| self.squeeze.is_some()) {
+            // Unreachable with the required playoutCutoff >= 88; kept total: the squares placed so far.
+            return squeeze_value(&position.scores(), target);
         }
         if sealed_count > 0 {
             let squares_weight = params.phases.get(self.phase).squares;
@@ -1800,6 +1852,16 @@ pub fn evaluate_position(context: &mut EvalContext, position: &Position, params:
     evaluate(context, position, params, phase)
 }
 
+/// Squeeze benchmark value of a finished game: the target's placed squares as a share of 89 for the
+/// target, one minus that for every other seat (a zero-sum game between the target and the rest).
+/// Placed squares come from the score: 89 when positive (all placed, with bonus), else 89 + score.
+pub fn squeeze_value(scores: &[f64; SEAT_COUNT], target: usize) -> [f64; SEAT_COUNT] {
+    let total = TOTAL_SQUARES as f64;
+    let placed = if scores[target] > 0.0 { total } else { total + scores[target] };
+    let share = (placed / total).clamp(0.0, 1.0);
+    std::array::from_fn(|seat| if seat == target { share } else { 1.0 - share })
+}
+
 /// Round 3 D1 (`native.candidates.nextPressure`): adds `weight · z` to each candidate's fitted score,
 /// z the standardised pressure of the move on the next seat still in the game (the sum over the move's
 /// cells of how many of that seat's legal placements cover the cell).
@@ -1807,6 +1869,13 @@ fn next_pressure(position: &Position, seat: usize, moves: &[i32], scores: &mut [
     let Some(next) = (1..SEAT_COUNT).map(|k| (seat + k) % SEAT_COUNT).find(|&s| position.out[s] == 0 && position.hand[s] != 0) else {
         return;
     };
+    seat_pressure(position, next, moves, scores, weight, buffer);
+}
+
+/// Adds `weight · z` to each candidate's score, z the standardised pressure of the move on `victim`
+/// (the sum over the move's cells of how many of the victim's legal placements cover the cell).
+/// Shared by `nextPressure` (victim: the next seat) and SQ-P (victim: the squeeze target).
+fn seat_pressure(position: &Position, next: usize, moves: &[i32], scores: &mut [f64], weight: f64, buffer: &mut Vec<i32>) {
     if buffer.len() < MAX_MOVES {
         buffer.resize(MAX_MOVES, 0);
     }
@@ -1836,5 +1905,25 @@ fn next_pressure(position: &Position, seat: usize, moves: &[i32], scores: &mut [
         for (s, p) in scores.iter_mut().zip(&pressure) {
             *s += weight * (p - mean) / sd;
         }
+    }
+}
+
+#[cfg(test)]
+mod squeeze_tests {
+    use super::*;
+
+    #[test]
+    fn squeeze_value_is_zero_sum_on_target_squares() {
+        // Target (seat 2) left 9 squares: placed 80 of 89.
+        let v = squeeze_value(&[-3.0, 15.0, -9.0, -40.0], 2);
+        assert!((v[2] - 80.0 / 89.0).abs() < 1e-12);
+        for seat in [0, 1, 3] {
+            assert!((v[seat] - 9.0 / 89.0).abs() < 1e-12);
+        }
+        // All placed (with or without the monomino bonus) is the full share.
+        assert_eq!(squeeze_value(&[20.0, 0.0, 0.0, 0.0], 0)[0], 1.0);
+        assert_eq!(squeeze_value(&[15.0, 0.0, 0.0, 0.0], 0)[1], 0.0);
+        // Nothing placed.
+        assert_eq!(squeeze_value(&[-89.0, 0.0, 0.0, 0.0], 0), [0.0, 1.0, 1.0, 1.0]);
     }
 }

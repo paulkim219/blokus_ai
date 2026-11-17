@@ -1,116 +1,136 @@
 # Squeeze benchmark — one model against three opponents whose only goal is to shut it out
 
-Status: **planned** (proposed 2026-11-16 at Paul's request; nothing built yet). Runs on the PC.
+Status: **built, not yet run** (proposed 2026-11-16 at Paul's request; code on branch
+`squeeze-benchmark`). Runs on the PC: see `docs/SQUEEZE_RUNBOOK.md`.
 
 ## What it measures
 
 The main benchmark (`docs/BENCHMARK.md`) asks how strong a model is against three ordinary players.
-This one asks something different: when three opponents play for nothing except keeping the model
-off the board, how much does it still get down? A model that keeps its corners open, plays its big
-pieces early and avoids getting walled in will keep more squares. The score is not a strength
-ranking, and a model can be strong in normal play and still be easy to squeeze.
+This one asks a different question: if three opponents play for nothing except keeping the model off
+the board, how much does it still get down? A model that keeps its corners open, plays its big pieces
+early and avoids getting walled in keeps more squares. The score is not a strength ranking, and a model
+can be strong in normal play yet easy to squeeze.
 
 ## The squeeze adversary
 
-**One frozen adversary, built from our own engine, plays all three opposing seats.** Pentobi can't
-be the adversary because its objective can't be changed, but it can be a *target* (see below).
+**One frozen adversary, built from our own engine, plays all three opposing seats.** Pentobi cannot be
+the adversary, because its objective cannot be changed. It can be a *target*.
 
-1. **Objective.** A new reward kind `native.reward.kind = "squeeze"`, with the target seat passed in
-   by the match driver for each game. Each adversary seat's value for a finished game is
-   `1 − (target's placed squares) / 89`. Inside the adversary's tree, the target is modelled as
-   playing for its own placed squares (`squares / 89`), the worst case for the adversaries. The game
-   becomes zero-sum between two sides: the target against a coalition of three. The existing
-   per-seat value vectors back this up unchanged.
-2. **Squares, not pieces.** The objective counts squares placed (the game's score), so a pentomino
-   kept off the board counts five times as much as a monomino. Pieces placed is reported beside it.
-   A pieces-objective variant is listed below as an option.
-3. **Coordination without communication.** All three adversaries run the same objective, so each
-   one's search treats the other two as allies. They need no shared plan for that, and they keep no
-   tree between moves.
-4. **Identity.** With `kind` unset, the engine is byte-identical to today (parity tests and fixed-seed
-   scores), as for every other option.
+- **Objective:** `native.reward.kind = "squeeze"`. The match driver sets the target seat for each game
+  (`Engine::set_squeeze_target`). Each adversary seat values a finished game at
+  `1 − (target's placed squares) / 89`.
+- **The target inside the adversary's search:** modelled as playing for its own placed squares
+  (`squares / 89`). This is the worst case for the coalition, and it is the same model for every
+  target. The adversary has no model of any particular target's habits.
+- **Zero-sum:** the game becomes zero-sum between two sides, the target and a coalition of three. The
+  three never communicate. Each one's search treats the other two as allies, because all three hold
+  the same objective.
+- **Search changes in squeeze mode:**
+  - Paranoid search is off, because it would make the allies play against each other.
+  - The last-good-reply table counts a simulation as won by the target when the target places more
+    than half its squares, and as won by the coalition otherwise.
+  - Rollouts always run to the end of the game (`playoutCutoff ≥ 88`, enforced).
+- **Squares, not pieces:** squares placed is the game's own score, so keeping a pentomino off the board
+  counts five times as much as keeping a monomino off. Pieces placed is reported alongside.
+- **Identity:** with `kind` unset, every existing config plays byte-identical games. The parity tests
+  pass, and fixed-seed games of the old and new binaries match.
 
-**Two improvements, each tested as its own arm against the plain version above:**
+**Arms tested before freezing (stage S1):**
 
-- **SQ-R, rollouts that squeeze.** Today's rollout policy has every seat play normally, so the
-  rollouts underestimate what the coalition can do. In SQ-R the adversary seats' rollout moves are
-  biased towards moves that occupy or block the target's attach corners (a cheap bitboard count).
-- **SQ-P, prior that squeezes.** The same corner-blocking count is added as a feature of the
-  in-tree prior for adversary seats.
+| Arm | What it adds |
+|---|---|
+| SQ0 | the objective only |
+| SQR | rollouts that squeeze: with probability 0.5, a non-target rollout move is the sampled candidate covering the most of the target's corner cells (`squeezeRollout`) |
+| SQP | a prior that squeezes: the target's pressure term is added to every non-target seat's fitted prior (`squeezePrior` 1.0, z-score units). The term is the same one as `nextPressure`, with the target in place of the next seat |
+| SQRP | both |
 
-An arm is kept only if it takes more squares off the target than the plain version (paired by seed,
-lower bound above 0).
+Every adversary uses `v5.2-pro`'s search settings, with `playoutCutoff` raised to 100.
+`engine-rs/scripts/squeeze_configs.py` writes the configs to `engine-rs/configs/squeeze/`.
 
-**Adversary compute.** The adversary's budget is fixed and independent of the target. To choose it,
-play one fixed target (`v5.2`) against the adversary at the `v5.2-turbo` (formerly `v5.2-l6`), `v5.2-pro` and 4× pro
-budgets on 100 seeds, and freeze the smallest budget whose squeeze is within 1 square of the
-largest. Binary and config are then frozen as **`squeeze-v1`** and never changed. A stronger
-adversary later becomes `squeeze-v2`; scores from different adversaries are not compared.
+## How the adversary is chosen without fitting it to one model
+
+Paul asked that the adversary not be tuned against any one model. These rules were fixed before any
+game was played, and `engine-rs/scripts/squeeze_report.py` applies them mechanically:
+
+1. **A mixed development panel.** Every choice is made on eight targets, weighed equally:
+   - our nano, lite, `v5.2` and pro;
+   - Pentobi levels 1, 3, 5 and 7.
+
+   Half the panel is outside our lineage, and the strength range runs from the weakest setting to the
+   strongest one that is affordable. The criterion is the panel mean of the targets' squares placed,
+   so no single model can drive the choice. The per-target table is printed beside it.
+2. **Separate seed blocks for choosing and for scoring.** S1 uses seeds 110,000,000 and S2 uses
+   110,100,000, both with 25 seeds × 4 seats per target. Scoring uses 110,200,000, which is never
+   looked at during the choice.
+3. **Arm (S1, at the level-6 budget).** The rule takes the arm with the lowest panel mean among the
+   arms that take significantly more squares than SQ0. That means a panel difference paired by seed
+   within each target, with a 95% upper bound below 0. If no arm qualifies, the choice is SQ0, the
+   simplest.
+4. **Budget (S2, for the chosen arm).** The candidate budgets are the turbo tier's, Pentobi level 6 (`l6`, about 0.09 s
+   per adversary move on the Mac), 4× that, and the pro tier (about 0.9 s). The rule takes the
+   smallest budget whose panel mean is within 1.0 square of the pro budget's. If 4× level 6 is still
+   more than a square short of pro, the read-out says that a larger adversary would squeeze harder.
+5. **Frozen.** The chosen config is copied to `engine-rs/configs/squeeze-v1.json` together with the
+   commit it ran on. It never changes after that. A stronger adversary later becomes `squeeze-v2`, and
+   scores from different adversaries are never compared.
+6. **The same adversary for every target, at a fixed iteration budget,** so the adversary's strength
+   does not depend on the machine or on the target.
+7. **Every target plays as it normally does.**
+   - Our tiers play at their own `iterationScale`, and Pentobi at its level with its opening book.
+   - The target always plays its own choice of move, opening included. Only the adversary seats sample
+     their openings, as in the main benchmark, for variety.
+   - Every seed is played with the target in each of the four seats, because which adversary moves
+     right before the target matters.
+
+**Known bias, reported rather than hidden:** the adversary is our engine, so its rollouts and prior
+resemble how our own models play. That could make our models easier to anticipate, and so easier to
+squeeze, than Pentobi. Comparing Pentobi levels with our tiers at matched time per move (nano with
+level 1, lite with 3, `v5.2` with 5, pro with 7) shows whether that happens.
 
 ## Validity checks (before any score is read)
 
-1. **It squeezes.** On the same seeds, `v5.2` against three `squeeze-v1` seats must place clearly
-   fewer squares than `v5.2` against three ordinary `v5.2` seats. If the drop is under about 5
-   squares, the adversary is too weak and the benchmark is not used.
-2. **Targets line up with known strength.** Pentobi levels 1, 3, 5 and 7, and our nano, lite,
-   `v5.2` and pro, are each played as targets. Stronger players are expected, though not required,
-   to keep more squares. A non-monotone result is reported, not hidden, because squeeze resistance
-   and strength can genuinely differ.
-3. **Legal and complete games.** Every game is replayed through the rules checker, the same check the
-   Pentobi bridge already uses.
+1. **It squeezes.** On the scoring seeds, `v5.2` and Pentobi level 5 also play against three ordinary
+   seats: `v5.2-pro` settings at the adversary's budget. The squeeze must take clearly more than 5
+   squares off `v5.2`; otherwise the adversary is too weak and the benchmark is not used. (First smoke
+   test, 12 games: nano placed 61 squares against SQ0 at the level-6 budget and 69 against ordinary
+   level-6 opponents. Too few games to count as a result.)
+2. **Targets against known strength.** Pentobi levels 1–7 are scored. We expect, but do not require,
+   stronger levels to keep more squares. A non-monotone result is reported, because resisting a
+   squeeze and normal strength can genuinely differ.
+3. **Legal, complete games.** Pentobi games go through the bridge's move checks, and incomplete files
+   are rejected and replayed.
 
-## Scoring
+## Scoring (stage S3)
 
-- **Squeeze score:** the target's mean placed squares out of 89, with a 95% bootstrap interval over
-  seeds.
+- **Squeeze score:** the target's mean squares placed out of 89, averaged over the four seats of each
+  seed, with a 95% bootstrap interval over seeds. 100 seeds × 4 seats per target.
 - **Also reported:**
-  - mean pieces placed out of 21;
+  - pieces placed out of 21;
   - the share of games in which the target places all 21 pieces;
-  - the mean move number of the target's last placement.
-- **Seats:** every seed is played with the target in each of the four seats. The target's seat
-  relative to the turn order matters: which adversary moves right before it.
-- **Comparing models:** paired by seed on the same block, as in the main benchmark.
-- **Target compute:** each target plays at its own tier's settings: our tiers at their
-  `iterationScale`, Pentobi at its level. The adversary never changes.
-- **Size:** 100 seeds × 4 seats = 400 games per target, on a fresh seed block from 110,000,000.
+  - the ply of the target's last placement;
+  - the result by seat.
+- **Targets:** `v5.2-nano`, `v5.2-lite`, `v5.2`, `v5.2-turbo`, `v5.2-pro`, and Pentobi levels 1–7.
+  Ultra and levels 8–9 are left out for time. A new model later plays only its own cell on the same
+  seeds, paired by seed with any earlier model.
 
-## Running it on the PC
+## Code
 
-- Everything is CPU-bound in the native engine; the GPU is not used.
-- Build on the PC with `cargo build --release` under WSL2. Our engine is deterministic for a
-  given seed and iteration count, so PC results for our models should match the Mac's (checked on
-  20 seeds before the first real run).
-- Pentobi targets need `pentobi-gtp` built on the PC from Pentobi's source, outside the repo, the
-  same way as on the Mac. It is only run as a separate process, and none of its code enters this
-  repo.
-- **Estimated cost** (from Mac timings): an adversary at the pro budget takes about 0.9 s per move
-  and makes about 60 moves per game, so about 1 minute per game per thread. 400 games per target
-  then take about 25–40 minutes on 12–16 threads.
-- **Memory:** a pro-budget tree uses about 1.5 GB. Size the thread count to the PC's RAM: with
-  32 GB, at most about 16 threads.
-- A runbook, `docs/SQUEEZE_RUNBOOK.md`, gets written with the code, in the style of
-  `E4_RUNBOOK.md`. Each run commits and pushes its results.
-
-## Build order
-
-1. Engine: the squeeze reward kind with an identity check, and the SQ-R and SQ-P options, off by
-   default.
-2. Match drivers: `blokee-match` and `blokee-pentobi` get a squeeze mode. It puts the target in one
-   seat and `squeeze-v1` in the other three, passes the target seat to the adversary, and writes
-   both squares and pieces to the JSONL.
-3. On the Mac, short runs only: the identity check, check 1 on 20 seeds, and a timing check.
-4. On the PC: choose the adversary budget, run the SQ-R and SQ-P arms, freeze `squeeze-v1`, then run
-   checks 1–3 and the target table.
-
-Steps 1–3 are built on their own branch (`squeeze-benchmark`) in a separate worktree, so they never
-touch the binary a running Mac round is using. They are merged after that round ends.
+| File | What |
+|---|---|
+| `engine-rs/src/config.rs` | `native.reward` kind `squeeze`, `squeezePrior`, `squeezeRollout`, and their validation |
+| `engine-rs/src/search.rs` | `squeeze_value`; the target seat; squeeze values at every leaf type; paranoid off; last-good-reply outcome; SQ-P via `seat_pressure`, the generalised `next_pressure` |
+| `engine-rs/src/playout.rs` | SQ-R |
+| `engine-rs/src/engine.rs` | `Engine::set_squeeze_target` |
+| `engine-rs/src/game.rs` | `opening_fixed_seat`, which lets the target play its own opening; `seat_summary` |
+| `engine-rs/src/bin/blokee-match.rs` | `--squeeze`: the champion is the adversary, the challenger the target |
+| `engine-rs/src/bin/blokee-pentobi.rs` | `--mode one-pentobi --squeeze`: a Pentobi target |
+| `engine-rs/scripts/squeeze_configs.py`, `squeeze-run.sh`, `squeeze_report.py` | configs, the stage runner, read-outs and the selection rules |
 
 ## Options not chosen (for now)
 
-- **Pieces objective** (fewest pieces rather than fewest squares). It is easy to add as a second
-  reward kind if Paul prefers it, but it treats a monomino the same as a pentomino.
-- **A learned adversary** trained by self-play against the target. It would be stronger in the long
-  run, but it is a project in itself and would have to be retrained whenever the targets change.
-- **One shared tree for all three adversary seats.** It might coordinate them better, but each seat
-  searching on its own already gets most of the benefit. It is worth trying only if `squeeze-v1`
-  turns out weak.
+- **Pieces objective** (fewest pieces rather than fewest squares). It would be easy to add as another
+  reward kind, but it would treat a monomino the same as a pentomino.
+- **A learned adversary** trained by self-play against the targets. It would be stronger eventually,
+  but it is a project of its own and would have to be retrained as the targets change.
+- **One shared tree for all three adversary seats.** It might coordinate them better, but it is worth
+  trying only if `squeeze-v1` turns out weak.

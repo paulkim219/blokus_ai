@@ -166,6 +166,7 @@ fn main() {
         max_plies: usize::MAX,
         opening_random_plies,
         opening_top_k,
+        opening_fixed_seat: None,
     };
 
     // Discover the board mapping once, on a fresh engine.
@@ -194,6 +195,12 @@ fn main() {
         other => panic!("--mode must be one-blokee, one-pentobi, two-two, pentobi-control or pentobi-ladder, not {other}"),
     };
     let control = mode == "pentobi-control";
+    // Squeeze benchmark: `--mode one-pentobi --squeeze`, the Blokee config is the squeeze adversary
+    // (`native.reward` kind "squeeze") in the three seats around the Pentobi target.
+    let squeeze = argv.iter().any(|a| a == "--squeeze");
+    if squeeze {
+        assert!(mode == "one-pentobi", "--squeeze needs --mode one-pentobi");
+    }
     // Round 6: `--mode pentobi-ladder --lone-level A --level B`: one Pentobi seat at level A against three at
     // level B, every seat in its own process (seat-derived seeds).
     let ladder = mode == "pentobi-ladder";
@@ -298,6 +305,9 @@ fn main() {
                     let color: &str = if two_two { &pair_label } else { DISPLAY[display_seat] };
                     let challenger_seat = if two_two { PAIRS[display_seat].0 } else { SEAT_COLORS.iter().position(|c| *c == color).unwrap() };
                     let (lone, rest) = if one_blokee { (Player::Blokee(0), Player::Gtp) } else { (Player::Gtp, Player::Blokee(0)) };
+                    if squeeze {
+                        pool[0].set_squeeze_target(Some(challenger_seat));
+                    }
                     let mut players = [rest; 4];
                     players[challenger_seat] = lone;
                     if two_two {
@@ -385,13 +395,23 @@ fn main() {
                             "pentobiLevel": spec.level,
                         })
                     } else {
-                        json!({
+                        let mut line = json!({
                         "seed": seed, "seat": color, "scores": scores, "winner": winner,
                         "label": label, "challenger": challenger_name, "champion": champion_name,
                         "challengerMoves": record.move_ms[challenger_seat].len(),
                         "challengerSeconds": (challenger_secs * 1000.0).round() / 1000.0,
                         "pentobiLevel": spec.level,
-                    })
+                    });
+                        if squeeze {
+                            let (pieces, squares, last) = blokee::game::seat_summary(&record.moves, challenger_seat);
+                            let extra = line.as_object_mut().unwrap();
+                            extra.insert("mode".into(), json!("squeeze"));
+                            extra.insert("targetSquares".into(), json!(squares));
+                            extra.insert("targetPieces".into(), json!(pieces));
+                            extra.insert("targetLastPly".into(), json!(last));
+                            extra.insert("plies".into(), json!(record.plies));
+                        }
+                        line
                     };
                     let round = |v: &Vec<f64>| v.iter().map(|x| (x * 10.0).round() / 10.0).collect::<Vec<f64>>();
                     let timing_line = json!({

@@ -257,6 +257,7 @@ fn whole_games_match() {
             max_plies: usize::MAX,
             opening_random_plies: 8,
             opening_top_k: 3,
+            opening_fixed_seat: None,
         };
         let game = play_game(&mut pool, seat_engine, [policy; 4], &options).unwrap();
         let expected: Vec<i32> = serde_json::from_value(record["moves"].clone()).unwrap();

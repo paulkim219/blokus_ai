@@ -9,10 +9,15 @@
 //!   npm run aggregate -- selfplay-results/m.jsonl
 //!
 //! The printed mean is only a progress indicator.
+//!
+//! `--squeeze` (squeeze benchmark, `docs/SQUEEZE_BENCHMARK.md`): the champion is the squeeze
+//! adversary (`native.reward` kind "squeeze") and plays the three other seats against the challenger,
+//! the target; the target plays its own opening (only adversary seats are sampled). Each line also
+//! gets `mode`, `targetSquares`, `targetPieces` and `targetLastPly`.
 
 use blokee::config::BitboardParams;
 use blokee::engine::Engine;
-use blokee::game::{GameOptions, Policy, play_game};
+use blokee::game::{GameOptions, Policy, play_game, seat_summary};
 use blokee::position::SEAT_COLORS;
 use blokee::rollout_policy::RolloutPolicy;
 use serde_json::json;
@@ -61,9 +66,14 @@ fn main() {
     let opening_random_plies: usize = arg(&argv, "opening-random-plies", "8").parse().unwrap();
     let opening_top_k: usize = arg(&argv, "opening-top-k", "3").parse().unwrap();
     let policy = Policy::parse(&arg(&argv, "policy", "mcts-bench")).unwrap();
+    let squeeze = argv.iter().any(|a| a == "--squeeze");
 
     let challenger = load(&challenger_path);
     let champion = load(&champion_path);
+    if squeeze {
+        let adversary = champion.0.native.as_ref().and_then(|n| n.reward.as_ref()).is_some_and(|r| r.squeeze());
+        assert!(adversary, "--squeeze needs a champion with native.reward kind squeeze");
+    }
     let assignments: Vec<(u32, usize)> = (0..seeds).flat_map(|i| (0..4).map(move |seat| (seed_base + i, seat))).collect();
     eprintln!("{label}: {} games ({seeds} seeds x 4 seats), {threads} threads, {budget} base iterations", assignments.len());
 
@@ -94,6 +104,9 @@ fn main() {
                     let challenger_seat = SEAT_COLORS.iter().position(|c| *c == color).unwrap();
                     let mut seat_engine = [1usize; 4];
                     seat_engine[challenger_seat] = 0;
+                    if squeeze {
+                        pool[1].set_squeeze_target(Some(challenger_seat));
+                    }
                     let options = GameOptions {
                         seed,
                         opening_anywhere: false,
@@ -101,6 +114,7 @@ fn main() {
                         max_plies: usize::MAX,
                         opening_random_plies,
                         opening_top_k,
+                        opening_fixed_seat: if squeeze { Some(challenger_seat) } else { None },
                     };
                     let record = play_game(&mut pool, seat_engine, [policy; 4], &options).unwrap();
                     let score_of = |c: &str| record.scores[SEAT_COLORS.iter().position(|s| *s == c).unwrap()];
@@ -109,12 +123,21 @@ fn main() {
                     let winner: Vec<&str> = DISPLAY.iter().copied().filter(|c| score_of(c) == best).collect();
                     let (searches, evals, secs) =
                         (record.searches[challenger_seat], record.net_evaluations[challenger_seat], record.seconds[challenger_seat]);
-                    let line = json!({
+                    let mut line = json!({
                         "seed": seed, "seat": color, "scores": scores, "winner": winner,
                         "label": label, "challenger": challenger_name, "champion": champion_name,
                         "challengerSearches": searches, "challengerNetEvals": evals,
                         "challengerSeconds": (secs * 1000.0).round() / 1000.0,
                     });
+                    if squeeze {
+                        let (pieces, squares, last) = seat_summary(&record.moves, challenger_seat);
+                        let extra = line.as_object_mut().unwrap();
+                        extra.insert("mode".into(), json!("squeeze"));
+                        extra.insert("targetSquares".into(), json!(squares));
+                        extra.insert("targetPieces".into(), json!(pieces));
+                        extra.insert("targetLastPly".into(), json!(last));
+                        extra.insert("plies".into(), json!(record.plies));
+                    }
                     {
                         let mut c = cost.lock().unwrap();
                         c.0 += searches;

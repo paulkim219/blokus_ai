@@ -60,6 +60,8 @@ pub struct Playout {
     lgr_prev: i32,
     /// S6: `fits[k]` = the pieces of at most k squares (k = 0..=5).
     fits: [u32; 6],
+    /// Squeeze benchmark SQ-R: (target seat, probability). None leaves every rollout exactly as before.
+    squeeze: Option<(usize, f64)>,
 }
 
 impl Playout {
@@ -81,7 +83,37 @@ impl Playout {
             lgr: None,
             lgr_prev: -1,
             fits: std::array::from_fn(|k| pieces_up_to(k as u32)),
+            squeeze: None,
         }
+    }
+
+    /// Squeeze benchmark SQ-R: with `Some((target, p))`, a non-target seat's rollout move is, with
+    /// probability p, the sampled candidate covering the most of the target's corner cells (if any
+    /// covers one). `None` (or p = 0) leaves every rollout exactly as before.
+    pub fn set_squeeze(&mut self, squeeze: Option<(usize, f64)>) {
+        self.squeeze = squeeze.filter(|&(_, p)| p > 0.0);
+    }
+
+    /// SQ-R: the sampled candidate covering most of `target`'s corner cells, None if none covers one.
+    fn squeeze_choice(&self, position: &Position, target: usize, count: usize) -> Option<i32> {
+        let t = placements();
+        let halo = &position.corner_halo[target];
+        let mut best = 0u32;
+        let mut chosen = None;
+        for &mv in &self.candidates[..count] {
+            let m = mv as usize;
+            let covered = (t.cell_start[m]..t.cell_start[m + 1])
+                .filter(|&i| {
+                    let c = t.cell_list[i as usize] as usize;
+                    (halo[c >> 5] >> (c & 31)) & 1 == 1
+                })
+                .count() as u32;
+            if covered > best {
+                best = covered;
+                chosen = Some(mv);
+            }
+        }
+        chosen
     }
 
     /// P7: turns the last-good-reply table on (empty) for every later rollout.
@@ -349,7 +381,15 @@ impl Playout {
                 steps += 1.0;
                 continue;
             }
-            let chosen = if count == 1 || explore_first.unwrap_or_else(|| rng.next_f64() < epsilon) {
+            let squeezed = match self.squeeze {
+                Some((target, p)) if seat != target && position.out[target] == 0 && count > 1 && rng.next_f64() < p => {
+                    self.squeeze_choice(position, target, count)
+                }
+                _ => None,
+            };
+            let chosen = if let Some(mv) = squeezed {
+                mv
+            } else if count == 1 || explore_first.unwrap_or_else(|| rng.next_f64() < epsilon) {
                 self.candidates[rng.next_int(count)]
             } else {
                 match policy {

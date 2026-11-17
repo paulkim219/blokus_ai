@@ -91,6 +91,9 @@ pub struct GameOptions {
     pub max_plies: usize,
     pub opening_random_plies: usize,
     pub opening_top_k: usize,
+    /// Squeeze benchmark: this seat always plays its own best move, also in the opening plies (the
+    /// target plays its own opening; only the other seats are sampled). None (default) samples every seat.
+    pub opening_fixed_seat: Option<usize>,
 }
 
 pub struct GameRecord {
@@ -164,7 +167,11 @@ pub fn play_game_observed(
             iterations[seat] += stats.iterations as u64;
             searches[seat] += stats.searched as u64;
             net_evaluations[seat] += stats.net_evaluations as u64;
-            chosen = choose_ranked(&ranked, plies, options, &mut opening_rng);
+            chosen = if options.opening_fixed_seat == Some(seat) {
+                ranked.first().map(|r| r.mv)
+            } else {
+                choose_ranked(&ranked, plies, options, &mut opening_rng)
+            };
             if let Some(mv) = chosen {
                 observe(Decision { state: &state, ply: plies, seat, ranked: &ranked, chosen: mv, stats: &stats });
             }
@@ -213,4 +220,21 @@ pub fn color(seat: usize) -> &'static str {
 
 pub fn piece_name(mv: i32) -> &'static str {
     RAW_PIECES[placements().piece_id[mv as usize] as usize].0
+}
+
+/// Squeeze benchmark: (pieces placed, squares placed, ply of its last placement or -1) for `seat`,
+/// from a game's per-ply moves (-1 for a pass; seat = ply mod 4, since a pass also moves the turn on).
+pub fn seat_summary(moves: &[i32], seat: usize) -> (u32, u32, i64) {
+    let t = placements();
+    let mut pieces = 0;
+    let mut squares = 0;
+    let mut last = -1i64;
+    for (ply, &mv) in moves.iter().enumerate() {
+        if ply % SEAT_COUNT == seat && mv >= 0 {
+            pieces += 1;
+            squares += t.size[mv as usize] as u32;
+            last = ply as i64;
+        }
+    }
+    (pieces, squares, last)
 }

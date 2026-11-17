@@ -90,6 +90,12 @@ impl Engine {
         self.recent.extend_from_slice(&recent[recent.len().saturating_sub(3)..]);
     }
 
+    /// Squeeze benchmark: the seat this engine plays against when its config has `native.reward`
+    /// kind "squeeze" (set by the match driver before each game). Ignored by every other config.
+    pub fn set_squeeze_target(&mut self, target: Option<usize>) {
+        self.search.set_squeeze_target(target);
+    }
+
     /// `searchBestMoveV12` with an iteration budget. Returns the ranked root moves, best first.
     pub fn search(&mut self, position: &mut Position, seat: usize, budget: u32, rng: &mut Rng, stats: &mut MoveStats) -> Vec<Ranked> {
         let recent = std::mem::take(&mut self.recent);
