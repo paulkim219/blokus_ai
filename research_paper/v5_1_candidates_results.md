@@ -2082,3 +2082,12 @@ Complete seeds only (all four rotations). Read by `python3 engine-rs/scripts/v51
 - **The games are kept.** Outcomes do not depend on wall time: Blokee plays a fixed iteration budget, and Pentobi's level is fixed.
 - **The equal-time check uses chunks 1–7 only, both arms.** Chunk 0's in-match ms/move is contaminated by the gap, by throttling and by the load just after waking. `v57_pro_report.py` now prints the 8-chunk figure labelled as contaminated, and the check on the clean chunks.
 - **Rules unchanged.** The acceptance rule, the seeds and everything else are as preregistered. If the gap leaves any chunk-arm incomplete, it is replayed from scratch under the resumable-chain rule. The sleep is recorded as a deviation with the results.
+
+**Amendment 2 (2026-11-17 14:08 CST, this commit's time; fixed before chunks 2–7 finish and before any result is read).**
+- **Pauses** (Paul's request, Mac unplugged):
+  - **First pause, 12:28–13:25.** The coordinator sent SIGSTOP to `blokee-pentobi` and its Pentobi children, and killed caffeinate. Resumed with SIGCONT and a new `caffeinate -w`. `rol-W1D-ET-c0` was at 338/400; it completed at 13:34 with 400 games.
+  - **Second pause, from 14:07.** Same procedure, during `rol-W1D-ET-c1` at 296/400.
+- **Games kept.** Nothing is killed or replayed for a pause: the games are iteration-budgeted.
+- **Equal-time check: chunks 2–7 only, both arms.** `rol-W1D-ET-c1`'s timings straddle the second pause, so chunk 1 is excluded along with chunk 0 (amendment 1). Chunk 1 is dropped for both arms so that the check compares the same chunks.
+- **Rules unchanged.** The acceptance rule and the seeds are as preregistered. Both pauses are recorded as deviations.
+- **How this was committed.** At 13:32 the main working tree was switched to `main` outside this session. This amendment is committed to `v6-native-engine-e4` with git plumbing (temporary index, `commit-tree`, `update-ref`), leaving the working tree untouched.

@@ -33,16 +33,17 @@ print(f"\n- {ARM} − base, {n} seeds: {fmt_ci(d)}; first place (any) {fmt_ci(f1
 
 ta, la = timing(C("base")[:-6] + ".timing.jsonl")
 tw, lw = timing(C(ARM)[:-6] + ".timing.jsonl")
-print(f"\nIn-match ms/move, all 8 chunks (CONTAMINATED: chunk 0 ran through battery throttling from about 10:12 and a "
-      f"low-power sleep 10:58-12:24, amendment 1): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f} (all / own moves 3+); ratio (3+) {lw / la:.3f}")
-# The equal-time check (amendment 1): clean chunks 1-7 only, both arms.
+print(f"\nIn-match ms/move, all 8 chunks (CONTAMINATED: chunk 0 ran through battery throttling from about 10:12, a "
+      f"low-power sleep 10:58-12:24 and a pause 12:28-13:25 (amendment 1); chunk 1 straddles a pause from 14:07 (amendment 2)): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f} (all / own moves 3+); ratio (3+) {lw / la:.3f}")
+# The equal-time check (amendments 1 and 2): clean chunks 2-7 only, both arms.
+CLEAN = range(2, 8)
 os.makedirs(f"{D}/pooled", exist_ok=True)
-clean = {a: merged([f"{D}/chunks/rol-{a}-c{k}.timing.jsonl" for k in range(1, 8) if os.path.exists(f"{D}/chunks/rol-{a}-c{k}.done")],
+clean = {a: merged([f"{D}/chunks/rol-{a}-c{k}.timing.jsonl" for k in CLEAN if os.path.exists(f"{D}/chunks/rol-{a}-c{k}.done")],
                    f"{D}/pooled/clean-{a}.timing.jsonl") for a in ("base", ARM)}
 ta, la = timing(clean["base"])
 tw, lw = timing(clean[ARM])
 r = lw / la
-print(f"In-match ms/move, clean chunks 1-7 (the equal-time check): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f}; "
+print(f"In-match ms/move, clean chunks 2-7 (the equal-time check): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f}; "
       f"ratio (3+) {r:.3f} -> {'inside' if 0.97 <= r <= 1.03 else 'OUTSIDE'} 0.97-1.03")
 
 print("\n## Per chunk (descriptive)\n")
