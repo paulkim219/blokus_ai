@@ -73,12 +73,12 @@ Regenerated on 2026-11-16 from the raw logs (`tmp/v53/S2/`, `tmp/v53/S3/`, `tmp/
 | Pentobi L5 | | L4 +5.19; L6 −6.87 | 4.86 [4.77, 4.95] |
 | Pentobi L6 | | L5 +7.69; L7 −7.05 | 6.04 [5.95, 6.15] |
 
-Round-8 candidates (not named; `v5.3-cand*.json`, interior cap W1A; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds, 100 at level 7; `tmp/v55/bench.md`):
+Round 8 (named v5.3 on 2026-11-16: `v5.3.json` and `v5.3-turbo.json`, byte copies of `v5.3-cand*.json`; interior cap W1A; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds, 100 at level 7; `tmp/v55/bench.md`):
 
 | Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
 |---|---:|---|---:|
-| `v5.3-cand` (base) | 21.6* | L4 +4.95; L5 +0.77 [+0.38, +1.17]; L6 −4.08 | **5.16 [5.08, 5.24]** |
-| `v5.3-cand-turbo` (turbo) | 176.3* | L5 +6.48; L6 +0.83 [+0.39, +1.25]; L7 −4.63 | **6.15 [6.08, 6.23]** |
+| `v5.3` (base; recorded as `v5.3-cand`) | 21.6* | L4 +4.95; L5 +0.77 [+0.38, +1.17]; L6 −4.08 | **5.16 [5.08, 5.24]** |
+| `v5.3-turbo` (recorded as `v5.3-cand-turbo`) | 176.3* | L5 +6.48; L6 +0.83 [+0.39, +1.25]; L7 −4.63 | **6.15 [6.08, 6.23]** |
 
 \* In-match times under heavier load (18 game threads on 14 cores) than the v5.2 rows; by clean single-thread cost the candidates are time-matched to their v5.2 tier.
 

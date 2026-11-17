@@ -45,6 +45,21 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
   `engine-rs/configs/v5.2-turbo.json` (unchanged content). The v5.2 family is nano, lite, v5.2, turbo, pro, ultra.
   Raw logs keep their old `l6` file names; the read-outs map them.
 
+- **Named 2026-11-16 (Paul): v5.3.** Paul: "Let's do that and name it v5.3". Round 8's interior cap W1A
+  (`native.candidates.interiorCap` = floor(4 + 1·√N) at interior nodes, equal time), confirmed at two tiers on
+  800 fresh seeds each (N21, N22):
+
+  | Name | Config | `iterationScale` | Time-matched to | v5.3 − v5.2 (confirmation) | Benchmark |
+  |---|---|---:|---|---|---:|
+  | `v5.3` (base tier) | `engine-rs/configs/v5.3.json` (byte copy of `v5.3-cand.json`) | 3.776 | level 5 | +0.71 [+0.21, +1.22] | 5.16 [5.08, 5.24] |
+  | `v5.3-turbo` | `engine-rs/configs/v5.3-turbo.json` (byte copy of `v5.3-cand-turbo.json`) | 25.091 | level 6 | +0.71 [+0.15, +1.28] | 6.15 [6.08, 6.23] |
+
+  The cap was not tried at nano, lite or ultra and was unresolved at pro (+0.18 [−1.38, +1.68], 100 seeds), so
+  those tiers stay at their v5.2 configs: the current best family is `v5.2-nano`, `v5.2-lite`, `v5.3`,
+  `v5.3-turbo`, `v5.2-pro`, `v5.2-ultra`. Each later tier gains the v5.3 name only when the cap (or something
+  else) is confirmed there. New candidates are measured against these; the next clear improvement is v5.4.
+  The `-cand` files stay as the configs the round-8 logs were recorded under.
+
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
 before each run.

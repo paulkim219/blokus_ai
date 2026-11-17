@@ -6,6 +6,8 @@ import v52Lite from '../../../engine-rs/configs/v5.2-lite.json' with { type: 'js
 import v52 from '../../../engine-rs/configs/v5.2.json' with { type: 'json' };
 import v52Turbo from '../../../engine-rs/configs/v5.2-turbo.json' with { type: 'json' };
 import v52Pro from '../../../engine-rs/configs/v5.2-pro.json' with { type: 'json' };
+import v53 from '../../../engine-rs/configs/v5.3.json' with { type: 'json' };
+import v53Turbo from '../../../engine-rs/configs/v5.3-turbo.json' with { type: 'json' };
 import { V4_WEIGHTS } from './v1';
 
 /**
@@ -91,5 +93,20 @@ export const V5_NATIVE_VERSIONS: Record<AlgoVersionId, AlgoConfig> = {
     v52Pro as NativeEngineConfig,
     'v5.2 pro tier: Pentobi level 7 time per move (iterationScale 224.487, about 67,000 iterations ' +
       'a move). Benchmark score 6.67. Native engine in WebAssembly; several seconds a move in a browser.',
+  ),
+  'v5.3': nativeVersion(
+    'v5.3',
+    'v5.3',
+    v53 as NativeEngineConfig,
+    'v5.3 base tier (named 2026-11-16): v5.2 plus the interior cap (each interior node considers its ' +
+      'floor(4 + sqrt(visits)) best children), at Pentobi level 5 time per move (iterationScale 3.776). ' +
+      '+0.71 over v5.2; benchmark score 5.16. Native engine in WebAssembly.',
+  ),
+  'v5.3-turbo': nativeVersion(
+    'v5.3-turbo',
+    'v5.3-turbo',
+    v53Turbo as NativeEngineConfig,
+    'v5.3 turbo tier: v5.3 at Pentobi level 6 time per move (iterationScale 25.091). +0.71 over ' +
+      'v5.2-turbo; benchmark score 6.15. Native engine in WebAssembly.',
   ),
 };
