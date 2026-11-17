@@ -8,7 +8,9 @@
 use crate::bitboard::WORDS;
 use crate::position::{Position, SEAT_COUNT};
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
+#[cfg(not(target_arch = "wasm32"))]
 use std::os::unix::net::UnixStream;
 
 pub const REQUEST_BYTES: usize = 512;
@@ -37,10 +39,32 @@ fn all_phases() -> String {
     "all".into()
 }
 
+/// What the WASM build says when a config asks for a socket-served network (`engine-wasm/`).
+pub const WASM_NO_SOCKETS: &str = "needs a Unix socket to a network server, which the WASM build does not have";
+
+#[cfg(not(target_arch = "wasm32"))]
 pub struct PriorClient {
     stream: UnixStream,
 }
 
+/// The WASM build has no sockets: connecting fails, so `Engine::new` refuses a `native.prior` config.
+#[cfg(target_arch = "wasm32")]
+pub struct PriorClient {
+    _none: (),
+}
+
+#[cfg(target_arch = "wasm32")]
+impl PriorClient {
+    pub fn connect(_path: &str) -> Result<PriorClient, String> {
+        Err(format!("native.prior {WASM_NO_SOCKETS}"))
+    }
+
+    pub fn logits(&mut self, _position: &Position, _seat: usize, _moves: &[i32]) -> Result<Vec<f32>, String> {
+        Err(format!("native.prior {WASM_NO_SOCKETS}"))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl PriorClient {
     pub fn connect(path: &str) -> Result<PriorClient, String> {
         let stream = UnixStream::connect(path).map_err(|e| format!("prior server at {path}: {e}"))?;

@@ -12,6 +12,8 @@ pub mod engine;
 pub mod feature_prior;
 pub mod features;
 pub mod game;
+/// The Pentobi GTP bridge drives child processes; not part of the WASM build (`engine-wasm/`).
+#[cfg(not(target_arch = "wasm32"))]
 pub mod gtp;
 pub mod jsmath;
 pub mod move_lists;

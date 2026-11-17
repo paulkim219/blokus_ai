@@ -1,9 +1,11 @@
 # blokee — native engine
 
 A Rust port of the bitboard engine (`src/ai/bitboard/`) for offline work: matches, tuning and
-self-play data. The TS engine remains the reference and the browser engine; this crate's first
-contract is to make **exactly** the decisions the TS engine makes, so native workers drop into the
-existing harness without changing any number it reports.
+self-play data. The TS engine remains the reference and the browser engine for the bitboard
+versions; this crate's first contract is to make **exactly** the decisions the TS engine makes, so
+native workers drop into the existing harness without changing any number it reports. The v5
+models, which only this engine can play, reach the browser as this crate compiled to WebAssembly
+(see [WebAssembly build](#webassembly-build-the-v5-models-in-the-browser)).
 
 ## What is ported
 
@@ -97,6 +99,96 @@ engine-rs/target/release/blokee-pentobi --blokee engine-rs/configs/v4.2-ultra.js
 # Placement geometry for the Python trainers.
 engine-rs/target/release/blokee-tables > ml/data/placements.json
 ```
+
+## WebAssembly build (the v5 models in the browser)
+
+The v5 configs carry `native` blocks the TS engine cannot play, so the app runs them on this crate
+compiled to `wasm32-unknown-unknown`. `engine-wasm/` is a small separate crate that depends on this
+one and exposes only what the app needs: create an engine from a config JSON (plus the rollout
+table's JSON), and search a position for a seat with a seed and a base budget, returning the
+ranked root moves (`mv`, `visits`, `value`, as `Engine::search` returns them). The interface is
+seven plain `extern "C"` exports (allocate/free a buffer, create/free an engine, search, read the
+result) with JSON through linear memory; the module imports nothing, so there is no wasm-bindgen
+CLI to keep in step with the crate.
+
+```bash
+rustup target add wasm32-unknown-unknown
+npm run wasm:build    # → src/ai/nativeWasm/blokee_engine.wasm (committed; ~0.7 MB, 0.25 MB gzipped)
+npm run wasm:check -- --moves tmp/d1/x1-l6a.moves.jsonl   # native vs WASM on recorded positions
+```
+
+The `.wasm` is committed so `npm run build` needs no Rust toolchain; rebuild it with
+`npm run wasm:build` after any change to `engine-rs/src` or `engine-wasm/src`.
+
+**Gated out of the wasm32 build** (`cfg(not(target_arch = "wasm32"))`; native code unchanged):
+
+- `native.prior` and `native.net` (Unix-socket clients in `prior.rs`, `net.rs`): the clients become
+  stubs whose `connect` fails, so `Engine::new` refuses such a config, and `engine-wasm` refuses it
+  first with "config asks for native.prior … which the WASM build cannot run".
+- `gtp.rs` (the Pentobi bridge; child processes) is not compiled.
+- `game.rs` does not read `Instant` (it panics on wasm32) and reports 0 seconds per seat.
+- Rollout tables are passed in as JSON text; `RolloutPolicy::from_file` is never reached.
+
+**Native behaviour is unchanged.** Against the binaries built before the gating: `cargo test
+--release` passes; `examples/s4_identity` (12 recorded positions × v5.2-nano, v5.2, v5.0-ultra),
+`blokee-selfplay` (4 v5.2-lite games: `shard-00.bin`, `games.jsonl`) and `blokee-match` on three
+seeds (v5.2 vs v5.2-lite and v5.0-ultra vs v5.2-nano, 24 games, the timing field aside) are
+byte-identical.
+
+**Same decisions as native** (`scripts/nativeWasmCheck.ts`, 2026-11-16): the same requests go to
+the `.wasm` under node and to `engine-wasm`'s native twin (`blokee-wasm-probe`, the same request
+code linked natively), on midgame positions from `tmp/d1/x1-l6a.moves.jsonl` (plies 16–60, fixed
+seeds, base budget 300), 20 per config, plus 16 opening positions (ply 12) for v5.2-pro.
+
+| Config | Positions | Same best move | Every root move's visits identical | Response bit-identical |
+|---|---:|---:|---:|---:|
+| v5.2-nano | 20 | 20 | 20 | 9 |
+| v5.2-lite | 20 | 20 | 20 | 7 |
+| v5.2 | 20 | 20 | 20 | 4 |
+| v5.0-ultra | 20 | 20 | 20 | 3 |
+| v5.2-pro | 20 + 16 | 36 | 36 | 3 |
+
+Every search made the same decision with the same visit counts and iterations. What differs is the
+reported `value` of some moves in the last bits (largest difference 2.9e-12 squares). The cause is
+the math library: wasm32 has no libm, so `f64::tanh`, `ln`, `powf` and `exp` are Rust's port of
+musl's, while native macOS calls Apple's. On 200,000–400,000 inputs each, the two disagree by one
+ulp on 20% of `tanh` calls (the rank reward), 8% of `pow` (the corner exponent), 9.5% of `exp`, and
+1% of `ln` on integers (priorLog's `ln(N + 1)`); `fma` and `sqrt` agree everywhere, so `jsmath::exp`
+(V8's fdlibm port) is identical. Apple's functions are not correctly rounded either (against
+200-bit references: tanh wrong on 0.6% of inputs, pow 0.24%), so no portable implementation can
+match native to the bit. A decision changes only if a selection comparison falls within those last
+bits, which did not happen in 116 searches. The WASM results are the same in every browser and on
+every OS (wasm float semantics are deterministic), whereas native results already depend on the
+platform's libm.
+
+**In the app** (`src/ai/nativeWasm/`): versions with `engine: 'native-wasm'` carry their config
+(imported from `engine-rs/configs/*.json`) in `AlgoConfig.native`; `searchBestMove` hands them to
+the module inside the AI worker, never on the page's main thread. The UI's base budget (300) is
+passed unscaled and the engine applies the config's `iterationScale` once, as `blokee-match
+--budget 300` does. Registered: `v5.0-ultra`, `v5.2-nano`, `v5.2-lite`, `v5.2`, `v5.2-pro`;
+`v5.2-ultra` is not (about 10 GB at native speed; wasm32 stops at 4 GB).
+
+**Speed** (2026-11-16, M4 Pro shared with other runs, load average 40–65; 20 midgame positions,
+plies 16–60; each WASM search alternated with the native one on the same position; ms per move):
+
+| Tier | Native | WASM, node | WASM, Chromium (app worker) | Chromium ÷ native | Node ÷ native |
+|---|---:|---:|---:|---:|---:|
+| v5.2-nano | 1.6 | 3.3 | 3.8 | 3.0 | 1.6 |
+| v5.2-lite | 3.3 | 5.1 | 3.9 | 1.7 | 1.5 |
+| v5.2 | 10.0 | 14.6 | 12.3 | 1.2 | 1.6 |
+| v5.0-ultra | 40.2 | 45.9 | 39.8 | 1.15 | 1.5 |
+| v5.2-pro | 508 | 671 | 583 | 1.13 | 1.3 |
+
+Medians; ratios are medians of per-position ratios (`scripts/nativeWasmBrowserBench.ts`,
+`scripts/nativeWasmCheck.ts`). The Chromium time is the app's whole `suggestMove` round trip, so
+the small tiers mostly measure its fixed 2–3 ms of messaging and move tip. Early searched moves
+cost more: on the first searched move (ply 12) v5.2-pro took 2.9 s native and 4.5 s under node
+(median of 16).
+
+**Memory**: linear memory only grows, so its size after a search is that search's peak (or an
+earlier one's). v5.2-pro reached 381 MB over the 20 midgame positions and 581 MB on the first
+searched move (16 positions at ply 12, up to 832 root moves); natively the same searches peak at
+414 MB and 722 MB (`/usr/bin/time -l`, peak footprint). The other tiers stay under 50 MB.
 
 `engine-rs/configs/` holds every bitboard version resolved by the TS registry
 (`scripts/exportResolvedConfigs.ts`). Regenerate it whenever a version changes; never edit it.

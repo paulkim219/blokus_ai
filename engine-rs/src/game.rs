@@ -141,6 +141,7 @@ pub fn play_game_observed(
     let mut iterations = [0u64; SEAT_COUNT];
     let mut searches = [0u64; SEAT_COUNT];
     let mut net_evaluations = [0u64; SEAT_COUNT];
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut seconds = [0f64; SEAT_COUNT];
     while !state.finished && plies < options.max_plies {
         let seat = state.turn;
@@ -149,6 +150,8 @@ pub fn play_game_observed(
             let engine = &mut pool[seat_engine[seat]];
             let mut position = state.to_position();
             let mut stats = MoveStats::default();
+            // `Instant` panics on wasm32-unknown-unknown; the WASM build reports 0 seconds.
+            #[cfg(not(target_arch = "wasm32"))]
             let started = std::time::Instant::now();
             let ranked: Vec<Ranked> = match policies[seat] {
                 Policy::Greedy => {
@@ -163,7 +166,10 @@ pub fn play_game_observed(
                     engine.search(&mut position, seat, budget, &mut rng, &mut stats)
                 }
             };
-            seconds[seat] += started.elapsed().as_secs_f64();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                seconds[seat] += started.elapsed().as_secs_f64();
+            }
             iterations[seat] += stats.iterations as u64;
             searches[seat] += stats.searched as u64;
             net_evaluations[seat] += stats.net_evaluations as u64;

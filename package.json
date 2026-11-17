@@ -147,6 +147,8 @@
     "probe:v5-oracle-randomized-switch": "PYTHONPATH=ml ml/.venv/bin/python ml/probe_v5_randomized_switch.py",
     "native:build": "cargo build --release --manifest-path engine-rs/Cargo.toml",
     "native:test": "cargo test --release --manifest-path engine-rs/Cargo.toml",
+    "wasm:build": "RUSTFLAGS=\"--remap-path-prefix=$HOME=~ --remap-path-prefix=$PWD=blokee\" cargo build --release --target wasm32-unknown-unknown --manifest-path engine-wasm/Cargo.toml --lib && cp engine-wasm/target/wasm32-unknown-unknown/release/blokee_wasm.wasm src/ai/nativeWasm/blokee_engine.wasm",
+    "wasm:check": "cargo build --release --manifest-path engine-wasm/Cargo.toml --bin blokee-wasm-probe && tsx scripts/nativeWasmCheck.ts",
     "native:goldens": "tsx scripts/dumpGoldens.ts && tsx scripts/exportResolvedConfigs.ts",
     "match:native": "tsx scripts/tournament.ts --native"
   },

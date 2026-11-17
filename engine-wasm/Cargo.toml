@@ -1,0 +1,24 @@
+[package]
+name = "blokee-wasm"
+version = "0.1.0"
+edition = "2024"
+description = "The native engine (engine-rs) compiled to WebAssembly for the browser worker"
+
+[lib]
+# cdylib: the .wasm the app loads. rlib: the same request/response code linked natively by
+# `src/bin/blokee-wasm-probe.rs`, which the identity check compares the .wasm against.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+blokee = { path = "../engine-rs" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["float_roundtrip", "preserve_order"] }
+
+# Same as engine-rs: Rust never contracts or reassociates floating point, so these settings change
+# speed only, not a single result.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
