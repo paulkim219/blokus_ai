@@ -1881,3 +1881,150 @@ Driver `engine-rs/scripts/v55-bench.sh`, as preregistered. Each candidate's own-
 - **A larger pro sample for W1A or W1D:** 100 seeds gives ±1.5. W1D read +0.66 and W1A +0.18; neither is clearly better or worse.
 - **A second Lead 2 mechanism** (the own-mobility prior term).
 - **A lazy-allocation variant of the cap.** It would store per-edge data only for the children inside the window, so it would also cut ultra's memory. It is not built.
+
+
+# Round 9 (2026-11-16 evening – 2026-11-17 CST) — does the interior cap carry to nano, lite and pro?
+
+Prereg `8388381` (time stamp corrected in `9ba3e82`). Amendments: `9b3abd4`/`7f8f9a9` (W1A also confirmed at nano and lite) and `c93038d`/`a91ac4a` (nano candidate vs level 4). Binary `tmp/v56/bin` is a byte copy of round 8's `tmp/v55/bin-w1` (engine `f2c01ee`, the binary v5.3 was confirmed on). No engine code changed this round. Raw output is in `tmp/v56/`. The read-out tables say "vs L6" whatever the level; the level is given in each heading. All matches use: lone seat, per-seat Pentobi processes, book on, budget 300, four rotations per seed, 12 game threads, each arm paired by seed with the tier's v5.2 config in the same chain.
+
+## Round 9 — probes (measured, no games; `tmp/v56/probe/probe.md`)
+
+`v55_speed`, one thread, 600 positions from `tmp/d1/x1-l6a.moves.jsonl` (own moves 3+), the same RNG seed per position for every shape. Mean simulation depth in the tree, and positions where the best move matches v5.2's. "ms × v5.2" here is a single pass and noisy; the clean cost is below.
+
+| Shape (init, growth) | nano depth | nano same best (of 600) | lite depth | lite same best (of 600) |
+|---|---:|---:|---:|---:|
+| v5.2 (111 / 182 iterations per search) | 3.13 | — | 3.21 | — |
+| v5.2 with 1% more iterations | 3.13 | 596 | 3.21 | 596 |
+| (2, 0.5) = W1C | 3.92 | 342 | 4.12 | 345 |
+| (2, 1) | 3.59 | 323 | 3.72 | 316 |
+| (4, 0.5) | 3.61 | 332 | 3.77 | 347 |
+| (4, 1) = W1A | 3.50 | 341 | 3.61 | 350 |
+| (6, 1.5) | 3.40 | 346 | 3.50 | 348 |
+| (8, 2) | 3.36 | 351 | 3.46 | 354 |
+| (16, 4) = W1D | 3.31 | 358 | 3.39 | 360 |
+
+**Measured:**
+- The cap binds at both budgets: every shape changes the best move in about 40% of positions.
+- It deepens the tree less than at turbo. W1A adds +0.37 (nano) and +0.40 (lite) plies, against +0.79 at turbo (round 8). W1C adds +0.79 / +0.91, about what W1A added at turbo.
+- With so few visits per interior node, √N is small, and `init` sets most of the window.
+
+**Clean cost** (`p4_cost`, one thread, 600 positions, rounds in reverse order; `tmp/v56/<tier>/cost/`). Round 8's two-round procedure (`screen-cost.md`) showed a first-search penalty at these budgets. Whichever config is searched first at a position runs 9–13% slower, and in two reversed rounds base goes first once while the middle arms never do. So each position was first searched by an unscored copy of base. This was repeated twice (`warmA`, `warmB`), and the four rounds agree within 0.03. Means, × base:
+
+| Arm | nano | lite |
+|---|---:|---:|
+| W1A | 1.010 | 0.990 |
+| W1C | 1.056 | 1.026 |
+| W1D | 1.009 | 0.975 |
+
+Only nano W1C is outside [0.97, 1.03], so it is played re-timed: W1C-ET, `iterationScale` 0.383 → 0.363. At these budgets the cap saves no time (unlike base, turbo and pro), so the other arms play at v5.2's `iterationScale`: equal time is equal iterations.
+
+**Shapes chosen: W1A, W1C, W1D at both tiers, round 8's three.**
+- W1A unchanged tests the v5.3 setting itself.
+- At small N the window is set by `init`: 2, 4 or 16 here. The other shapes probed lie inside that range in depth.
+- W1C, null or worse at base and turbo, deepens nano and lite about as much as W1A deepened turbo. It tests the reading that cheap tiers want a narrower window.
+- W1D is the mild shape that cleared both round-8 screens.
+- Using the same three keeps all five tiers comparable.
+
+## Round 9 — nano and lite screens (measured; `tmp/v56/<tier>/screen.md`)
+
+### Nano vs three level-1 seats, 800 seeds 101,100,000 (20:18–20:24)
+
+| Arm | Change | Seeds | Advantage vs L1 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| base | `v5.2-nano.json` unchanged (iterationScale 0.383) | 800 | +6.43 [+6.05, +6.80] | 52.2% | — | — |  | 2.2 |
+| W1A | interiorCap floor(4 + 1·√N) | 800 | +7.11 [+6.73, +7.50] | 55.8% | +0.68 [+0.20, +1.18] * | +3.62 [+1.38, +5.94] * | 1.010 | 2.2 |
+| W1C-ET | floor(2 + 0.5·√N), iterationScale 0.363 | 800 | +7.40 [+7.00, +7.79] | 56.8% | **+0.98 [+0.45, +1.49]** * | +4.59 [+2.41, +6.78] * | (1.056) | 2.1 |
+| W1D | floor(16 + 4·√N) | 800 | +6.93 [+6.53, +7.31] | 54.2% | +0.50 [+0.02, +0.99] * | +1.97 [−0.34, +4.31] | 1.008 | 2.2 |
+
+### Lite vs three level-3 seats, 800 seeds 101,200,000 (20:24–20:33)
+
+| Arm | Change | Seeds | Advantage vs L3 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| base | `v5.2-lite.json` unchanged (iterationScale 0.647) | 800 | +1.35 [+1.00, +1.71] | 35.9% | — | — |  | 3.6 |
+| W1A | floor(4 + 1·√N) | 800 | +2.09 [+1.74, +2.46] | 37.6% | +0.74 [+0.28, +1.21] * | +1.69 [−0.56, +4.00] | 0.990 | 3.6 |
+| W1C | floor(2 + 0.5·√N) | 800 | +2.57 [+2.23, +2.94] | 39.4% | **+1.23 [+0.74, +1.71]** * | +3.50 [+1.12, +5.75] * | 1.026 | 3.7 |
+| W1D | floor(16 + 4·√N) | 800 | +2.18 [+1.85, +2.53] | 38.9% | +0.84 [+0.35, +1.32] * | +3.00 [+0.66, +5.22] * | 0.975 | 3.5 |
+
+**Measured:** all six arms clear. At both tiers the narrowest cap, W1C, has the largest gain and is selected by the preregistered rule.
+
+## Round 9 — confirmations (measured; `tmp/v56/<tier>/confirm.md`)
+
+| Tier | Seeds | Arm | Advantage (base → arm) | Paired Δ vs base [95% CI] | Paired Δ first place, pp [95% CI] | Verdict |
+|---|---|---|---|---:|---:|---|
+| nano vs L1 | 800, 101,300,000 (20:33–20:36) | W1C-ET | +6.45 → +7.39 | **+0.94 [+0.42, +1.47]** | +3.47 [+1.12, +5.72] | **accepted** |
+| lite vs L3 | 800, 101,400,000 (20:36–20:40) | W1C | +1.22 → +2.32 | **+1.10 [+0.62, +1.57]** | +2.97 [+0.66, +5.28] | **accepted** |
+
+**Decisions (preregistered rule):**
+- **Nano: W1C-ET accepted.** Saved as `engine-rs/configs/v5.3-cand-nano.json` (interiorCap floor(2 + 0.5·√N), `iterationScale` 0.363).
+- **Lite: W1C accepted.** Saved as `engine-rs/configs/v5.3-cand-lite.json` (same cap, `iterationScale` 0.647, unchanged from v5.2-lite).
+
+### W1A, the v5.3 shape, on the same confirmation seeds (amendment `9b3abd4`; played 02:54–02:57 after the pro block; `tmp/v56/<tier>-w1a/confirm.md`)
+
+| Tier | Seeds | Advantage (base → W1A) | Paired Δ vs base [95% CI] | Paired Δ first place, pp [95% CI] | Verdict |
+|---|---|---|---:|---:|---|
+| nano vs L1 | 800, 101,300,000 | +6.45 → +6.81 | +0.36 [−0.17, +0.87] | +2.81 [+0.47, +5.06] | not accepted (not worse) |
+| lite vs L3 | 800, 101,400,000 | +1.22 → +1.75 | **+0.53 [+0.09, +0.96]** | +1.47 [−0.69, +3.72] | **accepted** |
+
+W1A is saved as `engine-rs/configs/v5.3-cand-lite-w1a.json` (`iterationScale` 0.647). No benchmark fill-in for it. A second confirmed arm per tier raises the chance of a false acceptance at that tier: two tries at the 2.5% one-sided level instead of one.
+
+**Reading (mine):**
+- The cap carries to the cheap tiers, and more strongly there than at base or turbo: the narrowest window gives about +1 point.
+- The best window narrows as the budget falls: W1C is best at nano and lite, null at base, worse at turbo; W1A and W1D are best at base and turbo.
+- W1A alone is weaker at nano and lite (+0.36 and +0.53 on confirmation, against +0.94 and +1.10 for W1C on the same seeds). So one shape for every tier gives up about half a point at the two cheapest tiers.
+
+## Round 9 — pro block vs three level-7 seats, 300 seeds 101,500,000 (20:43–02:54; `tmp/v56/pro/screen.md`)
+
+Played in three 100-seed chunks, with base, W1A-ET and W1D-ET in turn within each. All 300 seeds are complete for every arm. These are round 8's configs (costs 0.902 and 0.939, not re-measured).
+
+| Arm | Seeds | Advantage vs L7 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place, pp [95% CI] | ms/move 3+ in-match |
+|---|---:|---:|---:|---:|---:|---:|
+| base (`v5.2-pro.json`, 224.487) | 300 | −1.52 [−2.26, −0.82] | 20.2% | — | — | 1074.5 |
+| W1A-ET (248.877) | 300 | −1.06 [−1.79, −0.31] | 21.2% | +0.46 [−0.42, +1.35] | +0.92 [−2.00, +3.92] | 1039.9 |
+| W1D-ET (239.172) | 300 | −0.37 [−1.10, +0.37] | 21.8% | **+1.16 [+0.41, +1.91]** * | +1.58 [−1.00, +4.25] | 1028.0 |
+
+Per chunk (descriptive): W1A-ET +0.18 / −0.03 / +1.23; W1D-ET +0.61 / +1.87 / +0.99.
+
+**Descriptive, not the decision, pooled with round 8's 100 seeds 100,300,000 (400 seeds):** W1A-ET +0.39 [−0.39, +1.14]; W1D-ET +1.03 [+0.36, +1.68], first place +1.62 pp [−0.69, +3.88].
+
+**Decision (preregistered):**
+- **W1D-ET clears the pro screen.** By the prereg it is not accepted tonight; it is a candidate for a pro confirmation on fresh seeds in a later round.
+- W1A-ET does not clear and is not clearly worse.
+
+**Reading (mine):**
+- At pro the milder window does better, which fits the budget trend above: wider windows suit larger budgets.
+- The ET arms ran 3–4% under base's in-match time, so they were not over time.
+
+## Round 9 — benchmark fill-in (measured; `tmp/bench/v5.3-cand-{nano,lite}/bench.md`)
+
+Driver `v56-chain.sh` (`bench.sh`, 12 threads, `tmp/v56/bin`). The own-level anchor is the 800-seed confirmation block, linked in. Nano vs level 4 was added by amendment `c93038d` because levels 1–3 did not bracket the candidate (L3 read +0.04).
+
+| Engine | ms/move (own 4+) | Advantage vs anchors | Break-even level [95% CI] | v5.2 at the same tier |
+|---|---:|---|---:|---:|
+| `v5.3-cand-nano` | 1.8 | L1 +7.39 [+7.00, +7.78] (800); L2 +3.30 [+2.60, +4.04]; L3 +0.04 [−0.65, +0.71]; L4 −4.14 [−4.82, −3.47] (200 each; 101,620,000 / 101,630,000 / 101,640,000) | **3.01 [2.84, 3.15]** | 2.84 [2.65, 3.04] |
+| `v5.3-cand-lite` | 3.0 | L2 +6.65 [+5.82, +7.52]; L3 +2.32 [+1.95, +2.69] (800); L4 −2.04 [−2.74, −1.35] (200 each; 101,720,000 / 101,740,000) | **3.53 [3.44, 3.64]** | 3.41 [3.31, 3.52] |
+
+**Measured:**
+- Nano moves up from 2.84 to 3.01; lite from 3.41 to 3.53.
+- The intervals overlap because they are unpaired; the paired confirmations are the measure of the gain.
+- In-match times: nano 1.8 against v5.2-nano's 1.9; lite 3.0 against 2.8. By clean cost lite W1C is 1.026× (within the band).
+
+## Round 9 — seed blocks
+
+- **Played:**
+  - 101,100,000–101,100,799: nano screen;
+  - 101,200,000–101,200,799: lite screen;
+  - 101,300,000–101,300,799: nano confirmation and W1A;
+  - 101,400,000–101,400,799: lite confirmation and W1A;
+  - 101,500,000–101,500,299: pro block;
+  - 101,620,000, 101,630,000, 101,640,000: nano candidate vs levels 2, 3 and 4 (200 seeds each);
+  - 101,720,000, 101,740,000: lite candidate vs levels 2 and 4 (200 seeds each).
+- **Not touched:** every block the brief listed as unplayed or reserved, and 110,000,000–110,299,999.
+
+## Round 9 — notes and what is left
+
+- **Fixed after the run:** the pro merge step in `v56-chain.sh` used a glob that also caught the chunk `.moves`/`.timing` files. The merged logs were rebuilt from the untouched chunk files and the read-out re-run.
+- **Cost procedure:** round 8's two-round cost charges the first-searched config a warm-up penalty: 9–13% at nano and lite, probably a few percent at base. Its base-tier W1A cost (0.939) may therefore read slightly low. Unchecked.
+- **Left:**
+  - a pro confirmation of W1D-ET on fresh seeds;
+  - W1C or W1D shapes at base and turbo for a per-tier window (round 8 has W1D-ET +0.59 base / +0.84 turbo screens);
+  - ultra.

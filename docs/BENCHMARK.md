@@ -82,6 +82,13 @@ Round 8 (named v5.3 on 2026-11-16: `v5.3.json` and `v5.3-turbo.json`, byte copie
 
 \* In-match times under heavier load (18 game threads on 14 cores) than the v5.2 rows; by clean single-thread cost the candidates are time-matched to their v5.2 tier.
 
+Round 9 (2026-11-17; interior cap W1C, floor(2 + 0.5·√N), accepted at nano and lite; not yet named by Paul; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds; `tmp/bench/v5.3-cand-{nano,lite}/bench.md`):
+
+| Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
+|---|---:|---|---:|
+| `v5.3-cand-nano` | 1.8 | L1 +7.39; L2 +3.30; L3 +0.04 [−0.65, +0.71]; L4 −4.14 | **3.01 [2.84, 3.15]** |
+| `v5.3-cand-lite` | 3.0 | L2 +6.65; L3 +2.32 [+1.95, +2.69]; L4 −2.04 | **3.53 [3.44, 3.64]** |
+
 Pentobi's own levels read back within 0.15 of their number, which checks that the method is consistent. The full intervals per anchor are in `tmp/v53/S3/bench.md`.
 
 ## Known limits

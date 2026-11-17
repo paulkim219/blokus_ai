@@ -56,7 +56,7 @@ pro() {  # three 100-seed chunks from 101,500,000; base, W1A-ET, W1D-ET in turn 
     echo "R9 PRO CHUNK $k DONE $(date '+%F %T')"
   done
   for arm in base W1A-ET W1D-ET; do
-    for x in jsonl moves.jsonl timing.jsonl; do cat $D/chunks/rol-$arm-c*.$x > $D/screen/rol-$arm.$x 2>/dev/null; done
+    for x in jsonl moves.jsonl timing.jsonl; do cat $D/chunks/rol-$arm-c0.$x $D/chunks/rol-$arm-c1.$x $D/chunks/rol-$arm-c2.$x > $D/screen/rol-$arm.$x 2>/dev/null; done
   done
   python3 engine-rs/scripts/v56_pro_report.py > $D/screen.md 2>&1
   echo "R9 PRO DONE $(date '+%F %T')"
