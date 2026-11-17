@@ -2076,3 +2076,9 @@ Complete seeds only (all four rotations). Read by `python3 engine-rs/scripts/v51
 **If not accepted:** it is written up as not accepted, with the numbers; nothing is saved and there is no benchmark.
 
 **Seed blocks:** 102,000,000–102,000,799 (800); 102,160,000–102,160,199 (200, only if accepted); 102,180,000 (50, only by amendment). Nothing else is touched.
+
+**Amendment 1 (2026-11-17 12:26 CST, this commit's time; fixed before chunks 1–7 and before any result is read).**
+- **What happened:** the Mac ran on battery from about 10:12. At 1% it entered Low Power Sleep at 10:58:08 and woke on AC at 12:23:47 (pmset log). caffeinate cannot prevent a low-battery sleep. `rol-base-c0` ran 09:29–10:17, so it overlaps battery mode for about its last 5 minutes. `rol-W1D-ET-c0` (started 10:17) ran through the throttling and the sleep; its processes survived and resumed (326/400 games at 12:25).
+- **The games are kept.** Outcomes do not depend on wall time: Blokee plays a fixed iteration budget, and Pentobi's level is fixed.
+- **The equal-time check uses chunks 1–7 only, both arms.** Chunk 0's in-match ms/move is contaminated by the gap, by throttling and by the load just after waking. `v57_pro_report.py` now prints the 8-chunk figure labelled as contaminated, and the check on the clean chunks.
+- **Rules unchanged.** The acceptance rule, the seeds and everything else are as preregistered. If the gap leaves any chunk-arm incomplete, it is replayed from scratch under the resumable-chain rule. The sleep is recorded as a deviation with the results.
