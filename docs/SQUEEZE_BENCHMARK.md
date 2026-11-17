@@ -42,7 +42,7 @@ An arm is kept only if it takes more squares off the target than the plain versi
 lower bound above 0).
 
 **Adversary compute.** The adversary's budget is fixed and independent of the target. To choose it,
-play one fixed target (`v5.2`) against the adversary at the `v5.2-l6`, `v5.2-pro` and 4× pro
+play one fixed target (`v5.2`) against the adversary at the `v5.2-turbo` (formerly `v5.2-l6`), `v5.2-pro` and 4× pro
 budgets on 100 seeds, and freeze the smallest budget whose squeeze is within 1 square of the
 largest. Binary and config are then frozen as **`squeeze-v1`** and never changed. A stronger
 adversary later becomes `squeeze-v2`; scores from different adversaries are not compared.

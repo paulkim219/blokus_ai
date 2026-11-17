@@ -58,15 +58,15 @@ if [ -n "$sel" ]; then
   win=$(sed -n 's/^NEW BASE: //p' $D/confirm.md)
   if [ -n "$win" ] && [ "$win" != "(none)" ]; then
     cp $D/configs/$win.json $G/v5.3-cand-pro.json
-    # the same change at the v5.2-l6 budget vs level 6 (descriptive), 400 seeds 99,200,000
+    # the same change at the v5.2-turbo (was v5.2-l6) budget vs level 6 (descriptive), 400 seeds 99,200,000
     python3 - "$win" <<'PY'
 import json, sys
-w = json.load(open(f"tmp/v54/C/configs/{sys.argv[1]}.json")); l6 = json.load(open("engine-rs/configs/v5.2-l6.json"))
+w = json.load(open(f"tmp/v54/C/configs/{sys.argv[1]}.json")); l6 = json.load(open("engine-rs/configs/v5.2-turbo.json"))
 for k in ("rave", "selection", "candidates"):
     l6["native"][k] = w["native"][k]
 json.dump(l6, open("tmp/v54/C/configs/l6-arm.json", "w"), indent=1)
 PY
-    cp $G/v5.2-l6.json $D/configs/l6-base.json
+    cp $G/v5.2-turbo.json $D/configs/l6-base.json
     for arm in l6-base l6-arm; do bp $D/configs/$arm.json $D/confirm/l6c-$arm.jsonl one-blokee 6 400 99200000 10; done
   fi
 else
@@ -78,9 +78,9 @@ echo "R7 C DONE $(date '+%F %T')"
 S=tmp/v53/S3
 bp $G/v5.2-nano.json $S/nano-vs-L3.jsonl one-blokee 3 200 97960000 10
 bp $G/v5.2-nano.json $S/nano-vs-L4.jsonl one-blokee 4 200 97970000 10
-bp $G/v5.2-l6.json $S/l6-vs-L5.jsonl one-blokee 5 200 97980000 10
+bp $G/v5.2-turbo.json $S/l6-vs-L5.jsonl one-blokee 5 200 97980000 10
 bp $G/v5.2-pro.json $S/pro-vs-L6.jsonl one-blokee 6 100 97995000 10
-bp $G/v5.2-l6.json $S/l6-vs-L7.jsonl one-blokee 7 100 97990000 10
+bp $G/v5.2-turbo.json $S/l6-vs-L7.jsonl one-blokee 7 100 97990000 10
 bp $G/v5.1-ultra.json $S/ladder-L6-vs-L7.jsonl pentobi-ladder 7 100 97550000 10 --lone-level 6
 python3 engine-rs/scripts/v53_report.py --bench tmp/v53 > $S/bench.md 2>&1
 echo "R7 D DONE $(date '+%F %T')"

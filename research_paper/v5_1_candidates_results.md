@@ -1697,3 +1697,187 @@ product-of-ratios fallback was not needed).
 
 **Reading:** IIV3's screen reading (+1.62) shrank to +0.79 and then −0.54. Its pooled +0.6 is
 indistinguishable from 0. Raising the prior's pseudo-visits does not close the pro-tier gap.
+
+
+## Round 8 — looking for v5.3 (prereg `a041060`, time stamp corrected in `7797cdb`; amendment `0b1087b`)
+
+Names: the tier called "l6" or "the l6 reference" while round 8 ran is **turbo (Pentobi level 6)**, so named by Paul on 2026-11-16 after the games. Raw paths keep `l6`: `tmp/v55/W/l6/`, `tmp/bench/v5.3-cand-l6/`, `l6` rows in the speed tables. The base tier is plain `v5.2`. The engine is `f2c01ee`, binary `tmp/v55/bin-w1`, and it plays the v5.2 configs identically to the pinned v5.2 binary `tmp/v53/bin` (copy in `tmp/v55/bin-v52`).
+
+
+## Round 8, Lead 1 — speed with play unchanged (measured, no games; `tmp/v55/speed/`)
+
+Prereg: the 2026-11-16 10:59 "round 8" entry. Single-threaded probe `engine-rs/examples/v55_speed.rs`. It searched the 150 recorded positions that round 7 B used (`tmp/d1/x1-l6a.moves.jsonl`, own moves 3+); ultra searched every 10th of them (15 positions). Each row records ms, iterations, nodes, edges, tree heap bytes and an exact digest of the ranked root result. Peak RSS comes from `/usr/bin/time -l`. The machine was not quiet: the Docker VM and a macOS storage process used about 1.5 cores throughout. The digest columns compare each binary with the v5.2 binary (`tmp/v55/bin-v52`).
+
+| Tier | Binary | positions | ms/search | iterations | iterations/s | × v5.2 | tree bytes/iteration | largest tree | peak RSS | digests equal to v5.2 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | v5.2 | 150 | 14.7 | 895 | 60,970 | 1.000 | 4,034 | 0.01 GB | 0.06 GB | — |
+| l6 | v5.2 | 150 | 87.5 | 5,280 | 60,369 | 1.000 | 3,491 | 0.05 GB | 0.20 GB | — |
+| pro | v5.2 | 150 | 859.2 | 47,609 | 55,409 | 1.000 | 3,625 | 0.57 GB | 1.45 GB | — |
+| pro | S8a | 150 | 884.5 | 47,609 | 53,823 | 0.971 | 4,271 | 0.69 GB | 1.53 GB | 150/150 |
+| ultra | v5.2 | 15 | 21,263.5 | 851,342 | 40,038 | 1.000 | 3,793 | 8.35 GB | 10.80 GB | — |
+| ultra | S8a | 15 | 20,955.7 | 851,342 | 40,626 | 1.015 | 4,540 | 10.07 GB | 12.55 GB | 15/15 |
+
+On ultra's 15 positions only, iterations/s are: base 48,038, l6 50,583, pro 46,106, ultra 40,038. The full set has fewer moves per node, which is why base and l6 read higher there.
+
+**Measured:**
+- **There is a fall-off, but it is smaller than the brief's reading.** On the same positions, iterations/s drop 9% from the l6 budget to pro and 21% from l6 to ultra. The round-6 figure (nominal iterations per ms 100 → 69) also mixed positions, early exits and match load.
+- **Memory is 3.5–4.0 KB per iteration, not 8 KB.** About 40% of nodes are initialised (a node is expanded on its second visit). Each initialised node has about 200 edges (≈300 on ultra's earlier positions), and each edge costs 36 bytes (move 4, prior 8, child 4, visits 4, AMAF 16). The 8 GB searches are the positions with many legal moves: about 7 KB per iteration there, plus allocator overhead (peak RSS 10.8 GB against an 8.35 GB tree).
+- **Profile** (`sample` 25 s, with select, update_amaf, backup, leaf_value, shortlist and the rollout sampler kept out of line; `sample-pro.txt`, `sample-ultra.txt`):
+
+  | Function | pro | ultra |
+  |---|---:|---:|
+  | `select` | ≈27% | ≈37% |
+  | rollout `sample_moves` | ≈28% | ≈21% |
+  | prior scoring | ≈15% | ≈17% |
+  | `update_amaf` | ≈4% | ≈4% |
+  | sorting | ≈4% | ≈4% |
+  | move generation | ≈4% | ≈4% |
+
+- **Inside `select`** (counted per call at interior nodes, `select-edges-*.txt`). At pro a call scans 159 edges: 52 have a child, 42 have AMAF data only and 65 are untouched. An S4-style bound could skip about 26 of them (16%). At ultra a call scans about 590 edges (240–300 with a child), and about 12% could be skipped.
+- **S8a, edge-cached child values:** each edge kept the sum of its child's Q component, so selection did not read child nodes except those reached by a transposition. Play was identical (all digests equal, and `s4_identity` on 180 positions × 4 tiers was byte-identical). Speed was 0.97× at pro and 1.015× at ultra, for +18% memory. **Reverted.** The patch is kept in `tmp/v55/speed/s8a-search.rs.patch`.
+
+**Reading:** the time in `select` is per-edge arithmetic, not random reads of child nodes. Each edge can cost up to seven divisions and a square root (prior ratio, AMAF mean and β, the exploration and history terms). That cost grows with the visited share of edges, which grows with the tree. Every exact remedy found costs memory or saves at most a few percent: per-edge precomputed ratios, tighter bounds, an interleaved history table, slimmer node records. None reaches the brief's 10% bar at any tier, so **there is no speed candidate and no re-calibration**. Making `select` cheaper means changing what it computes, which falls under Lead 2.
+
+## Round 8, Lead 2 — W1, the interior cap (measured; `tmp/v55/W/`)
+
+**Mechanism** (`native.candidates.interiorCap`, engine `f2c01ee`, off by default): at interior nodes, selection looks only at the first `floor(init + growth · √N)` children in prior order, where N is the node's visits (at least 1). Nothing is forced open. A child entering the window is scored like any other, with its initial value, AMAF and exploration terms. The root is unchanged.
+
+Why this mechanism: round 7 B found a tree that stays shallow and broad. At pro, the node that selection passes through has a child on about a third of its edges, many of them low-prior moves pulled in by RAVE.
+
+With the option off, play is identical to the v5.2 binary:
+- `s4_identity` on 180 positions × nano/lite/base/l6 is byte-identical;
+- 64 `blokee-pentobi` games on 100,000,000–100,000,007 have the same moves and scores;
+- `cargo test` passes all 32 tests.
+
+**No-game exploration** (`tmp/v55/W/explore/`, one thread): mean simulation depth in the tree, and positions where the best move matches v5.2's.
+
+| Shape (init, growth) | l6 depth | l6 same best (of 150) | l6 ms × base | pro depth | pro same best (of 50) | pro ms × base |
+|---|---:|---:|---:|---:|---:|---:|
+| v5.2 | 4.11 | — | 1.00 | 5.39 | — | 1.00 |
+| (4, 1) = W1A | 4.90 | 91 | 0.92 | 6.36 | 36 | 0.86 |
+| (2, 0.5) = W1C | 5.80 | 94 | 0.98 | 7.33 | 23 | 0.94 |
+| (8, 2) | 4.58 | 108 | 0.90 | 5.99 | 33 | 0.87 |
+| (16, 4) = W1D | 4.40 | 113 | 0.89 | 5.78 | 36 | 0.88 |
+
+So the cap does deepen the tree: about one ply at pro for W1A, two for W1C. Each iteration also gets cheaper, because fewer edges are scanned.
+
+**Clean cost** (`p4_cost`, one thread, two rounds in reverse order; base tier and l6 on 150 positions, pro on 60; `tmp/v55/W/<tier>/cost/screen-cost.md`), as × base:
+
+| Arm | base tier | l6 | pro |
+|---|---:|---:|---:|
+| W1A | 0.939 | 0.926 | 0.902 |
+| W1C | 1.003 | 0.994 | 0.923 |
+| W1D | 0.963 | 0.902 | 0.939 |
+
+Arms outside [0.97, 1.03] were played re-timed (`-ET`, `iterationScale` / cost, not re-checked).
+
+The screens are below. The read-out's header says "vs L6" whatever the level; the level is given in each heading. Lone seat, per-seat processes, 12 game threads, each arm against the tier's v5.2 config on the same seeds. Raw logs are `tmp/v55/W/<tier>/screen/rol-<arm>.jsonl`.
+
+### Base tier vs three level-5 seats, 800 seeds 100,100,000 (10:59–11:20)
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2.json unchanged (iterationScale 3.545) | 800 | +0.34 [-0.05, +0.72] | 25.7% | — | — |  | 16.8 | 0/3200 |
+| W1A-ET | interiorCap floor(4 + 1 * N^0.5) at equal time: search.iterationScale 3.545 -> 3.776 (3.545 / 0.9387) | 800 | +1.06 [+0.65, +1.47] | 28.1% | +0.72 [+0.20, +1.25] * | +2.38 [+0.38, +4.31] * |  | 17.2 | 3199/3200 |
+| W1C | interiorCap floor(2 + 0.5 * N^0.5) | 800 | +0.33 [-0.05, +0.70] | 25.5% | -0.02 [-0.52, +0.47] | -0.19 [-2.06, +1.75] | 1.003 | 17.1 | 3200/3200 |
+| W1D-ET | interiorCap floor(16 + 4 * N^0.5) at equal time: search.iterationScale 3.545 -> 3.681 (3.545 / 0.9631) | 800 | +0.93 [+0.56, +1.31] | 27.0% | +0.59 [+0.10, +1.11] * | +1.28 [-0.69, +3.31] |  | 16.6 | 3199/3200 |
+
+
+### turbo (the l6 reference) vs three level-6 seats, 800 seeds 100,200,000 (11:20–13:18)
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-l6.json unchanged (iterationScale 23.222) | 800 | +0.13 [-0.30, +0.54] | 24.0% | — | — |  | 104.4 | 0/3200 |
+| W1A-ET | interiorCap floor(4 + 1 * N^0.5) at equal time: search.iterationScale 23.222 -> 25.091 (23.222 / 0.9255) | 800 | +0.99 [+0.53, +1.42] | 24.7% | +0.86 [+0.30, +1.43] * | +0.72 [-1.28, +2.69] |  | 105.5 | 3198/3200 |
+| W1C | interiorCap floor(2 + 0.5 * N^0.5) | 800 | -0.20 [-0.62, +0.22] | 21.8% | -0.32 [-0.85, +0.20] | -2.19 [-4.12, -0.22] * | 0.994 | 107.9 | 3199/3200 |
+| W1D-ET | interiorCap floor(16 + 4 * N^0.5) at equal time: search.iterationScale 23.222 -> 25.754 (23.222 / 0.9017) | 800 | +0.97 [+0.54, +1.39] | 25.7% | +0.84 [+0.35, +1.37] * | +1.66 [-0.12, +3.47] |  | 117.9 | 3198/3200 |
+
+
+### Pro vs three level-7 seats, 100 seeds 100,300,000 (13:18–16:04)
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-pro.json unchanged (iterationScale 224.487) | 100 | -1.14 [-2.44, +0.22] | 19.0% | — | — |  | 1070.7 | 0/400 |
+| W1A-ET | interiorCap floor(4 + 1 * N^0.5) at equal time: search.iterationScale 224.487 -> 248.877 (224.487 / 0.9020) | 100 | -0.97 [-2.19, +0.31] | 19.8% | +0.18 [-1.34, +1.63] | +0.75 [-4.00, +5.25] |  | 1042.7 | 399/400 |
+| W1C-ET | interiorCap floor(2 + 0.5 * N^0.5) at equal time: search.iterationScale 224.487 -> 243.294 (224.487 / 0.9227) | 100 | -1.82 [-2.92, -0.66] | 18.2% | -0.68 [-2.17, +0.79] | -0.75 [-5.50, +4.25] |  | 1075.2 | 400/400 |
+| W1D-ET | interiorCap floor(16 + 4 * N^0.5) at equal time: search.iterationScale 224.487 -> 239.172 (224.487 / 0.9386) | 100 | -0.48 [-1.65, +0.67] | 20.8% | +0.66 [-0.79, +2.08] | +1.75 [-2.75, +6.50] |  | 1019.4 | 400/400 |
+
+
+**Screens, measured:**
+- Base tier: W1A-ET +0.72 [+0.20, +1.25] (first place +2.38 pp [+0.38, +4.31]) and W1D-ET +0.59 [+0.10, +1.11] clear. W1C, the narrowest cap, is null (−0.02).
+- l6: W1A-ET +0.86 [+0.30, +1.43] and W1D-ET +0.84 [+0.35, +1.37] clear. W1C is −0.32 [−0.85, +0.20], with first place −2.19 pp.
+- W1A-ET is selected at both tiers.
+- Pro: nothing clears. W1A-ET +0.18 [−1.34, +1.63], W1C-ET −0.68, W1D-ET +0.66 [−0.79, +2.08]. No pro confirmation was played; 100,600,000 is unplayed.
+- In-match ms/move are under 12-thread load and not equal across blocks. W1D-ET at l6 read 1.13× base in-match although its clean cost put it at equal time; W1A-ET read 1.01–1.02× at base and l6, and 0.97× at pro.
+
+### Confirmations (fresh base and arm; `tmp/v55/W/<tier>/confirm/rolc-<arm>.jsonl`)
+
+Base tier vs level 5, 800 seeds 100,400,000 (16:04–16:14):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2.json unchanged (iterationScale 3.545) | 800 | +0.06 [-0.30, +0.44] | 25.0% | — | — |  | 16.7 | 0/3200 |
+| W1A-ET | interiorCap floor(4 + 1 * N^0.5) at equal time: search.iterationScale 3.545 -> 3.776 (3.545 / 0.9387) | 800 | +0.77 [+0.38, +1.17] | 27.7% | +0.71 [+0.22, +1.19] * | +2.69 [+0.56, +4.72] * |  | 17.1 | 3200/3200 |
+
+
+turbo vs level 6, 800 seeds 100,500,000 (16:14–17:16; D8's base-tier block ran alongside on 6 threads from 16:15 to 16:26):
+
+| Arm | Change | Seeds | Advantage vs L6 [95% CI] | First place | Paired Δ vs base [95% CI] | Paired Δ first place vs base, pp [95% CI] | Clean cost × base | ms/move 3+ in-match | Games ≠ base |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| base | engine-rs/configs/v5.2-l6.json unchanged (iterationScale 23.222) | 800 | +0.12 [-0.29, +0.55] | 23.2% | — | — |  | 126.0 | 0/3200 |
+| W1A-ET | interiorCap floor(4 + 1 * N^0.5) at equal time: search.iterationScale 23.222 -> 25.091 (23.222 / 0.9255) | 800 | +0.83 [+0.39, +1.25] | 25.2% | +0.71 [+0.13, +1.26] * | +2.00 [+0.03, +4.00] * |  | 105.3 | 3199/3200 |
+
+
+**Decisions (preregistered rule):**
+- **Base tier: W1A-ET accepted.** +0.71 [+0.22, +1.19], first place +2.69 pp [+0.56, +4.72]. Saved as `engine-rs/configs/v5.3-cand.json` (`iterationScale` 3.776).
+- **Turbo (the l6 reference): W1A-ET accepted.** +0.71 [+0.13, +1.26], first place +2.00 pp [+0.03, +4.00]. Saved as `engine-rs/configs/v5.3-cand-turbo.json` (`iterationScale` 25.091).
+- **Pro: nothing accepted.** No pro arm cleared the 100-seed screen. W1A-ET read +0.18 [−1.34, +1.63], which is not clearly worse.
+- Nano, lite and ultra were not played with W1.
+- **So W1A qualifies as a v5.3 candidate by the brief's rule:** it beats v5.2 on confirmation at two tiers (base and turbo), and no tier played is clearly worse.
+- The candidate family: `v5.3-cand.json` (base tier), `v5.3-cand-turbo.json` (turbo). The other tiers stay at their v5.2 configs unless Paul decides otherwise; Paul names versions.
+
+### D8 — the cap itself or its re-timing? (amendment `0b1087b`, measured, descriptive)
+
+W1A-ET plays 6.5% (base tier) and 8.0% (turbo) more iterations than v5.2, because each capped iteration is cheaper. At round 4's +2.1 points per doubling, that alone is worth about +0.2. D8 played W1A at v5.2's `iterationScale` (equal iterations, so less time) on each confirmation block's seeds, paired with that block's arms. Read-out: `engine-rs/scripts/v55_d8.py`, `tmp/v55/W/<tier>/d8.md`.
+
+| Tier | Seeds | W1A-EI advantage | W1A-EI − base | first place | W1A-ET − W1A-EI |
+|---|---:|---:|---:|---:|---:|
+| base (vs L5) | 800, 100,400,000 | +0.92 [+0.52, +1.33] | **+0.86 [+0.34, +1.37]** | +2.25 pp [+0.31, +4.28] | −0.15 [−0.62, +0.34] |
+| turbo (vs L6) | 800, 100,500,000 | +0.68 [+0.27, +1.10] | **+0.56 [+0.01, +1.11]** | +1.72 pp [−0.19, +3.62] | +0.15 [−0.34, +0.63] |
+
+**Measured:** at equal iterations the cap alone gains +0.86 (base tier) and +0.56 (turbo). The extra iterations from re-timing add nothing measurable (−0.15, +0.15).
+
+**Reading:** the gain comes from where the visits go, not from the speed-up.
+
+### Benchmark fill-in for the accepted tiers (measured; `tmp/v55/bench.md`, `tmp/bench/v5.3-cand*/`)
+
+Driver `engine-rs/scripts/v55-bench.sh`, as preregistered. Each candidate's own-level anchor is its 800-seed confirmation block, linked into its `tmp/bench/` directory. The other anchors are fresh: base-tier candidate vs level 4 (200 seeds, 100,740,000) and level 6 (200, 100,760,000); turbo candidate vs level 5 (200, 100,850,000) and level 7 (100, 100,870,000). These blocks ran 17:16–18:26, alongside D8's turbo block, so 18 game threads shared 14 cores. The in-match ms/move are therefore inflated against the v5.2 rows; by clean cost the candidates are time-matched to their v5.2 tier.
+
+| Engine | ms/move (own 4+, under load) | Advantage vs anchors | Break-even level [95% CI] | v5.2 at the same tier |
+|---|---:|---|---:|---:|
+| `v5.3-cand` (base) | 21.6 | L4 +4.95 [+4.14, +5.74]; L5 +0.77 [+0.38, +1.17]; L6 −4.08 [−4.84, −3.34] | **5.16 [5.08, 5.24]** | 5.06 [4.95, 5.15] |
+| `v5.3-cand-turbo` | 176.3 | L5 +6.48 [+5.49, +7.45]; L6 +0.83 [+0.39, +1.25]; L7 −4.63 [−5.80, −3.44] | **6.15 [6.08, 6.23]** | 6.07 [5.98, 6.16] |
+
+**Measured:** both candidates move up about a tenth of a level: base 5.06 → 5.16, turbo 6.07 → 6.15. The paired matches are the measure of the gain; these intervals overlap because they are unpaired and come from different seeds.
+
+### Round 8 — seed blocks
+
+- **Played:**
+  - 100,000,000–100,000,007: identity games, v5.2 binary and new binary, `v5.2` and `v5.2-turbo` vs level 5;
+  - 100,100,000–100,100,799: base-tier screen;
+  - 100,200,000–100,200,799: turbo screen;
+  - 100,300,000–100,300,099: pro screen;
+  - 100,400,000–100,400,799: base-tier confirmation and D8;
+  - 100,500,000–100,500,799: turbo confirmation and D8;
+  - 100,740,000–100,740,199 and 100,760,000–100,760,199: base-tier candidate vs levels 4 and 6;
+  - 100,850,000–100,850,199: turbo candidate vs level 5;
+  - 100,870,000–100,870,099: turbo candidate vs level 7.
+- **Reserved and unplayed:** 100,600,000 (pro confirmation, not needed); 100,960,000 (pro benchmark, not needed).
+- **Not touched:** every block the brief listed as unplayed or reserved.
+
+### Round 8 — what I did not get to
+
+- **W1 at nano, lite and ultra.** Ultra takes about 4 hours per 24 seeds. Nano and lite are cheap and are the obvious next screen.
+- **A larger pro sample for W1A or W1D:** 100 seeds gives ±1.5. W1D read +0.66 and W1A +0.18; neither is clearly better or worse.
+- **A second Lead 2 mechanism** (the own-mobility prior term).
+- **A lazy-allocation variant of the cap.** It would store per-edge data only for the children inside the window, so it would also cut ultra's memory. It is not built.

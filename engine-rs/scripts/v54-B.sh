@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Round 7 B: scaling diagnosis at the v5.2-l6, 4x l6 and v5.2-pro budgets (no Pentobi games). Runs alongside
+# Round 7 B: scaling diagnosis at the v5.2-turbo (then v5.2-l6), 4x turbo and v5.2-pro budgets (no Pentobi games). Runs alongside
 # the ultra tail (3 game threads), so absolute times carry that load; relative numbers are the point.
 # Sentinel "R7B DONE".
 set -u

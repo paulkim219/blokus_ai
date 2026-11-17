@@ -31,13 +31,19 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
   | `v5.2-nano` | `engine-rs/configs/v5.2-nano.json` | 0.383 | Pentobi level 1 (1.7 ms/move) |
   | `v5.2-lite` | `engine-rs/configs/v5.2-lite.json` | 0.647 | level 3 (2.5 ms) |
   | `v5.2` (base tier, no suffix) | `engine-rs/configs/v5.2.json` (was `v5.2-base.json`) | 3.545 | level 5 (10.6 ms) |
+  | `v5.2-turbo` (turbo, Pentobi level 6) | `engine-rs/configs/v5.2-turbo.json` (was `v5.2-l6.json`) | 23.222 | level 6 (72 ms) |
   | `v5.2-pro` | `engine-rs/configs/v5.2-pro.json` | 224.487 | level 7 (903 ms) |
   | `v5.2-ultra` | `engine-rs/configs/v5.2-ultra.json` | 3948.432 | level 9 (17,069 ms) |
 
-  `v5.2-l6.json` (23.222, level 6) stays a reference config, not a tier. The benchmark is accepted as designed
+  (When this entry was first written, `v5.2-l6.json` was kept as a reference config, not a tier; see the next entry.) The benchmark is accepted as designed
   (`docs/BENCHMARK.md`): Pentobi levels 1–9 are fixed anchors, and an engine's score is the level at which its
   lone-seat advantage crosses zero, interpolated linearly, with ms/move as the second axis. New candidates are
   measured against the v5.2 config of their tier. The next clear improvement is **v5.3**.
+
+- **Named 2026-11-16 (Paul): the level-6 reference becomes a tier, turbo (Pentobi level 6).** Paul: "The level-6
+  reference can be the turbo version of the base model, so like v5.3-turbo as a naming". `v5.2-l6.json` →
+  `engine-rs/configs/v5.2-turbo.json` (unchanged content). The v5.2 family is nano, lite, v5.2, turbo, pro, ultra.
+  Raw logs keep their old `l6` file names; the read-outs map them.
 
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
@@ -208,6 +214,9 @@ max^n backups (null at α 0.10 and 0.20, v4 report §9.4), a learned leaf value 
 (−4.5 to −16), value-of-computation control and root racing (v3.7). Any of these may be reopened
 under a new v5 base, with a note here saying why.
 
+| N21 | **Speed with play unchanged at large budgets** (round 8 Lead 1) | Iterations per ms appeared to fall from about 100 (base) to 69 (ultra); 8 GB per ultra search | **Tested** 2026-11-16: no speed candidate | Clean, one thread, same positions: iterations/s −9% from turbo to pro, −21% to ultra (not −31%); 3.5–4.0 KB per iteration (not 8). `select` is 27% (pro) / 37% (ultra) of the time, as per-edge arithmetic. S8a (edge-cached child values, identical play): 0.97× at pro, 1.015× at ultra, +18% memory, reverted. Nothing exact reaches 10%; no re-calibration. `research_paper/v5_1_candidates_results.md`, round 8 |
+| N22 | **Interior cap** (`native.candidates.interiorCap`, W1): at interior nodes only the first `floor(init + growth·√N)` children by prior are considered; nothing forced open | Round 7 B: the tree stays shallow and broad; RAVE pulls low-prior moves in | **Candidate** 2026-11-16 (W1A, (4, 1), at equal time): accepted at base and turbo, not at pro | Screens vs v5.2 (800 seeds base/turbo, 100 pro): W1A-ET +0.72 / +0.86 / +0.18; W1D (16, 4) +0.59 / +0.84 / +0.66; W1C (2, 0.5) −0.02 / −0.32 / −0.68. Confirmations, 800 fresh seeds: base +0.71 [+0.22, +1.19] (first place +2.69 pp), turbo +0.71 [+0.13, +1.26] (+2.00 pp). At equal iterations (D8): +0.86 / +0.56, so the gain is the cap itself. Benchmark: base 5.06 → 5.16 [5.08, 5.24], turbo 6.07 → 6.15 [6.08, 6.23]. Saved `v5.3-cand.json`, `v5.3-cand-turbo.json`. `research_paper/v5_1_candidates_results.md`, round 8 |
+
 ## C. Supporting work
 
 | ID | Item | Status | Result |
@@ -334,3 +343,4 @@ Consequence: the first v5 port is **P4/P5 (candidate generation and priors)**, n
 - 2026-11-16 04:35 — Round 7 (prereg `0f31eb0`). Scaling diagnosis (no games): from the l6 to the pro budget, 9× iterations add only 1.5 plies of mean depth; iterations per second fall 8%; subtree reuse would carry 1.3% of the pro budget (not built). Pro-tier screen vs level 7 (100 seeds 99,000,000): exploration 0.3 −0.41, 0.25 +0.55, RAVE weight 0.5 +1.18 [−0.07, +2.45], interiorInitVisits 3 (equal time) +1.62 [+0.19, +3.03]. Its confirmation (99,100,000) read +0.79 [−0.80, +2.39]: not accepted. `v5.2-ultra` vs level 9, stopped at 22:00 after 11 complete seeds: −4.14 [−8.55, +0.68]. Draft benchmark break-even levels: nano 2.84, lite 3.41, base 5.06, `v5.2-l6` 6.07, pro 6.67; the Pentobi ladder reads back its own levels within 0.15.
 - 2026-11-16 07:50 — Round 7 Stage E (prereg `36fbda0`), vs three level-7 seats on 100 seeds 99,300,000. IIV3-ET −0.54 [−2.21, +1.07], first place −4.2 pp: not accepted. Pooled over 300 seeds (descriptive) +0.62 [−0.29, +1.49]. IIV3 + RAVE weight 0.5 at equal time (cost 1.022, `iterationScale` 219.633): −0.17 [−1.64, +1.32], does not clear. No pro candidate.
 - 2026-11-16 10:20 — Paul names the round-6 tier configs the **v5.2** models: `v5.2-nano`, `v5.2-lite`, `v5.2` (base tier; `engine-rs/configs/v5.2.json`, renamed from `v5.2-base.json`), `v5.2-pro`, `v5.2-ultra`; `v5.2-l6` stays a reference. The benchmark is accepted as designed (`docs/BENCHMARK.md`, runner `engine-rs/scripts/bench.sh`, read-out `v53_report.py --bench`, no longer a draft); regenerated from the raw logs, identical to round 7's numbers. Next accepted improvement: v5.3.
+- 2026-11-16 18:40 — Round 8 (prereg `a041060`/`7797cdb`, amendment `0b1087b`; engine `f2c01ee`, binary `tmp/v55/bin-w1`). **N21:** the speed fall-off is −9% (pro) / −21% (ultra) on the same positions, and memory is 3.5–4.0 KB per iteration. The one exact change tried (S8a) gave no speed, so there is no speed candidate. **N22, the interior cap W1A (4 + √N children by prior at interior nodes), at equal time:** accepted at the base tier (+0.71 [+0.22, +1.19], first place +2.69 pp) and at turbo (+0.71 [+0.13, +1.26], +2.00 pp) on 800 fresh seeds each. At pro it did not clear (+0.18 [−1.34, +1.63], 100 seeds), and nano, lite and ultra were not played. Saved `engine-rs/configs/v5.3-cand.json` (`iterationScale` 3.776) and `v5.3-cand-turbo.json` (25.091), a v5.3 candidate for Paul to name. Benchmark: base 5.16 [5.08, 5.24] (v5.2 5.06), turbo 6.15 [6.08, 6.23] (v5.2 6.07). The l6 reference is renamed turbo (Paul). Played: 100,000,000–100,000,007; 100,100,000, 100,200,000, 100,400,000, 100,500,000 (800 each); 100,300,000 (100); 100,740,000, 100,760,000, 100,850,000 (200); 100,870,000 (100). Unplayed: 100,600,000, 100,960,000.

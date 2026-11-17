@@ -139,10 +139,12 @@ def bench(root, extra=()):
         add(tier_name(tier), k, f"{root}/S2/{tier}-L{k}.jsonl")
         for lv in range(1, 10):
             add(tier_name(tier), lv, f"{root}/S3/{tier}-vs-L{lv}.jsonl")
-    blokee.add("v5.2-l6")
-    add("v5.2-l6", 6, "tmp/v52/S1/pooled/lone-TM.jsonl")
+    # turbo (Pentobi level 6): named by Paul 2026-11-16; its config was `v5.2-l6.json` and its raw logs keep
+    # the old names (`S3/l6-vs-L<k>.jsonl`, round 5's `lone-TM.jsonl`).
+    blokee.add("v5.2-turbo")
+    add("v5.2-turbo", 6, "tmp/v52/S1/pooled/lone-TM.jsonl")
     for lv in range(1, 10):
-        add("v5.2-l6", lv, f"{root}/S3/l6-vs-L{lv}.jsonl")
+        add("v5.2-turbo", lv, f"{root}/S3/l6-vs-L{lv}.jsonl")
     for k in range(1, 9):
         add(f"Pentobi L{k + 1}", k, f"{root}/S3/ladder-L{k + 1}-vs-L{k}.jsonl")
         add(f"Pentobi L{k}", k + 1, f"{root}/S3/ladder-L{k}-vs-L{k + 1}.jsonl")

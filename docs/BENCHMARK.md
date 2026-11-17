@@ -15,6 +15,7 @@ Accepted by Paul on 2026-11-16. It was designed in rounds 6–7 of the v5 line (
   | nano | 1 | 1.7 |
   | lite | 3 | 2.5 |
   | base | 5 | 10.6 |
+  | turbo | 6 | 72 |
   | pro | 7 | 903 |
   | ultra | 9 | 17,069 |
 
@@ -29,7 +30,7 @@ Play at least the two levels that bracket the engine's expected score. When the 
 | nano | 1, 2, 3, 4 |
 | lite | 2, 3, 4 |
 | base (`v5.2`) | 4, 5, 6 |
-| `v5.2-l6` (level-6 time reference, not a tier) | 5, 6, 7 |
+| turbo (Pentobi level 6; `v5.2-turbo`) | 5, 6, 7 |
 | pro | 6, 7 |
 | ultra | 9 only (8 not played) |
 
@@ -54,14 +55,16 @@ The Pentobi ladder (lone level k against three of level k ± 1, `blokee-pentobi 
 
 ## Current table
 
-Regenerated on 2026-11-16 from the raw logs (`tmp/v53/S2/`, `tmp/v53/S3/`, `tmp/v52/S1/pooled/lone-TM.jsonl`) with `python3 engine-rs/scripts/v53_report.py --bench tmp/v53`. The output is identical to round 7's draft read-out except for the name `v5.2` (the base tier, formerly `v5.2-base`).
+Turbo (Pentobi level 6) was the "l6 reference" until Paul named it on 2026-11-16; its config was `v5.2-l6.json`, and its raw logs keep the old file names (`tmp/v53/S3/l6-vs-L*.jsonl`).
+
+Regenerated on 2026-11-16 from the raw logs (`tmp/v53/S2/`, `tmp/v53/S3/`, `tmp/v52/S1/pooled/lone-TM.jsonl`) with `python3 engine-rs/scripts/v53_report.py --bench tmp/v53`. The output is identical to round 7's draft read-out except for the names `v5.2` (the base tier, formerly `v5.2-base`) and `v5.2-turbo` (formerly `v5.2-l6`).
 
 | Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
 |---|---:|---|---:|
 | `v5.2-nano` | 1.9 | L1 +6.30; L2 +2.19; L3 −0.41 [−1.06, +0.23]; L4 −4.64 | **2.84 [2.65, 3.04]** |
 | `v5.2-lite` | 2.8 | L2 +5.22; L3 +1.61 [+1.11, +2.14]; L4 −2.33 | **3.41 [3.31, 3.52]** |
 | `v5.2` | 13.0 | L4 +3.89; L5 +0.33 [−0.20, +0.85]; L6 −4.89 | **5.06 [4.95, 5.15]** |
-| `v5.2-l6` (reference) | 77.5 | L5 +5.02; L6 +0.31 [−0.10, +0.74]; L7 −4.28 | **6.07 [5.98, 6.16]** |
+| `v5.2-turbo` (turbo, Pentobi level 6) | 77.5 | L5 +5.02; L6 +0.31 [−0.10, +0.74]; L7 −4.28 | **6.07 [5.98, 6.16]** |
 | `v5.2-pro` | 773.0 | L6 +4.10; L7 −2.02 [−3.14, −0.84] | **6.67 [6.53, 6.83]** |
 | `v5.2-ultra` | 15,288 | L9 −4.14 [−8.55, +0.68] (11 seeds) | not bracketed (below level 9) |
 | Pentobi L2 | | L1 +3.68; L3 −3.73 | 1.99 [1.89, 2.09] |
@@ -69,6 +72,15 @@ Regenerated on 2026-11-16 from the raw logs (`tmp/v53/S2/`, `tmp/v53/S3/`, `tmp/
 | Pentobi L4 | | L3 +5.36; L5 −4.87 | 4.05 [3.97, 4.13] |
 | Pentobi L5 | | L4 +5.19; L6 −6.87 | 4.86 [4.77, 4.95] |
 | Pentobi L6 | | L5 +7.69; L7 −7.05 | 6.04 [5.95, 6.15] |
+
+Round-8 candidates (not named; `v5.3-cand*.json`, interior cap W1A; their own-level anchor is the 800-seed confirmation block, the others are 200 seeds, 100 at level 7; `tmp/v55/bench.md`):
+
+| Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
+|---|---:|---|---:|
+| `v5.3-cand` (base) | 21.6* | L4 +4.95; L5 +0.77 [+0.38, +1.17]; L6 −4.08 | **5.16 [5.08, 5.24]** |
+| `v5.3-cand-turbo` (turbo) | 176.3* | L5 +6.48; L6 +0.83 [+0.39, +1.25]; L7 −4.63 | **6.15 [6.08, 6.23]** |
+
+\* In-match times under heavier load (18 game threads on 14 cores) than the v5.2 rows; by clean single-thread cost the candidates are time-matched to their v5.2 tier.
 
 Pentobi's own levels read back within 0.15 of their number, which checks that the method is consistent. The full intervals per anchor are in `tmp/v53/S3/bench.md`.
 

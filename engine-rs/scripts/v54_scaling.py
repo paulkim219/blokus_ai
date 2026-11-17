@@ -33,7 +33,7 @@ for n in ("l6", "l6x4", "pro"):
                 reuse[n] = (cells[7], cells[6])
 print("| Budget (iterationScale) | iterations (mean) | ms/move (1 thread, under ultra load) | iterations/s | nodes | depth mean / max | chosen move's visit share | its top reply's share | best move changes, half → full budget | reuse at next own turn (share of budget; visits) |")
 print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
-for n, half, label in (("l6", "l6half", "v5.2-l6 (23.222)"), ("l6x4", "l6x4half", "4× l6 (92.888)"), ("pro", "prohalf", "v5.2-pro (224.487)")):
+for n, half, label in (("l6", "l6half", "v5.2-turbo (23.222)"), ("l6x4", "l6x4half", "4× l6 (92.888)"), ("pro", "prohalf", "v5.2-pro (224.487)")):
     s = shape[n]; c = cost[n]
     ips = mean(c["it"]) / (mean(c["ms"]) / 1000)
     ru = reuse.get(n, ("—", "—"))

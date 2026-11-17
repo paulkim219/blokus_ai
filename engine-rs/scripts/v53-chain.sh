@@ -59,7 +59,7 @@ PY
 python3 engine-rs/scripts/v53_report.py --cal $C > $C/cal.md 2>&1
 # base tier saved as plain v5.2 (named 2026-11-16 by Paul; it was v5.2-base.json when this ran)
 for t in nano lite base pro ultra; do n=v5.2-$t; [ $t = base ] && n=v5.2; cp $R/configs/v5.2-$t.json engine-rs/configs/$n.json; done
-cp tmp/v52/S1/configs/TM.json engine-rs/configs/v5.2-l6.json
+cp tmp/v52/S1/configs/TM.json engine-rs/configs/v5.2-turbo.json  # was v5.2-l6.json when this ran; turbo named 2026-11-16
 echo "R6 CAL DONE $(date '+%F %T')"
 # ---------------- Stage 2
 G=engine-rs/configs
