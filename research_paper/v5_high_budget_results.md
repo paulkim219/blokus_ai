@@ -259,6 +259,27 @@ Descriptive:
 - **Read-out:** `screen.md` from the driver (`v51b_report.py --roll-screen`). The rule is applied by hand from its table: paired lower bound > 0 and first-place upper bound ≥ 0.
 - **Noted after launch:** the chain was started from a zsh background job, so it and its Pentobi children run at nice 5 (zsh `BG_NICE`). Both arms run so, and nothing else competes beyond the usual ~1.5 background cores, so pairing and equal time are unaffected. The ultra runs below are launched through bash at nice 0.
 
+## Screen P2 — results (measured; `tmp/hb/p2/screen.md`; played 2026-11-18 13:38:13–17:58:14 CST)
+
+All six chunk-arms are complete: 1,200 games per arm, all 300 seeds 103,100,000–103,100,299 paired. W1D-AD's games differ from the control's in 1,197 of 1,200. The Mac stayed on AC throughout; no sleep, pause or replay.
+
+| Arm | Seeds | Advantage vs L7 [95% CI] | First place (any) | Paired Δ vs control [95% CI] | Paired Δ first place, pp [95% CI] | ms/move 3+ in-match |
+|---|---:|---:|---:|---:|---:|---:|
+| control `v5.3-pro` (W1D-ET, 239.172) | 300 | −1.22 [−1.95, −0.44] | 21.7% | — | — | 1137.5 |
+| W1D-AD (adaptive width, 239.172) | 300 | −1.36 [−2.03, −0.69] | 19.7% | **−0.14 [−0.96, +0.66]** | −2.00 [−4.92, +0.92] | 1102.0 |
+
+**Decision (preregistered rule): W1D-AD does not clear.** The paired lower bound is −0.96, not above 0. No confirmation is preregistered; block 103,300,000 stays unused. **This is a null:** the interval allows anything from about −1 to +0.7 points.
+
+Descriptive:
+- Per chunk, paired Δ advantage: −0.71 / +0.29 / −0.00; first place −1.50 / −1.00 / −3.50 pp. No chunk is clearly positive.
+- First place with ties split: 18.6% → 17.0%.
+- In-match time W1D-AD / control = 1102.0 / 1137.5 = 0.969, the same direction as its clean cost (0.971). The arm was, if anything, slightly under time.
+- Score relative to the game mean by turn-order position (lone / next / opposite / previous): control −0.91 / +2.73 / −0.56 / −1.25; W1D-AD −1.02 / +2.73 / −0.99 / −0.72.
+- The control's −1.22 here is lower than its round-10 −0.66 on other seeds; both intervals overlap.
+- The P2 chain ran at nice 5 (zsh background job, see the setup note); both arms alike.
+
+**Reading (mine):** the §2 probe found that shifting window width toward diffuse nodes cuts L7-move misses by about an eighth at equal mean width, and the tree diagnostics showed the arm changes which replies are searched (best move differs in 12/50 positions) without changing depth. In games, that did not buy strength at pro: the point estimate is slightly negative and first place leans down. Either L7's move is a poor proxy for the reply the search needs, or the narrower window at concentrated nodes costs as much as the wider diffuse window gains. I would not pursue adaptive width further at pro without a different signal than prior concentration.
+
 ## Screen P1: reply-aware fit feature
 
 Not preregistered: the §1 gate did not pass. Block 103,000,000 stays unused.
