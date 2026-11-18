@@ -250,6 +250,14 @@ Descriptive:
   - Descriptive only: mean tree depth and the share of simulations that reach the mover's next turn (`v55_speed`/`tree_shape`), and W1D-AD vs W1D-ET same-best on the probe positions.
 - **Cost estimate:** round 9's pro block took 6.2 h for 3 arms × 300 seeds, about 2.1 h per arm. So about **4.2 Mac hours** with two arms, or **6.2 h** with three.
 
+*Setup as run (recorded 2026-11-18 13:45 CST, before the first P2 game; no rule changed):*
+- **Directory** `tmp/hb/p2/`. `configs/base.json` = byte copy of `tmp/v57/pro/configs/W1D-ET.json` (SHA-256 `81b25794…7a9`). `cmp` shows it is byte-identical to `v6-native-engine-e4:engine-rs/configs/v5.3-pro.json`, so **the control is `v5.3-pro`**. `configs/W1D-AD.json` = byte copy of `tmp/hb/configs/pro-W1D-AD.json` (`4f6e6d03…5a6a2`). By `jq -S` diff it differs from the control only by `interiorCap.adaptive` {split 11.7338, diffuse 1.25, concentrated 0.75}; both play `iterationScale` 239.172 (cost 0.971 is inside the band).
+- `PLAYED` = `W1D-AD`; `COSTS` = {W1D-AD: 0.971}; `manifest.json` states both arms.
+- **Binary** `tmp/hb/bin2` (engine `47647a0`; `blokee-pentobi` SHA-256 `02fa5c14…c5c1`, as in its `PROVENANCE.txt`). `engine-rs/src` and `engine-rs/examples` are unchanged from `47647a0` to `282d52d`.
+- **Driver** `engine-rs/scripts/hb-p2-chain.sh` as committed, run from this worktree under `caffeinate -i -s -m -w <pid>`, `BIN=tmp/hb/bin2`, 12 game threads. Chunk k (0–2) = 100 seeds from 103,100,000 + 100k; arm order base, W1D-AD in chunk 0, then rotated.
+- **Machine at start:** on AC (100%), no other match or probe running. The Docker VM and macOS storage processes use about 1.5 cores, as in earlier rounds. Nothing else CPU-heavy runs until P2 ends; round 11's preregistration is written meanwhile (text only).
+- **Read-out:** `screen.md` from the driver (`v51b_report.py --roll-screen`). The rule is applied by hand from its table: paired lower bound > 0 and first-place upper bound ≥ 0.
+
 ## Screen P1: reply-aware fit feature
 
 Not preregistered: the §1 gate did not pass. Block 103,000,000 stays unused.
