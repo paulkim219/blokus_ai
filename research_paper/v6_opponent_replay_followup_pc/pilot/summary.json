@@ -1,0 +1,364 @@
+{
+  "seed_blocks": 32,
+  "scheduled_decisions": 128,
+  "decisions_with_outside_candidates": 126,
+  "different_nominee_from_generic": {
+    "generic_repeat": 74,
+    "oracle": 78,
+    "history": 78,
+    "wrong_history": 73
+  },
+  "budgets": {
+    "32": {
+      "sampling_noise_base": {
+        "mean_paired_margin_gain": -0.10636393229166664,
+        "seed_bootstrap_95": [
+          -0.31319173177083337,
+          0.06945800781250032
+        ],
+        "changed_decisions": 50,
+        "changed_fraction": 0.390625,
+        "mean_gain_when_changed": -0.2722916666666666
+      },
+      "sampling_noise_own": {
+        "mean_paired_margin_gain": -0.1142985026041666,
+        "seed_bootstrap_95": [
+          -0.35119628906250017,
+          0.09460449218750001
+        ],
+        "changed_decisions": 57,
+        "changed_fraction": 0.4453125,
+        "mean_gain_when_changed": -0.25667032163742676
+      },
+      "sampling_noise_pool": {
+        "mean_paired_margin_gain": -0.015096028645833235,
+        "seed_bootstrap_95": [
+          -0.2543131510416664,
+          0.19384765625000008
+        ],
+        "changed_decisions": 57,
+        "changed_fraction": 0.4453125,
+        "mean_gain_when_changed": -0.03389985380116937
+      },
+      "exact_information_base": {
+        "mean_paired_margin_gain": 0.06420898437500003,
+        "seed_bootstrap_95": [
+          -0.09781901041666673,
+          0.21606445312500022
+        ],
+        "changed_decisions": 53,
+        "changed_fraction": 0.4140625,
+        "mean_gain_when_changed": 0.1550707547169812
+      },
+      "exact_information_own": {
+        "mean_paired_margin_gain": 0.07303873697916677,
+        "seed_bootstrap_95": [
+          -0.10978190104166666,
+          0.2529703776041667
+        ],
+        "changed_decisions": 62,
+        "changed_fraction": 0.484375,
+        "mean_gain_when_changed": 0.15078965053763463
+      },
+      "exact_information_pool": {
+        "mean_paired_margin_gain": 0.07108561197916669,
+        "seed_bootstrap_95": [
+          -0.16133626302083343,
+          0.2842610677083336
+        ],
+        "changed_decisions": 64,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 0.1421712239583334
+      },
+      "observable_history_base": {
+        "mean_paired_margin_gain": 0.06172688802083335,
+        "seed_bootstrap_95": [
+          -0.09391276041666662,
+          0.2048339843749999
+        ],
+        "changed_decisions": 54,
+        "changed_fraction": 0.421875,
+        "mean_gain_when_changed": 0.14631558641975312
+      },
+      "observable_history_own": {
+        "mean_paired_margin_gain": 0.0714111328125001,
+        "seed_bootstrap_95": [
+          -0.10754394531249992,
+          0.24169921875
+        ],
+        "changed_decisions": 62,
+        "changed_fraction": 0.484375,
+        "mean_gain_when_changed": 0.14742943548387116
+      },
+      "observable_history_pool": {
+        "mean_paired_margin_gain": 0.07584635416666667,
+        "seed_bootstrap_95": [
+          -0.15848795572916713,
+          0.28564453125000033
+        ],
+        "changed_decisions": 63,
+        "changed_fraction": 0.4921875,
+        "mean_gain_when_changed": 0.15410052910052913
+      },
+      "correct_vs_wrong_history_base": {
+        "mean_paired_margin_gain": 0.14383951822916674,
+        "seed_bootstrap_95": [
+          0.01232910156250016,
+          0.28080240885416663
+        ],
+        "changed_decisions": 53,
+        "changed_fraction": 0.4140625,
+        "mean_gain_when_changed": 0.3473860062893083
+      },
+      "correct_vs_wrong_history_own": {
+        "mean_paired_margin_gain": 0.1747233072916668,
+        "seed_bootstrap_95": [
+          0.01977539062500009,
+          0.3388264973958335
+        ],
+        "changed_decisions": 60,
+        "changed_fraction": 0.46875,
+        "mean_gain_when_changed": 0.3727430555555558
+      },
+      "correct_vs_wrong_history_pool": {
+        "mean_paired_margin_gain": 0.20796712239583334,
+        "seed_bootstrap_95": [
+          0.007568359374999809,
+          0.39432779947916685
+        ],
+        "changed_decisions": 61,
+        "changed_fraction": 0.4765625,
+        "mean_gain_when_changed": 0.4363900273224044
+      },
+      "generic_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.002156575520833304,
+        "seed_bootstrap_95": [
+          -0.06290690104166653,
+          0.08312988281250003
+        ],
+        "changed_decisions": 11,
+        "changed_fraction": 0.0859375,
+        "mean_gain_when_changed": 0.025094696969696628
+      },
+      "oracle_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.010986328125000057,
+        "seed_bootstrap_95": [
+          -0.041219075520833176,
+          0.06404622395833343
+        ],
+        "changed_decisions": 11,
+        "changed_fraction": 0.0859375,
+        "mean_gain_when_changed": 0.12784090909090975
+      },
+      "oracle_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.058797200520833356,
+        "seed_bootstrap_95": [
+          -0.026245117187500066,
+          0.1798095703125002
+        ],
+        "changed_decisions": 11,
+        "changed_fraction": 0.0859375,
+        "mean_gain_when_changed": 0.6841856060606064
+      },
+      "history_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.011840820312500057,
+        "seed_bootstrap_95": [
+          -0.040608723958333245,
+          0.0650227864583334
+        ],
+        "changed_decisions": 12,
+        "changed_fraction": 0.09375,
+        "mean_gain_when_changed": 0.12630208333333395
+      },
+      "history_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.0524088541666667,
+        "seed_bootstrap_95": [
+          -0.031778971354166616,
+          0.1724853515625002
+        ],
+        "changed_decisions": 11,
+        "changed_fraction": 0.0859375,
+        "mean_gain_when_changed": 0.6098484848484852
+      }
+    },
+    "128": {
+      "sampling_noise_base": {
+        "mean_paired_margin_gain": -0.008707682291666656,
+        "seed_bootstrap_95": [
+          -0.105224609375,
+          0.0791829427083334
+        ],
+        "changed_decisions": 26,
+        "changed_fraction": 0.203125,
+        "mean_gain_when_changed": -0.04286858974358969
+      },
+      "sampling_noise_own": {
+        "mean_paired_margin_gain": -0.00329589843749995,
+        "seed_bootstrap_95": [
+          -0.13907877604166616,
+          0.12642415364583334
+        ],
+        "changed_decisions": 32,
+        "changed_fraction": 0.25,
+        "mean_gain_when_changed": -0.013183593749999814
+      },
+      "sampling_noise_pool": {
+        "mean_paired_margin_gain": 0.06689453125000001,
+        "seed_bootstrap_95": [
+          -0.06864420572916653,
+          0.21008300781249986
+        ],
+        "changed_decisions": 34,
+        "changed_fraction": 0.265625,
+        "mean_gain_when_changed": 0.2518382352941177
+      },
+      "exact_information_base": {
+        "mean_paired_margin_gain": 0.06237792968749991,
+        "seed_bootstrap_95": [
+          -0.0653483072916669,
+          0.16890462239583326
+        ],
+        "changed_decisions": 38,
+        "changed_fraction": 0.296875,
+        "mean_gain_when_changed": 0.21011513157894707
+      },
+      "exact_information_own": {
+        "mean_paired_margin_gain": 0.07576497395833326,
+        "seed_bootstrap_95": [
+          -0.06424967447916678,
+          0.19779459635416666
+        ],
+        "changed_decisions": 44,
+        "changed_fraction": 0.34375,
+        "mean_gain_when_changed": 0.22040719696969674
+      },
+      "exact_information_pool": {
+        "mean_paired_margin_gain": 0.1155192057291666,
+        "seed_bootstrap_95": [
+          -0.021362304687500177,
+          0.2587483723958335
+        ],
+        "changed_decisions": 48,
+        "changed_fraction": 0.375,
+        "mean_gain_when_changed": 0.30805121527777757
+      },
+      "observable_history_base": {
+        "mean_paired_margin_gain": 0.04447428385416657,
+        "seed_bootstrap_95": [
+          -0.0783284505208335,
+          0.14713541666666677
+        ],
+        "changed_decisions": 37,
+        "changed_fraction": 0.2890625,
+        "mean_gain_when_changed": 0.1538569819819816
+      },
+      "observable_history_own": {
+        "mean_paired_margin_gain": 0.06347656249999992,
+        "seed_bootstrap_95": [
+          -0.07845052083333356,
+          0.18530273437499992
+        ],
+        "changed_decisions": 43,
+        "changed_fraction": 0.3359375,
+        "mean_gain_when_changed": 0.18895348837209278
+      },
+      "observable_history_pool": {
+        "mean_paired_margin_gain": 0.10323079427083326,
+        "seed_bootstrap_95": [
+          -0.036295572916666984,
+          0.24906412760416655
+        ],
+        "changed_decisions": 45,
+        "changed_fraction": 0.3515625,
+        "mean_gain_when_changed": 0.29363425925925907
+      },
+      "correct_vs_wrong_history_base": {
+        "mean_paired_margin_gain": 0.14538574218749986,
+        "seed_bootstrap_95": [
+          0.011067708333333313,
+          0.2875162760416667
+        ],
+        "changed_decisions": 45,
+        "changed_fraction": 0.3515625,
+        "mean_gain_when_changed": 0.4135416666666663
+      },
+      "correct_vs_wrong_history_own": {
+        "mean_paired_margin_gain": 0.1570231119791665,
+        "seed_bootstrap_95": [
+          0.023681640624999632,
+          0.3085530598958329
+        ],
+        "changed_decisions": 53,
+        "changed_fraction": 0.4140625,
+        "mean_gain_when_changed": 0.3792256289308172
+      },
+      "correct_vs_wrong_history_pool": {
+        "mean_paired_margin_gain": 0.16849772135416652,
+        "seed_bootstrap_95": [
+          0.03828938802083324,
+          0.3198649088541664
+        ],
+        "changed_decisions": 56,
+        "changed_fraction": 0.4375,
+        "mean_gain_when_changed": 0.38513764880952345
+      },
+      "generic_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.020914713541666664,
+        "seed_bootstrap_95": [
+          -0.04923502604166659,
+          0.10811360677083325
+        ],
+        "changed_decisions": 10,
+        "changed_fraction": 0.078125,
+        "mean_gain_when_changed": 0.26770833333333327
+      },
+      "oracle_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.03430175781250001,
+        "seed_bootstrap_95": [
+          -0.01407877604166663,
+          0.09269205729166662
+        ],
+        "changed_decisions": 8,
+        "changed_fraction": 0.0625,
+        "mean_gain_when_changed": 0.5488281250000001
+      },
+      "oracle_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": -0.025716145833333315,
+        "seed_bootstrap_95": [
+          -0.06498209635416666,
+          -0.0022379557291666713
+        ],
+        "changed_decisions": 5,
+        "changed_fraction": 0.0390625,
+        "mean_gain_when_changed": -0.6583333333333329
+      },
+      "history_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.039916992187500014,
+        "seed_bootstrap_95": [
+          -0.008666992187500023,
+          0.097412109375
+        ],
+        "changed_decisions": 10,
+        "changed_fraction": 0.078125,
+        "mean_gain_when_changed": 0.5109375000000002
+      },
+      "history_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": -0.02303059895833331,
+        "seed_bootstrap_95": [
+          -0.0635579427083332,
+          0.0015055338541666678
+        ],
+        "changed_decisions": 6,
+        "changed_fraction": 0.046875,
+        "mean_gain_when_changed": -0.491319444444444
+      }
+    }
+  },
+  "extra_exact_information_gain_high_minus_low_base": {
+    "mean_paired_margin_gain": -0.0018310546875001145,
+    "seed_bootstrap_95": [
+      -0.17297363281250017,
+      0.1952311197916668
+    ]
+  }
+}

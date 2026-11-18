@@ -1,0 +1,18 @@
+{
+  "protocol": 2,
+  "commit": "ce954e9e53e1a53fdc239beb3c5bb600112d29b8",
+  "binary_sha256": "9fc5aa6aa8edafc2abcdc305d26289a66e4b467af57f02784fe4c8c8f65acf2e",
+  "config_sha256": "0514d2331c01b9994de54759e2e4992b682049d4e3f73d9a5e388c0443a02a86",
+  "table_sha256": "0570f92884f41d44cac76a8cd6d602902d44b22baa36b7c5c6c1c3c744e96979",
+  "smoke": true,
+  "homogeneous": true,
+  "seed_base": 146990500,
+  "seeds": 1,
+  "candidates": 2,
+  "planning": 2,
+  "evaluation": 2,
+  "root_budget": 1,
+  "low_planning": 1,
+  "nomination_samples": 1,
+  "max_outside_candidates": 8
+}

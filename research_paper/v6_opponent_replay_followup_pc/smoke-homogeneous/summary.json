@@ -1,0 +1,259 @@
+{
+  "seed_blocks": 1,
+  "scheduled_decisions": 4,
+  "decisions_with_outside_candidates": 4,
+  "different_nominee_from_generic": {
+    "generic_repeat": 2,
+    "oracle": 0,
+    "history": 0,
+    "wrong_history": 0
+  },
+  "budgets": {
+    "1": {
+      "sampling_noise_base": {
+        "mean_paired_margin_gain": 2.2499999999999996,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 4.499999999999999
+      },
+      "sampling_noise_own": {
+        "mean_paired_margin_gain": 2.2499999999999996,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 4.499999999999999
+      },
+      "sampling_noise_pool": {
+        "mean_paired_margin_gain": 2.041666666666666,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 4.083333333333332
+      },
+      "exact_information_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "exact_information_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "exact_information_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "generic_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "oracle_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "oracle_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "history_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "history_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      }
+    },
+    "2": {
+      "sampling_noise_base": {
+        "mean_paired_margin_gain": 2.2499999999999996,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 4.499999999999999
+      },
+      "sampling_noise_own": {
+        "mean_paired_margin_gain": 2.083333333333333,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 4.166666666666666
+      },
+      "sampling_noise_pool": {
+        "mean_paired_margin_gain": 0.8333333333333333,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 2,
+        "changed_fraction": 0.5,
+        "mean_gain_when_changed": 1.6666666666666665
+      },
+      "exact_information_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "exact_information_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "exact_information_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "observable_history_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_base": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_own": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "correct_vs_wrong_history_pool": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "generic_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.16666666666666652,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 1,
+        "changed_fraction": 0.25,
+        "mean_gain_when_changed": 0.6666666666666661
+      },
+      "oracle_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.16666666666666652,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 1,
+        "changed_fraction": 0.25,
+        "mean_gain_when_changed": 0.6666666666666661
+      },
+      "oracle_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      },
+      "history_nomination_vs_base": {
+        "mean_paired_margin_gain": 0.16666666666666652,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 1,
+        "changed_fraction": 0.25,
+        "mean_gain_when_changed": 0.6666666666666661
+      },
+      "history_own_vs_generic_nomination": {
+        "mean_paired_margin_gain": 0.0,
+        "seed_bootstrap_95": null,
+        "changed_decisions": 0,
+        "changed_fraction": 0.0,
+        "mean_gain_when_changed": null
+      }
+    }
+  },
+  "extra_exact_information_gain_high_minus_low_base": {
+    "mean_paired_margin_gain": 0.0,
+    "seed_bootstrap_95": null
+  }
+}
