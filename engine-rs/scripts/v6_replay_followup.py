@@ -109,3 +109,29 @@ def summarize(blocks, low, high):
     summary["extra_exact_information_gain_high_minus_low_base"] = {
         k: interaction[k] for k in ("mean_paired_margin_gain", "seed_bootstrap_95")}
     return summary
+
+
+TRANSFER_POLICIES = {"l7-imitation", "next-seat-response", "edge-preservation"}
+
+
+def validate_transfer(rows, seed, homogeneous):
+    validate(rows, seed, homogeneous)
+    for row in rows:
+        hero = row["hero"]
+        policies = row["policies"]
+        if (len(policies) != 4 or policies[hero] != "population-prior"
+                or any(p not in TRANSFER_POLICIES for s, p in enumerate(policies) if s != hero)
+                or not math.isfinite(row["history_log_likelihood_gain_sum"])
+                or not 0 <= row["observed_actions_after_warmup"] <= len(row["prefix"])):
+            raise ValueError(f"invalid held-out transfer evidence for seed {seed}")
+
+
+def transfer_readout(blocks, result, high):
+    rows = [r for block in blocks for r in block]
+    actions = sum(r["observed_actions_after_warmup"] for r in rows)
+    gain = sum(r["history_log_likelihood_gain_sum"] for r in rows)
+    return {"primary_comparison": "observable_history_own",
+            "primary_planning_samples": high,
+            "primary": result["budgets"][str(high)]["observable_history_own"],
+            "scored_prefix_actions": actions,
+            "history_prediction_gain_nats_per_action": gain / actions if actions else None}

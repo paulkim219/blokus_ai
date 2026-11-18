@@ -61,3 +61,24 @@ Use the original pilot’s v5.2-Pro candidate generator and league to isolate wh
 - Treat the 32 blocks as a development screen. Compare margins and confidence intervals as well as changed decisions. A promising comparison needs fresh seeds and opponents before tuning a playing tier. Full-game Pro or Ultra strength, GPU training and wall-clock parity are separate experiments.
 
 The [architecture proposal](../research_paper/v6_opponent_inference_plan.md#after-the-first-pc-pilot) describes the subsequent model and match experiments.
+
+## Held-out opponent transfer screen
+
+The first follow-up’s Bayesian and exact-policy planners chose the same move on 125 of 128 roots when each could nominate its own extra move. The estimated gain from using history over generic planning was +0.063 points per scheduled decision (95% interval −0.078 to +0.185). This screen asks whether the **frozen** history observer improves score against unfamiliar policies. [First follow-up data](https://github.com/paulkim219/blokus_ai/tree/275da47521ab241ca1b842b4f52a7134bac55b2d/research_paper/v6_opponent_replay_followup_pc)
+
+Run in the existing WSL **discovery worktree**:
+
+```bash
+git fetch origin codex/v6-opponent-replay
+git merge --ff-only FETCH_HEAD
+python3 engine-rs/scripts/v6_opponent_replay.py --transfer --smoke
+python3 engine-rs/scripts/v6_opponent_replay.py --transfer --workers 2
+```
+
+The CPU runner writes each complete four-seat block atomically and resumes it using the same command. Keep its worktree at the fetched revision for the duration. The primary result appears in `tmp/v6-replay-transfer/screen/summary.json` under `primary`; save the entire screen directory. The previous screen has a separate output directory. For timing, use a separate block with `--transfer --seeds 1 --seed-base 148990200 --workers 1 --out tmp/v6-transfer-timing`.
+
+**Frozen protocol.** Draw each opponent independently and uniformly from three held-out stochastic policies, then rotate the lineup with the hero. One policy uses the frozen N11 L7 imitation fit. Another adds +1.5 to next-seat corner coverage and +1.0 to local attachment coverage in the N11 pooled fine-band fit. The third adds +0.8 to board-edge cells and −1.0 to own corners lost in the N11 pooled fit. These are simulator policies built from fitted move distributions. Testing the actual Pentobi executable requires a later match. Public prefixes and held-out scoring use the new policies. The generic planner and Bayesian observer continue to model only the original denial, frontier and center profiles. The oracle alone plans with the true generators. Both non-oracle planners can choose only their native shortlist plus their own nominee for the primary comparison.
+
+Use 128 fresh seed blocks starting at 148,000,000, four rotations, one scheduled decision per rotation, 128 planning continuations and 64 fresh scoring continuations per candidate. Keep forced and unavailable decisions. **Primary endpoint:** paired final score margin of correct observable history minus generic planning, each with its own nominee, averaged over all 512 scheduled decisions. A positive lower 95% seed-block bootstrap bound justifies testing the frozen observer against actual engines in full games at equal wall time. An interval spanning zero leaves the strength gain unresolved. Report the upper bound as well. Wrong-seat, oracle, lower-budget, and pooled-shortlist comparisons are secondary.
+
+To distinguish prediction from decision quality, `history_prediction_gain_nats_per_action` is the mean log probability gain over the generic predictor for the observed opponent moves. Each prediction uses only preceding public actions, after three earlier non-forced choices by that seat. Positive means history predicted moves better. A positive predictive gain alongside an inconclusive score gain suggests investigating which replies can change a move’s payoff. An oracle gain with little predictive gain instead motivates improving the observer.

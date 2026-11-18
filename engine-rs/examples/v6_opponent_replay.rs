@@ -16,6 +16,7 @@ mod followup;
 
 const HERO: usize = 0;
 const PROFILES: [&str; 4] = ["population-prior", "denial", "frontier", "center"];
+const TRANSFER_PROFILES: [&str; 3] = ["l7-imitation", "next-seat-response", "edge-preservation"];
 const CONFIG: &str = "engine-rs/configs/v5.2-pro.json";
 
 /// Derive independent, deterministic streams without depending on thread scheduling.
@@ -66,6 +67,33 @@ impl League {
             moves,
             models,
         }
+    }
+
+    fn add_transfer_profiles(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Embed the frozen fits so the executable hash also identifies their weights.
+        let specs: [(&str, &[(&str, f64)]); 3] = [
+            (include_str!("../../ml/n11-prior-weights-L7.json"), &[]),
+            (
+                include_str!("../../ml/n11-prior-weights-pooled-fine.json"),
+                &[("opp_cover_next", 1.5), ("local_attach", 1.0)],
+            ),
+            (
+                include_str!("../../ml/n11-prior-weights-pooled.json"),
+                &[("border", 0.8), ("own_lost", -1.0)],
+            ),
+        ];
+        for (fit, adjustments) in specs {
+            let mut model: PriorModel = serde_json::from_str(fit)?;
+            model.check()?;
+            for &(feature, delta) in adjustments {
+                let index = model.features.iter().position(|f| f == feature).unwrap();
+                for band in &mut model.bands {
+                    band.weights[index] += delta;
+                }
+            }
+            self.models.push(model);
+        }
+        Ok(())
     }
 
     fn choose(&mut self, state: &GameState, history: &[i32], profile: usize, uniform: f64) -> i32 {
@@ -139,6 +167,7 @@ struct Settings {
     evaluation: u32,
     budget: u32,
     homogeneous: bool,
+    transfer: bool,
 }
 
 fn make_root(
@@ -150,11 +179,18 @@ fn make_root(
 ) -> (GameState, Vec<i32>, [usize; 4], usize, u32, Vec<i32>) {
     let mut root = GameState::new(false);
     let mut prefix = Vec::new();
-    let actual = lineup(
+    let mut actual = lineup(
         &mut Rng::new(stream(block, 1, 0)),
         hero,
         settings.homogeneous,
     );
+    if settings.transfer {
+        for (seat, profile) in actual.iter_mut().enumerate() {
+            if seat != hero {
+                *profile += PROFILES.len() - 1;
+            }
+        }
+    }
     let turn_index = 8 + Rng::new(stream(block, 2, 0)).next_int(6);
     let seed = stream(block, 3, hero as u32);
     let mut rng = Rng::new(stream(seed, 4, 0));
@@ -227,9 +263,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .skip(1)
         .map(|s| s.parse::<u32>())
         .collect::<Result<Vec<_>, _>>()?;
-    let (args, followup_budgets) = match args.as_slice() {
+    let (args, transfer) = match args.as_slice() {
+        [base @ .., 1] if base.len() == 8 => (base, true),
+        rest => (rest, false),
+    };
+    let (args, followup_budgets) = match args {
         [base @ .., low, nominations] if base.len() == 6 => (base, Some((*low, *nominations))),
-        _ => (args.as_slice(), None),
+        _ => (args, None),
     };
     let [seed, k, planning, evaluation, budget, homogeneous] = args else {
         return Err(
@@ -245,7 +285,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         evaluation: *evaluation,
         budget: *budget,
         homogeneous: *homogeneous == 1,
+        transfer,
     };
+    if transfer && settings.homogeneous {
+        return Err("use the mixed table for held-out transfer".into());
+    }
     if let Some((low, nominations)) = followup_budgets {
         if low == 0 || low >= *planning || nominations == 0 {
             return Err("need 0 < low < high and positive nomination samples".into());
@@ -265,6 +309,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     prior.check()?;
     assert!(!prior.has_extras());
     let mut league = League::new(prior);
+    if transfer {
+        league.add_transfer_profiles()?;
+    }
     let table = RolloutPolicy::from_file(params.search.playout_table_path.as_ref().unwrap())?;
     let mut engine = Engine::new(params, Some(Arc::new(table)))?;
     let rows: Vec<_> = (0..4)

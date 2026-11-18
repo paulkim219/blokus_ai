@@ -10,10 +10,18 @@ const ARMS: [&str; 5] = [
 ];
 type Beliefs = [[f64; 3]; 4];
 
-fn infer(league: &mut League, prefix: &[i32], hero: usize, homogeneous: bool) -> Beliefs {
+fn infer(
+    league: &mut League,
+    prefix: &[i32],
+    hero: usize,
+    homogeneous: bool,
+) -> (Beliefs, f64, usize) {
+    let mut history_gain = 0.0;
+    let mut observed = 0;
+    let mut seen = [0; 4];
     let mut belief = [[1.0 / 3.0; 3]; 4];
     if homogeneous {
-        return [[1.0, 0.0, 0.0]; 4];
+        return ([[1.0, 0.0, 0.0]; 4], 0.0, 0);
     }
     let mut board = GameState::new(false);
     for (t, &mv) in prefix.iter().enumerate() {
@@ -25,6 +33,7 @@ fn infer(league: &mut League, prefix: &[i32], hero: usize, homogeneous: bool) ->
             let legal = &league.moves[..count];
             let chosen = legal.iter().position(|&m| m == mv).unwrap();
             let context = PriorContext::new(&board.board, seat, &recent_placements(&prefix[..t]));
+            let mut generic_likelihood = 0.0;
             for (k, weight) in belief[seat].iter_mut().enumerate() {
                 league.models[k + 1].score(&context, legal, &mut league.scores[..count]);
                 softmax_priors(
@@ -32,9 +41,19 @@ fn infer(league: &mut League, prefix: &[i32], hero: usize, homogeneous: bool) ->
                     1.0,
                     &mut league.probabilities[..count],
                 );
-                *weight *= league.probabilities[chosen].max(1e-300);
+                let likelihood = league.probabilities[chosen].max(1e-300);
+                generic_likelihood += likelihood / 3.0;
+                *weight *= likelihood;
             }
             let total: f64 = belief[seat].iter().sum();
+            // Both probabilities are for the observed action given only earlier public moves.
+            if count > 1 {
+                if seen[seat] >= 3 {
+                    history_gain += total.ln() - generic_likelihood.ln();
+                    observed += 1;
+                }
+                seen[seat] += 1;
+            }
             for w in &mut belief[seat] {
                 *w /= total;
             }
@@ -45,14 +64,15 @@ fn infer(league: &mut League, prefix: &[i32], hero: usize, homogeneous: bool) ->
             board.apply(mv);
         }
     }
-    belief
+    (belief, history_gain, observed)
 }
 
 struct Trial<'a> {
     root: &'a GameState,
     prefix: &'a [i32],
     seed: u32,
-    // Each arm has its own per-seat distribution. The oracle uses point masses.
+    actual: [usize; 4],
+    // The oracle alone plays continuations with the true per-seat generators.
     beliefs: [Beliefs; 5],
 }
 
@@ -87,6 +107,9 @@ impl Trial<'_> {
                 } else {
                     3
                 };
+            }
+            if ARMS[arm] == "oracle" {
+                profiles = self.actual;
             }
             let paired = stream(self.seed, channel + 1, rep);
             for (k, &mv) in moves.iter().enumerate() {
@@ -136,20 +159,19 @@ pub(super) fn replay(
     } else {
         [[1.0 / 3.0; 3]; 4]
     };
-    let mut oracle = generic;
-    let history = infer(league, &prefix, hero, settings.homogeneous);
+    let (history, prediction_gain, predictions) =
+        infer(league, &prefix, hero, settings.homogeneous);
     let mut wrong = history;
     for offset in 1..4 {
         let seat = (hero + offset) % 4;
-        oracle[seat] = [0.0; 3];
-        oracle[seat][actual[seat] - 1] = 1.0;
         wrong[seat] = history[(hero + 1 + offset % 3) % 4];
     }
     let trial = Trial {
         root: &root,
         prefix: &prefix,
         seed,
-        beliefs: [generic, generic, oracle, history, wrong],
+        actual,
+        beliefs: [generic, generic, generic, history, wrong],
     };
     let tail = tail_moves.as_slice();
     let mut nominees = Vec::new();
@@ -179,7 +201,19 @@ pub(super) fn replay(
     for v in &mut evaluation {
         *v /= f64::from(settings.evaluation);
     }
-    json!({"seed":block,"hero":hero,"own_turn":own_turn,"prefix":prefix,"policies":actual.map(|p| PROFILES[p]),
+    let labels = actual.map(|p| {
+        if p < PROFILES.len() {
+            PROFILES[p]
+        } else {
+            TRANSFER_PROFILES[p - PROFILES.len()]
+        }
+    });
+    let mut row = json!({"seed":block,"hero":hero,"own_turn":own_turn,"prefix":prefix,"policies":labels,
         "posterior":history,"base":base,"proposal_candidates":tail,"nominees":ARMS.into_iter().zip(nominees).collect::<std::collections::BTreeMap<_,_>>(),
-        "pool":pool,"planning":planning,"evaluation":evaluation})
+        "pool":pool,"planning":planning,"evaluation":evaluation});
+    if settings.transfer {
+        row["observed_actions_after_warmup"] = json!(predictions);
+        row["history_log_likelihood_gain_sum"] = json!(prediction_gain);
+    }
+    row
 }

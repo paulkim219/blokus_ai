@@ -31,6 +31,7 @@ def positive(text):
 
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--transfer", action="store_true", help="run the frozen observer against three held-out synthetic policies (128 seed blocks)")
     parser.add_argument("--followup", action="store_true", help="run the nested-budget, nomination and Bayesian history experiment")
     parser.add_argument("--low-planning", type=positive, help="follow-up low planning budget (default 32)")
     parser.add_argument("--nomination-samples", type=positive, help="follow-up samples per outside proposal (default 16)")
@@ -43,6 +44,14 @@ def arguments():
     parser.add_argument("--evaluation", type=positive, help="fresh paired scoring samples (default 64)")
     parser.add_argument("--out", type=Path, help="new or matching result directory, resumed by complete seed")
     args = parser.parse_args()
+    if args.transfer:
+        if args.homogeneous:
+            parser.error("--transfer uses held-out mixed tables; use --followup for homogeneous controls")
+        args.followup = True
+        if args.seed_base is None:
+            args.seed_base = 148_990_500 if args.smoke else 148_000_000
+        if args.seeds is None and not args.smoke:
+            args.seeds = 128
     if args.followup:
         args.low_planning = args.low_planning or (1 if args.smoke else 32)
         args.nomination_samples = args.nomination_samples or (1 if args.smoke else 16)
@@ -62,7 +71,11 @@ def arguments():
         parser.error("seed block would exceed the 32-bit range")
     mode = "smoke" if args.smoke else "pilot"
     label = mode + ("-homogeneous" if args.homogeneous else "")
-    args.out = (args.out or ROOT / "tmp" / ("v6-replay-followup" if args.followup else "v6-replay") / label).resolve()
+    family = "v6-replay-followup" if args.followup else "v6-replay"
+    if args.transfer:
+        family = "v6-replay-transfer"
+        label = "smoke" if args.smoke else "screen"
+    args.out = (args.out or ROOT / "tmp" / family / label).resolve()
     return args
 
 
@@ -128,6 +141,10 @@ def run(args, binary):
         check = followup.validate
         protocol.update(protocol=2, low_planning=args.low_planning, nomination_samples=args.nomination_samples,
                         max_outside_candidates=8)
+    if args.transfer:
+        extra.append(1)
+        protocol.update(protocol=3, league="n11-held-out-v1", primary="observable_history_own")
+        check = followup.validate_transfer
     manifest = args.out / "manifest.json"
     if manifest.exists():
         if json.loads(manifest.read_text()) != protocol:
@@ -159,6 +176,8 @@ def run(args, binary):
             print(f"{len(blocks)}/{args.seeds} blocks complete ({monotonic()-started:.1f}s)", flush=True)
     blocks.sort(key=lambda b: b[0]["seed"])
     result = followup.summarize(blocks, args.low_planning, args.planning) if args.followup else summarize(blocks)
+    if args.transfer:
+        result.update(followup.transfer_readout(blocks, result, args.planning))
     write_json(args.out / "summary.json", result)
     print(json.dumps(result, indent=2), flush=True)
     print(f"Results: {args.out}")
