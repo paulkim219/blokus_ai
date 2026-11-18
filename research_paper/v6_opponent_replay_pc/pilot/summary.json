@@ -1,0 +1,13 @@
+{
+  "seed_blocks": 32,
+  "scheduled_decisions": 128,
+  "multi_candidate_decisions": 126,
+  "changed_decisions": 48,
+  "changed_fraction": 0.375,
+  "mean_paired_margin_gain": 0.029052734374999983,
+  "seed_bootstrap_95": [
+    -0.12849934895833331,
+    0.1849365234375
+  ],
+  "mean_gain_when_changed": 0.07747395833333329
+}

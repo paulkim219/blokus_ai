@@ -1,0 +1,10 @@
+{
+  "seed_blocks": 1,
+  "scheduled_decisions": 4,
+  "multi_candidate_decisions": 4,
+  "changed_decisions": 0,
+  "changed_fraction": 0.0,
+  "mean_paired_margin_gain": 0.0,
+  "seed_bootstrap_95": null,
+  "mean_gain_when_changed": null
+}

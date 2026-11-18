@@ -1,0 +1,217 @@
+{
+  "experiment": "v5-oracle-player-residual-k",
+  "preregistration": "research_paper/v5_oracle_player_residual.md",
+  "dataset": {
+    "developmentGames": 144,
+    "developmentProfiles": 24,
+    "holdoutGames": 48,
+    "holdoutProfiles": 8,
+    "holdoutDecisions": 3278,
+    "holdoutCandidates": 693608,
+    "holdoutSeedBase": 55000000
+  },
+  "population": {
+    "fit": {
+      "bestEpoch": 14,
+      "epochsRun": 25,
+      "validationNll": 2.049622058868408
+    },
+    "parameters": 22457,
+    "selectedTemperature": 1.5,
+    "holdout": {
+      "nll": 1.9771029766079344,
+      "top5": 0.8053293856402665,
+      "ece": 0.053096995496643984,
+      "actions": 2702
+    }
+  },
+  "validationSelection": {
+    "scores": {
+      "bayes": 1.8282774738573655,
+      "gru": 1.8321214786181947,
+      "transformer": 1.815586451193687
+    },
+    "selected": "transformer",
+    "familyBayesFilter": {
+      "nll": 1.8282774738573655,
+      "temperature": 1.5,
+      "learningRate": 1.0,
+      "drift": 0.0
+    },
+    "historyTemperature": {
+      "gru": 1.5,
+      "transformer": 1.5
+    }
+  },
+  "arms": {
+    "bayes": {
+      "fit": {
+        "bestEpoch": 36,
+        "epochsRun": 47,
+        "validationOracleNll": 1.891592264175415
+      },
+      "parameters": 256,
+      "holdout": {
+        "correct": {
+          "nll": 1.842294186393732,
+          "top5": 0.8253145817912657,
+          "ece": 0.049832256529972745,
+          "actions": 2702
+        },
+        "shuffled": {
+          "nll": 1.9467400118625626,
+          "top5": 0.805699481865285,
+          "ece": 0.0459821584379469,
+          "actions": 2702
+        },
+        "familyAccuracy8": 0.4947916666666667
+      }
+    },
+    "gru": {
+      "fit": {
+        "bestEpoch": 62,
+        "epochsRun": 70,
+        "validationNll": 1.988755702972412
+      },
+      "parameters": 7624,
+      "holdout": {
+        "correct": {
+          "nll": 1.8708995636862296,
+          "top5": 0.8230940044411547,
+          "ece": 0.057187327373356495,
+          "actions": 2702
+        },
+        "shuffled": {
+          "nll": 1.966866177679124,
+          "top5": 0.8034789045151739,
+          "ece": 0.048889921011636195,
+          "actions": 2702
+        },
+        "familyAccuracy8": 0.7291666666666666
+      }
+    },
+    "transformer": {
+      "fit": {
+        "bestEpoch": 45,
+        "epochsRun": 56,
+        "validationNll": 1.9581611156463623
+      },
+      "parameters": 10856,
+      "holdout": {
+        "correct": {
+          "nll": 1.878894061006506,
+          "top5": 0.8245743893412287,
+          "ece": 0.05685641991317848,
+          "actions": 2702
+        },
+        "shuffled": {
+          "nll": 2.0390313033727265,
+          "top5": 0.7890451517394522,
+          "ece": 0.051794641358236033,
+          "actions": 2702
+        },
+        "familyAccuracy8": 0.78125
+      }
+    }
+  },
+  "selectedArm": {
+    "name": "transformer",
+    "correct": {
+      "nll": 1.878894061006506,
+      "top5": 0.8245743893412287,
+      "ece": 0.05685641991317848,
+      "actions": 2702
+    },
+    "fixed": {
+      "nll": 1.9771029766079344,
+      "top5": 0.8053293856402665,
+      "ece": 0.053096995496643984,
+      "actions": 2702
+    },
+    "shuffled": {
+      "nll": 2.0390313033727265,
+      "top5": 0.7890451517394522,
+      "ece": 0.051794641358236033,
+      "actions": 2702
+    },
+    "perFamilyIdentityGain": {
+      "expansion": 0.20287521470591424,
+      "center": 0.23032727729194177,
+      "edge": 0.3610991872986761,
+      "blocker": 0.10554311794417749,
+      "retaliator": 0.11707281013534304,
+      "persistent": 0.10297991789056248,
+      "next-hunter": 0.11911939170689097,
+      "tempo": 0.07003272164052741
+    },
+    "styleSwitchAccuracy": 0.2916666666666667,
+    "transformerPrefixError": 0.006734371185302734
+  },
+  "gates": {
+    "fixedGain": {
+      "value": 0.09820891560142872,
+      "interval": [
+        0.07150251681926495,
+        0.12324033720142022
+      ],
+      "threshold": 0.03,
+      "pass": true
+    },
+    "identityGain": {
+      "value": 0.160137242366221,
+      "interval": [
+        0.12237147218280565,
+        0.1959628410466501
+      ],
+      "threshold": 0.06,
+      "pass": true
+    },
+    "topFive": {
+      "value": 0.8245743893412287,
+      "threshold": 0.65,
+      "pass": true
+    },
+    "calibration": {
+      "value": 0.05685641991317848,
+      "fixedValue": 0.053096995496643984,
+      "threshold": 0.08,
+      "pass": true
+    },
+    "familyAccuracy8": {
+      "value": 0.78125,
+      "threshold": 0.5,
+      "pass": true
+    },
+    "interactionFamilies": {
+      "value": 0.11117880941924349,
+      "minimum": 0.10297991789056248,
+      "perFamily": {
+        "blocker": 0.10554311794417749,
+        "retaliator": 0.11707281013534304,
+        "persistent": 0.10297991789056248,
+        "next-hunter": 0.11911939170689097
+      },
+      "thresholdMean": 0.04,
+      "thresholdMinimum": -0.01,
+      "pass": true
+    },
+    "styleSwitch": {
+      "value": 0.2916666666666667,
+      "threshold": 0.5,
+      "pass": false
+    },
+    "emptyHistoryFallback": {
+      "value": 0.0,
+      "threshold": 1e-06,
+      "pass": true
+    },
+    "transformerPrefix": {
+      "value": 0.006734371185302734,
+      "threshold": 1e-05,
+      "applicable": true,
+      "pass": false
+    }
+  },
+  "counterfactualResponseExperimentAuthorized": false,
+  "oracleSearchIntegrationAuthorized": false
+}
