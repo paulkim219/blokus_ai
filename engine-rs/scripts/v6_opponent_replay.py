@@ -13,6 +13,8 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import monotonic
 
+import v6_replay_followup as followup
+
 
 ROOT = Path(__file__).resolve().parents[2]
 CRATE = ROOT / "engine-rs"
@@ -29,15 +31,28 @@ def positive(text):
 
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--followup", action="store_true", help="run the nested-budget, nomination and Bayesian history experiment")
+    parser.add_argument("--low-planning", type=positive, help="follow-up low planning budget (default 32)")
+    parser.add_argument("--nomination-samples", type=positive, help="follow-up samples per outside proposal (default 16)")
     parser.add_argument("--smoke", action="store_true", help="use tiny budgets to verify installation")
-    parser.add_argument("--homogeneous", action="store_true", help="identical known and generic policies; paired result must be zero")
+    parser.add_argument("--homogeneous", action="store_true", help="check identical policies with shared random draws")
     parser.add_argument("--seeds", type=positive, help="seed blocks of four seat rotations (default 32)")
     parser.add_argument("--seed-base", type=int, help="first seed block (default 146000000 for the pilot)")
     parser.add_argument("--workers", type=positive, default=2, help="simultaneous CPU searches; start with two")
-    parser.add_argument("--planning", type=positive, help="terminal samples per candidate per planner (default 32)")
-    parser.add_argument("--evaluation", type=positive, help="fresh paired samples per changed decision (default 64)")
+    parser.add_argument("--planning", type=positive, help="terminal samples per candidate per planner (default 32 for pilot, 128 for follow-up)")
+    parser.add_argument("--evaluation", type=positive, help="fresh paired scoring samples (default 64)")
     parser.add_argument("--out", type=Path, help="new or matching result directory, resumed by complete seed")
     args = parser.parse_args()
+    if args.followup:
+        args.low_planning = args.low_planning or (1 if args.smoke else 32)
+        args.nomination_samples = args.nomination_samples or (1 if args.smoke else 16)
+        args.planning = args.planning or (2 if args.smoke else 128)
+        if args.low_planning >= args.planning:
+            parser.error("--low-planning must be smaller than --planning")
+        if args.seed_base is None:
+            args.seed_base = 146_990_500 if args.smoke else 147_000_000
+    elif args.nomination_samples or args.low_planning:
+        parser.error("nomination and low planning options require --followup")
     if args.seed_base is None:
         args.seed_base = 145_900_000 if args.smoke else 146_000_000
     args.seeds = args.seeds or (1 if args.smoke else 32)
@@ -47,7 +62,7 @@ def arguments():
         parser.error("seed block would exceed the 32-bit range")
     mode = "smoke" if args.smoke else "pilot"
     label = mode + ("-homogeneous" if args.homogeneous else "")
-    args.out = (args.out or ROOT / "tmp" / "v6-replay" / label).resolve()
+    args.out = (args.out or ROOT / "tmp" / ("v6-replay-followup" if args.followup else "v6-replay") / label).resolve()
     return args
 
 
@@ -106,6 +121,13 @@ def run(args, binary):
                 "smoke": args.smoke, "homogeneous": args.homogeneous, "seed_base": args.seed_base,
                 "seeds": args.seeds, "candidates": candidates, "planning": args.planning,
                 "evaluation": args.evaluation, "root_budget": budget}
+    extra = []
+    check = validate
+    if args.followup:
+        extra = [args.low_planning, args.nomination_samples]
+        check = followup.validate
+        protocol.update(protocol=2, low_planning=args.low_planning, nomination_samples=args.nomination_samples,
+                        max_outside_candidates=8)
     manifest = args.out / "manifest.json"
     if manifest.exists():
         if json.loads(manifest.read_text()) != protocol:
@@ -119,12 +141,12 @@ def run(args, binary):
         path = args.out / f"seed-{seed}.json"
         if path.exists():
             rows = json.loads(path.read_text())
-            validate(rows, seed, args.homogeneous)
+            check(rows, seed, args.homogeneous)
             return rows
         raw = subprocess.check_output([str(binary), *map(str, (seed, candidates, args.planning,
-                                      args.evaluation, budget, int(args.homogeneous)))], cwd=ROOT)
+                                      args.evaluation, budget, int(args.homogeneous), *extra))], cwd=ROOT)
         rows = json.loads(raw)
-        validate(rows, seed, args.homogeneous)
+        check(rows, seed, args.homogeneous)
         write_json(path, rows)
         return rows
 
@@ -135,7 +157,8 @@ def run(args, binary):
         for done in as_completed(jobs):
             blocks.append(done.result())
             print(f"{len(blocks)}/{args.seeds} blocks complete ({monotonic()-started:.1f}s)", flush=True)
-    result = summarize(sorted(blocks, key=lambda b: b[0]["seed"]))
+    blocks.sort(key=lambda b: b[0]["seed"])
+    result = followup.summarize(blocks, args.low_planning, args.planning) if args.followup else summarize(blocks)
     write_json(args.out / "summary.json", result)
     print(json.dumps(result, indent=2), flush=True)
     print(f"Results: {args.out}")

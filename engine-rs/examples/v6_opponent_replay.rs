@@ -11,6 +11,9 @@ use blokee::rollout_policy::RolloutPolicy;
 use serde_json::{Value, json};
 use std::{env, fs, sync::Arc};
 
+#[path = "v6_replay/followup.rs"]
+mod followup;
+
 const HERO: usize = 0;
 const PROFILES: [&str; 4] = ["population-prior", "denial", "frontier", "center"];
 const CONFIG: &str = "engine-rs/configs/v5.2-pro.json";
@@ -138,13 +141,13 @@ struct Settings {
     homogeneous: bool,
 }
 
-fn replay(
+fn make_root(
     engine: &mut Engine,
     league: &mut League,
     block: u32,
     hero: usize,
     settings: Settings,
-) -> Value {
+) -> (GameState, Vec<i32>, [usize; 4], usize, u32, Vec<i32>) {
     let mut root = GameState::new(false);
     let mut prefix = Vec::new();
     let actual = lineup(
@@ -172,6 +175,18 @@ fn replay(
         candidates.extend(ranked.iter().take(settings.candidates).map(|r| r.mv));
         assert!(!candidates.is_empty());
     }
+    (root, prefix, actual, turn_index + 1, seed, candidates)
+}
+
+fn replay(
+    engine: &mut Engine,
+    league: &mut League,
+    block: u32,
+    hero: usize,
+    settings: Settings,
+) -> Value {
+    let (root, prefix, actual, own_turn, seed, candidates) =
+        make_root(engine, league, block, hero, settings);
     let mut generic = vec![0.0; candidates.len()];
     let mut informed = generic.clone();
     for rep in 0..settings.planning {
@@ -200,7 +215,7 @@ fn replay(
             }
         }
     }
-    json!({"seed":block,"hero":hero,"own_turn":turn_index+1,"prefix":prefix,
+    json!({"seed":block,"hero":hero,"own_turn":own_turn,"prefix":prefix,
         "policies":actual.map(|p| PROFILES[p]),"candidate_moves":candidates,
         "generic_planning_margin":generic.iter().map(|x| x / f64::from(settings.planning)).collect::<Vec<_>>(),
         "informed_planning_margin":informed.iter().map(|x| x / f64::from(settings.planning)).collect::<Vec<_>>(),
@@ -212,7 +227,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .skip(1)
         .map(|s| s.parse::<u32>())
         .collect::<Result<Vec<_>, _>>()?;
-    let [seed, k, planning, evaluation, budget, homogeneous] = args.as_slice() else {
+    let (args, followup_budgets) = match args.as_slice() {
+        [base @ .., low, nominations] if base.len() == 6 => (base, Some((*low, *nominations))),
+        _ => (args.as_slice(), None),
+    };
+    let [seed, k, planning, evaluation, budget, homogeneous] = args else {
         return Err(
             "expected SEED CANDIDATES PLANNING EVALUATION ROOT_BUDGET HOMOGENEOUS_0_OR_1".into(),
         );
@@ -227,6 +246,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         budget: *budget,
         homogeneous: *homogeneous == 1,
     };
+    if let Some((low, nominations)) = followup_budgets {
+        if low == 0 || low >= *planning || nominations == 0 {
+            return Err("need 0 < low < high and positive nomination samples".into());
+        }
+    }
     let params: BitboardParams = serde_json::from_str(&fs::read_to_string(CONFIG)?)?;
     let prior = params
         .native
@@ -244,7 +268,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let table = RolloutPolicy::from_file(params.search.playout_table_path.as_ref().unwrap())?;
     let mut engine = Engine::new(params, Some(Arc::new(table)))?;
     let rows: Vec<_> = (0..4)
-        .map(|hero| replay(&mut engine, &mut league, *seed, hero, settings))
+        .map(|hero| match followup_budgets {
+            Some((low, nominations)) => followup::replay(
+                &mut engine,
+                &mut league,
+                *seed,
+                hero,
+                settings,
+                low,
+                nominations,
+            ),
+            None => replay(&mut engine, &mut league, *seed, hero, settings),
+        })
         .collect();
     println!("{}", serde_json::to_string(&rows)?);
     Ok(())
