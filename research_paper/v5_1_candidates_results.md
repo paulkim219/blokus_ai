@@ -2107,7 +2107,7 @@ First place (split, ties shared): 15.9% → 19.5%, Δ +3.61 pp [+2.01, +5.22].
 
 **Decision (preregistered rule): W1D-ET is accepted at pro.** The paired lower bound (+0.46) is above 0, and first place is up, not down. Saved as `engine-rs/configs/v5.3-cand-pro.json`, a byte copy of `tmp/v57/pro/configs/W1D-ET.json`. Paul names versions; no `v5.3-pro.json` is created.
 
-**Equal-time check (amendments 1 and 2, clean chunks 2–7 only): W1D-ET / base = 1041.6 / 1086.2 = 0.959. This is outside 0.97–1.03, on the low side.** As preregistered, it is reported and nothing is changed. Round 9 read 0.957 on the same configs. W1D-ET runs about 4% under base's in-match time, so the comparison is, if anything, against W1D-ET. Over all eight chunks, base reads 1107.4 and W1D-ET 2096.4: the second pause (14:07–20:08) falls inside `rol-W1D-ET-c1` (9,083 ms/move for that chunk). That figure is not a timing measurement.
+**Equal-time check (amendments 1 and 2, clean chunks 2–7 only): W1D-ET / base = 1041.6 / 1086.2 = 0.959. This is outside 0.97–1.03, on the low side.** As preregistered, it is reported and nothing is changed. Round 9 read 0.957 on the same configs. W1D-ET runs about 4% under base's in-match time, so the comparison is, if anything, against W1D-ET. **Sensitivity check** (descriptive, added after the games at the coordinator's request): chunk 2 overlapped another agent's niced 1–2-core work, almost all of `rol-base-c2` (21:01–21:46) and 9 minutes of `rol-W1D-ET-c2`. On chunks 3–7 only, base reads 1064.5 and W1D-ET 1037.6, a ratio of **0.975, inside the band**. The rule and the verdict are unchanged. Over all eight chunks, base reads 1107.4 and W1D-ET 2096.4: the second pause (14:07–20:08) falls inside `rol-W1D-ET-c1` (9,083 ms/move for that chunk). That figure is not a timing measurement.
 
 **Per chunk (descriptive), paired Δ:**
 
@@ -2141,3 +2141,28 @@ The seat after Blokee still gains about 2.6–3.0 points.
 - The cap carries to pro in its mild shape. W1D, at about +1 point, matches the cheap tiers' W1C gain. At pro, it moves first place more (+3.8 pp) than at any tier so far.
 - With round 9's trend, the best window widens as the budget grows: W1C at nano and lite, W1A at base and turbo, W1D at pro.
 - The gain is at equal or lower in-match time (0.96×), so it is not bought with time.
+
+## Round 10 — benchmark fill-in (measured; `tmp/bench/v5.3-cand-pro/bench.md`)
+
+Played 2026-11-18 05:43–06:07, after the other agent's quiet-machine slot ended (`tmp/hb/QUIET_DONE`).
+- **Command:** the preregistered L6 block, 200 seeds 102,160,000. The command line is identical to `bench.sh` (12 threads, `tmp/v57/bin`, config `tmp/v57/pro/configs/W1D-ET.json`, which is byte-identical to `v5.3-cand-pro.json`). It ran from a scratch copy with absolute paths, because the working tree is on `main`.
+- **L7 anchor:** the 800-seed confirmation block (linked).
+- **Read by:** `v53_report.py --bench` from the export.
+
+L7 is below zero, so the score is bracketed and no L8 is needed.
+
+| Engine | ms/move (own 4+) | Advantage vs anchors | Break-even level [95% CI] | v5.2 at the same tier |
+|---|---:|---|---:|---:|
+| `v5.3-cand-pro` | 881.0 | L6 +4.24 [+3.44, +5.08] (200; 102,160,000); L7 −0.66 [−1.12, −0.20] (800, the confirmation block) | **6.87 [6.78, 6.96]** | 6.67 [6.53, 6.83] |
+
+**Measured:**
+- Pro moves up from 6.67 to 6.87. The intervals are unpaired; the paired confirmation is the measure of the gain.
+- The ms/move column is in-match, from the L6 block, and is not comparable across rows: v5.2-pro's 773.0 was measured under round 6's load. By the round-10 confirmation, W1D-ET's in-match time is 0.96–0.975× base.
+
+## Round 10 — seed blocks
+
+- **Played:**
+  - 102,000,000–102,000,799: the confirmation, both arms;
+  - 102,160,000–102,160,199: candidate vs level 6.
+- **Not played:** 102,180,000 (L8, not needed).
+- **Not touched:** everything else.

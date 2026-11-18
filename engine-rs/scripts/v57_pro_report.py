@@ -45,6 +45,12 @@ tw, lw = timing(clean[ARM])
 r = lw / la
 print(f"In-match ms/move, clean chunks 2-7 (the equal-time check): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f}; "
       f"ratio (3+) {r:.3f} -> {'inside' if 0.97 <= r <= 1.03 else 'OUTSIDE'} 0.97-1.03")
+# Sensitivity (descriptive, added 2026-11-18 after the games at the coordinator's request): chunk 2 overlapped
+# another agent's niced 1-2-core work (base-c2 almost entirely, W1D-ET-c2 for 9 minutes); chunks 3-7 only.
+c37 = {a: merged([f"{D}/chunks/rol-{a}-c{k}.timing.jsonl" for k in range(3, 8)], f"{D}/pooled/c37-{a}.timing.jsonl") for a in ("base", ARM)}
+_, lb = timing(c37["base"])
+_, lw2 = timing(c37[ARM])
+print(f"Sensitivity, chunks 3-7 only (descriptive): base {lb:.1f}; {ARM} {lw2:.1f}; ratio (3+) {lw2 / lb:.3f}")
 
 print("\n## Per chunk (descriptive)\n")
 print("| Chunk | Seeds | base | W1D-ET | Paired Δ [95% CI] | Δ first place (any), pp | ms/move 3+ base / W1D-ET |\n|---|---|---:|---:|---:|---:|---:|")
