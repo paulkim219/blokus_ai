@@ -101,3 +101,100 @@ Descriptive only: held-out R² of M_a, M_ab and M_abc; the same fits with the ha
 - *Held-out read:* test-half miss rate, adaptive minus W1D, averaged over the same N. 95% bootstrap interval by seed (2,000 resamples).
 - *Mean width:* the realised mean window on the test half at each N, adaptive versus W1D.
 - *Reading:* the probe is "supportive" if the held-out difference has an upper bound < 0. Either way the screen below is preregistered and not run. The probe measures only the miss side; the depth cost of wider windows is what a match measures.
+
+---
+
+# Results
+
+## §3 Lazy interior allocation — identity and memory (measured; `tmp/hb/identity/`, binary `tmp/hb/bin` = `95cedaf`)
+
+All runs are one thread at `nice -n 20` while round 10 played. That does not affect the identity or memory figures. The ms figures below are not timing results.
+
+**Identity: every gate passes, exactly.**
+
+| Gate | Check | Result |
+|---|---|---|
+| 1 option absent = round-9 binary `tmp/v56/bin` | `s4_identity` 180 positions × 8 configs (v5.2/v5.3 nano, lite, base, turbo), 1,440 searches | byte-identical |
+| | `blokee-match` v5.3-turbo vs v5.2-turbo, 80,900,000–80,900,001 × 4 rotations, one thread | 8/8 games: same scores, winners and search counts; only `challengerSeconds` differs |
+| | `v55_speed` pro, 50 positions: `pro-base` and `pro-W1D-ET` | 50/50 and 50/50 digests equal (ranked root moves, visits, value bits), same iterations |
+| 2 lazy = eager, same cap, fixed iterations | `tests/lazy.rs`: 3 caps × 3 RAVE settings × 5 positions, ~1,000 iterations | 45/45 equal (ranked root and tree shape); lazy tree smaller each time; 611 pending AMAF pairs moved into dense slots, so the pending path ran |
+| | `s4_identity` 180 positions, v5.3-{nano,lite,base,turbo} eager vs `-lazy` (W1C/W1A caps) | byte-identical |
+| | `blokee-match` with `v5.3-turbo-lazy` as challenger | 8/8 games identical to eager |
+| | `v55_speed` pro `pro-W1D-ET` vs `-lazy`, 50 positions (mean 49,820 iterations) | 50/50 digests equal |
+| | `v55_speed` ultra `ultra-W1D` vs `-lazy`, 5 positions (mean 690,547 iterations) | 5/5 digests equal |
+
+No "decisions differ" measurement is needed: the two layouts give the same search, bit for bit.
+
+**Memory** (`tree_memory` heap bytes; peak RSS from `/usr/bin/time -l`; same positions and iterations for both layouts):
+
+| Tier / config | Positions | Tree bytes per iteration, eager → lazy | Largest tree, eager → lazy | Peak RSS, eager → lazy |
+|---|---:|---:|---:|---:|
+| pro, `pro-W1D-ET` | 50 | 4,613 → 2,773 (−40%) | 0.59 → 0.30 GB (−50%) | 0.90 → 0.52 GB (−42%) |
+| ultra, v5.2-ultra + cap {16, 4} | 5 | 4,859 → 2,619 (−46%) | 5.36 → 2.69 GB (−50%) | 5.39 → 2.91 GB (−46%) |
+
+For scale, v5.2-ultra without a cap had a largest tree of 8.35 GB and peak RSS of 10.8 GB on round 8's 15 positions. The cap alone does not change memory per iteration (eager 4.6–4.9 KB). The lazy layout halves it.
+
+**Speed:** quiet slot, below.
+
+## §1 Fits after replies — development probe (measured; `tmp/hb/s1/`)
+
+`hb_strand_probe` ran 21:13–21:33, one thread at nice 20, on all 480 positions with K = 16 reply samples and R = 12 nano continuations per candidate. Four positions have fewer than two candidates (a forced or single-move root). They hold no decision and are left out, which leaves 476: train 244, test 232, 3,724 candidates. Read-out: `engine-rs/scripts/hb_s1_report.py` → `tmp/hb/s1/report.md`.
+
+| Gate (fit on train, judged on test) | Measure | Result | Pass? |
+|---|---|---:|---|
+| G1-margin | per-position Δ squared error, M_ab − M_abc | +0.46 [+0.10, +0.98] | yes |
+| G1-strand | per-position Δ Brier, M_b − M_bc | +0.357 [+0.228, +0.504] | yes |
+| G2-decisions | flip rate M_abc vs M_ab (needs ≥ 5%) | **2.6%** | **no** |
+| | mean gain per test position | +0.08 [+0.02, +0.16] points | (would pass) |
+
+**Gate: not passed (G2 flip rate).** Per the prereg, no match arm is built and no screen is preregistered. Seed block 103,000,000 stays unused.
+
+Descriptive:
+- Held-out R² of within-position margin: M_a (search visits only) 0.099, M_ab 0.092, M_abc 0.101. Immediate counts (b) add nothing over the search. (c) adds about 0.01.
+- **Halves swapped:** G1-margin +0.04 [−0.42, +0.55] (not significant); G1-strand +0.21 [+0.13, +0.29]; flip rate 5.7%; gain +0.05 [−0.05, +0.16]. The margin signal of (c) is not robust across halves. The stranding signal is.
+- Coefficients (main fit): C0 −0.066 and CL −0.024 points per exposed square, with B0 falling from −0.095 to −0.043 once (c) is in. So (c) mostly re-expresses (b) with a better horizon.
+- Against the search's own top move, M_abc picks another candidate in 6.0% of test positions, gain +0.10 [+0.03, +0.18] points per position. Swapped: 7.4%, +0.04 [−0.05, +0.13].
+- In the continuations, the pieces most often left unplayed when still in hand at own turns 9–16 are I4 (54%), O4 (50%), I3 (45%), I5 (42%), U5 (41%) and V5 (39%). After the replies, the "no fit" rate is far below the end-of-game stranding rate (I3 7% vs 45%). Most stranding happens later than the next three replies.
+
+**Reading (mine):** the reply-aware count predicts stranding. Its information about the margin is small (ΔR² ≈ 0.01) and unstable across halves. Blended with the search, it would change about 3–6% of decisions, each worth a fraction of a point in nano continuations. That is below the bar the plan set for revisiting a feature family that has failed twice. The late-square deficit is real, but a three-reply horizon sees little of it: most stranding happens after that. If this line is revisited, the information would have to come from deeper continuations (more like a rollout feature), not from a fit count after one reply cycle.
+
+## §2 Position-dependent width — probe (measured; `tmp/hb/s2/`)
+
+`hb_prior_probe` ran 21:30, one thread, 7 s. It covered all 218,633 Pentobi L7 decisions in the four development files; the main set (own ≥ 3) is 182,633 decisions over 400 seeds. Read-out: `engine-rs/scripts/hb_s2_report.py` → `tmp/hb/s2/report.md`.
+
+**n_eff and the rank of L7's move** (main set):
+
+| Pieces placed | Decisions | Legal moves (median) | n_eff p10 / p50 / p90 | Rank of L7's move p50 / p90 / p95 | Rank 1 |
+|---|---:|---:|---:|---:|---:|
+| 3–5 | 36,000 | 533 | 7.8 / 18.5 / 34.4 | 9 / 72 / 115 | 14.0% |
+| 6–9 | 47,989 | 283 | 7.0 / 22.0 / 50.8 | 11 / 74 / 110 | 12.1% |
+| 10–13 | 47,520 | 71 | 3.5 / 11.6 / 33.6 | 6 / 32 / 48 | 18.7% |
+| 14+ | 51,124 | 12 | 1.2 / 3.7 / 9.2 | 2 / 8 / 12 | 48.9% |
+
+**Miss rate** (L7's move outside the window at N visits):
+
+| Subset | Decisions | W1A N=16 (8) | W1A N=64 (12) | W1D N=1 (20) | W1D N=16 (32) | W1D N=64 (48) | W1D N=256 (80) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| all | 182,633 | 0.382 | 0.302 | 0.210 | 0.138 | 0.089 | 0.044 |
+| move touches an opponent | 155,487 | 0.322 | 0.242 | 0.154 | 0.090 | 0.052 | 0.021 |
+| move touches no opponent | 27,146 | 0.722 | 0.644 | 0.529 | 0.409 | 0.303 | 0.171 |
+| cramped (bottom quartile of legal moves) | 47,171 | 0.266 | 0.201 | 0.129 | 0.079 | 0.047 | 0.019 |
+| not cramped | 135,462 | 0.422 | 0.337 | 0.238 | 0.158 | 0.103 | 0.052 |
+| n_eff low tercile (≤ 6.8) | 60,878 | 0.135 | 0.086 | — | 0.022 | 0.013 | — |
+| n_eff middle tercile | 60,877 | 0.403 | 0.305 | — | 0.123 | 0.074 | — |
+| n_eff high tercile (> 18.5) | 60,878 | 0.607 | 0.515 | — | 0.268 | 0.180 | — |
+
+"Board contact", meaning any opponent piece in the mover's halo, holds in 97.5% of main-set decisions, so it does not separate positions. The useful split is *move contact*. L7's quiet, non-contact moves fall outside the window 3–6× as often as its contact moves.
+
+**Two-width bins (preregistered rule).** Split at the train-half median n_eff = 11.7338. Train miss rate, mean over N = 16, 64, 256: W1D 0.0893; f_d = 1.25: 0.0779; 1.5: 0.0784; 1.75: 0.1071. **Chosen: f_d = 1.25.** Diffuse nodes get floor(1.25·(16 + 4√N)) and concentrated nodes floor(0.75·(16 + 4√N)).
+- **Held-out** (test half, 91,168 decisions, 200 seeds): miss rate 0.0908 → 0.0794, difference **−0.0114 [−0.0120, −0.0108]**. **Supportive.**
+- Mean window on the test half equals W1D's within 0.3 at every N (e.g. 31.9 vs 32 at N = 16).
+- The gain is at diffuse nodes. In cramped positions the narrower window costs +0.003 at N = 1–4, and saves −0.002 to −0.005 from N = 16 on.
+
+**Reading (mine):**
+- The prior's own concentration is a strong signal of where W1D's window is too narrow: at N = 16, misses run 2% at concentrated nodes against 27% at diffuse nodes.
+- Shifting width from concentrated to diffuse nodes at equal mean width cuts misses by about an eighth.
+- n_eff tracks the legal-move count closely (median legal 15 vs 334 between the extreme terciles). The rule is largely "wider where there are more moves".
+- The probe cannot see the depth cost: a wider window at diffuse nodes means shallower lines there. Only the match decides.
+- Game positions stand in for tree nodes, and L7's move stands in for "the necessary reply".
+- The miss rate for non-contact moves stays high under every window. That is a prior-model issue (quiet L7 moves score low), not a width issue.
