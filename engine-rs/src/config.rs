@@ -587,6 +587,20 @@ pub struct InteriorCap {
     /// Same search, bit for bit, with less memory. false (default) is the eager layout.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub lazy: bool,
+    /// High-budget §2: position-dependent width. An interior node whose fitted prior has an
+    /// effective number of moves 1/Σp² above `split` gets the window `floor(diffuse · (init +
+    /// growth · N^exponent))`, otherwise `floor(concentrated · (...))`. Absent (default) is off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adaptive: Option<AdaptiveWidth>,
+}
+
+/// `native.candidates.interiorCap.adaptive` (high-budget §2).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdaptiveWidth {
+    pub split: f64,
+    pub diffuse: f64,
+    pub concentrated: f64,
 }
 
 fn half() -> f64 {
@@ -657,6 +671,11 @@ impl BitboardParams {
             reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
             // E6's depth-1 policy re-sorts a root child's moves after initialisation.
             reject(c.lazy && native.is_some_and(|n| n.net.is_some()), "native.candidates.interiorCap.lazy with native.net");
+            if let Some(a) = &c.adaptive {
+                reject(!(a.split.is_finite() && a.diffuse.is_finite() && a.concentrated.is_finite() && a.diffuse > 0.0 && a.concentrated > 0.0),
+                    "native.candidates.interiorCap.adaptive must be finite with positive factors");
+                reject(native.is_some_and(|n| n.net.is_some()), "native.candidates.interiorCap.adaptive with native.net");
+            }
         }
         if let Some(r) = native.and_then(|n| n.rollout.as_ref()) {
             reject(!matches!(r.policy.as_str(), "sampled" | "all"), "native.rollout.policy must be sampled or all");

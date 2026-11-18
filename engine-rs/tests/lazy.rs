@@ -121,3 +121,26 @@ fn lazy_is_refused_with_the_network() {
         assert!(p.unsupported().iter().any(|r| r.contains("lazy")), "{:?}", p.unsupported());
     }
 }
+
+/// High-budget §2 gates: `interiorCap.adaptive` with both factors 1 searches exactly as the plain
+/// cap; with other factors it changes the search, and the lazy layout still matches eager there.
+#[test]
+fn adaptive_width_identity_points() {
+    let cap = json!({"init": 16, "growth": 4});
+    let unit = json!({"init": 16, "growth": 4, "adaptive": {"split": 20.0, "diffuse": 1.0, "concentrated": 1.0}});
+    let wide = json!({"init": 16, "growth": 4, "adaptive": {"split": 20.0, "diffuse": 1.5, "concentrated": 0.5}});
+    let wide_lazy = json!({"init": 16, "growth": 4, "lazy": true, "adaptive": {"split": 20.0, "diffuse": 1.5, "concentrated": 0.5}});
+    let (mut plain, mut one) = (engine(config(cap, None)), engine(config(unit, None)));
+    let (mut adapt, mut adapt_lazy) = (engine(config(wide, None)), engine(config(wide_lazy, None)));
+    let mut changed = 0;
+    for (i, (state, moves)) in positions(5, 4321).iter().enumerate() {
+        let a = search(&mut plain, state, moves, 700 + i as u32, 40);
+        let b = search(&mut one, state, moves, 700 + i as u32, 40);
+        assert_eq!(a, b, "unit factors, position {i}");
+        let c = search(&mut adapt, state, moves, 700 + i as u32, 40);
+        let d = search(&mut adapt_lazy, state, moves, 700 + i as u32, 40);
+        assert_eq!(c, d, "adaptive lazy vs eager, position {i}");
+        changed += (a != c) as usize;
+    }
+    assert!(changed > 0, "adaptive factors changed no search");
+}

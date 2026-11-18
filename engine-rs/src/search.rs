@@ -62,6 +62,8 @@ struct Node {
     /// (with RAVE) `amaf` cover only the edges [0, children.len()) the window has opened; the rest
     /// of the per-edge state is here. None is the eager layout (every array the length of `moves`).
     lazy: Option<Box<LazyTail>>,
+    /// High-budget §2 (`interiorCap.adaptive`): this interior node's window factor (1 when off).
+    cap_factor: f64,
 }
 
 /// The lazy layout's per-node extra state.
@@ -138,6 +140,7 @@ impl Node {
             prior_suffix: Vec::new(),
             ratio_suffix: Vec::new(),
             lazy: None,
+            cap_factor: 1.0,
         }
     }
 
@@ -650,6 +653,10 @@ impl V12Search {
         node.opened = 0;
         node.initialised = true;
         node.prior_max = node.priors.iter().copied().fold(0.0, f64::max);
+        if !is_root && let Some(a) = self.interior_cap.as_ref().and_then(|c| c.adaptive.as_ref()) {
+            let n_eff = 1.0 / node.priors.iter().map(|p| p * p).sum::<f64>();
+            node.cap_factor = if n_eff > a.split { a.diffuse } else { a.concentrated };
+        }
         if !is_root {
             if self.interior_no_widening {
                 node.opened = shortlist;
@@ -1157,7 +1164,10 @@ impl V12Search {
         // Round 8 W1: interior nodes consider only the first `cap(N)` children in prior order.
         let limit = match (&self.interior_cap, id != self.root) {
             (Some(c), true) => {
-                let cap = (c.init + c.growth * node.visits.powf(c.exponent)).floor().max(1.0);
+                let width = c.init + c.growth * node.visits.powf(c.exponent);
+                // §2: scaled per node only when `adaptive` is set; otherwise exactly round 8's W1.
+                let width = if c.adaptive.is_some() { node.cap_factor * width } else { width };
+                let cap = width.floor().max(1.0);
                 if cap < node.opened as f64 { cap as usize } else { node.opened }
             }
             _ => node.opened,
