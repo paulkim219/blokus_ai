@@ -260,7 +260,7 @@ export const DEFAULT_ALGO_VERSION: AlgoVersionId = 'v1';
  * v3.7 Pro Max effort tier, and the v4.1 lite and Pro Max tiers.
  *
  * The v5 line follows: `v5.0-ultra`, where the v5 line starts, and the v5.2 tiers nano, lite, base
- * (`v5.2`), turbo and pro, then v5.3 (nano, lite, base and turbo; pro and ultra are still v5.2's). They are the native engine in WebAssembly (`engine: 'native-wasm'`), so they
+ * (`v5.2`), turbo and pro, then v5.3 (nano, lite, base, turbo and pro; ultra is still v5.2's). They are the native engine in WebAssembly (`engine: 'native-wasm'`), so they
  * search in the AI worker only; `v5.2-ultra` is left out (about 10 GB, past wasm32's 4 GB).
  *
  * The UI search uses a shared base iteration count so each config's `iterationScale` (and rollout
@@ -288,6 +288,7 @@ export const UI_ALGO_VERSIONS = [
   'v5.3-lite',
   'v5.3',
   'v5.3-turbo',
+  'v5.3-pro',
 ] as const;
 export type UiAlgoVersion = (typeof UI_ALGO_VERSIONS)[number];
 /** Dropdown text where the id alone does not say enough. */

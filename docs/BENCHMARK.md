@@ -89,7 +89,7 @@ Round 9 (2026-11-17; interior cap W1C, floor(2 + 0.5·√N), accepted at nano an
 | `v5.3-cand-nano` | 1.8 | L1 +7.39; L2 +3.30; L3 +0.04 [−0.65, +0.71]; L4 −4.14 | **3.01 [2.84, 3.15]** |
 | `v5.3-cand-lite` | 3.0 | L2 +6.65; L3 +2.32 [+1.95, +2.69]; L4 −2.04 | **3.53 [3.44, 3.64]** |
 
-Round 10 (2026-11-18): interior cap W1D, floor(16 + 4·√N), at equal time, accepted at pro. Its own-level anchor (L7) is the 800-seed confirmation block; L6 is 200 seeds. Not yet named by Paul. Source: `tmp/bench/v5.3-cand-pro/bench.md`.
+Round 10 (2026-11-18): interior cap W1D, floor(16 + 4·√N), at equal time, accepted at pro. Its own-level anchor (L7) is the 800-seed confirmation block; L6 is 200 seeds. Named `v5.3-pro` by Paul on 2026-11-18 (`v5.3-pro.json`, a byte copy of `v5.3-cand-pro.json`). Source: `tmp/bench/v5.3-cand-pro/bench.md`.
 
 | Engine | ms/move (own moves 5+) | Advantage vs anchors played | Score [95% CI] |
 |---|---:|---|---:|

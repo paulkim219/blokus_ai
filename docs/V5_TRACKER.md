@@ -73,6 +73,17 @@ keep their files and ids; they are not this line. The bare id `v5` is an August 
   (W1D-ET cleared a 300-seed screen, N24) goes to a fresh-seed confirmation in round 10. Round 10 (2026-11-18) confirmed it, +1.00 [+0.46, +1.55] on 800 fresh seeds (N25), and saved it as
   `engine-rs/configs/v5.3-cand-pro.json` for Paul to name.
 
+- **Named 2026-11-18 (Paul): v5.3-pro.** Paul: "Let's name it v5.3-pro". Round 10's wide cap W1D, floor(16 + 4·√N),
+  at equal time (N25):
+
+  | Name | Config | Cap | `iterationScale` | Time-matched to | v5.3 − v5.2 (confirmation) | Benchmark |
+  |---|---|---|---:|---|---|---:|
+  | `v5.3-pro` | `engine-rs/configs/v5.3-pro.json` (byte copy of `v5.3-cand-pro.json`) | W1D (16, 4) | 239.172 | level 7 | +1.00 [+0.46, +1.55] | 6.87 [6.78, 6.96] |
+
+  The current best family is `v5.3-nano`, `v5.3-lite`, `v5.3`, `v5.3-turbo`, `v5.3-pro`, `v5.2-ultra`. The cap
+  window widens with budget: W1C at nano and lite, W1A at base and turbo, W1D at pro. Ultra has not been tried.
+  The next clear improvement is v5.4.
+
 This file is the ledger. Update the row and add a dated line to the log whenever an item changes
 status. Full write-ups stay in `research_paper/`; gates are fixed in a dated preregistration entry
 before each run.
