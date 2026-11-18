@@ -3,7 +3,8 @@
 # One thread, nice -n 20, sequential; safe beside round 10 (no match vs Pentobi, no timing read).
 # usage: engine-rs/scripts/hb-identity.sh   (from the worktree root; data and output under /Users/paulkim/Blokee/tmp)
 set -u
-T=/Users/paulkim/Blokee/tmp; H=$T/hb; NEW=$H/bin; OLD=$T/v56/bin; CFG=$H/configs; I=$H/identity; LOG=$H/cpu-log.txt
+T=/Users/paulkim/Blokee/tmp; H=$T/hb; NEW=${NEW:-$H/bin}; OLD=$T/v56/bin; CFG=$H/configs; I=${I:-$H/identity}; LOG=$H/cpu-log.txt
+# Re-run for a later build: NEW=<bin dir> I=<out dir> SKIP_ULTRA=1 engine-rs/scripts/hb-identity.sh
 REPO=$(pwd); POS=$T/d1/x1-l6a.moves.jsonl
 mkdir -p $I
 step() {  # step <label> <command...>: run niced, log start/end in the cpu log
@@ -37,8 +38,10 @@ for run in "old pro-base $OLD" "new pro-base $NEW" "old pro-W1D-ET $OLD" "new pr
   set -- $run
   step "v55_speed $1 $2 50 positions" /usr/bin/time -l -o $I/speed-$1-$2.time $3/v55_speed $POS 150 3 $I/speed-$1-$2.csv $CFG/$2.json 2>/dev/null
 done
+# §2 arm: depth and best-move agreement with W1D-ET (no timing)
+[ -f $CFG/pro-W1D-AD.json ] && step "v55_speed new pro-W1D-AD 50 positions" /usr/bin/time -l -o $I/speed-new-pro-W1D-AD.time $NEW/v55_speed $POS 150 3 $I/speed-new-pro-W1D-AD.csv $CFG/pro-W1D-AD.json 2>/dev/null
 # 2c: ultra, every 30th of 150 positions (5)
-for c in ultra-W1D ultra-W1D-lazy; do
+[ -n "${SKIP_ULTRA:-}" ] || for c in ultra-W1D ultra-W1D-lazy; do
   step "v55_speed new $c 5 positions" /usr/bin/time -l -o $I/speed-new-$c.time $NEW/v55_speed $POS 150 30 $I/speed-new-$c.csv $CFG/$c.json 2>/dev/null
 done
 echo "HB IDENTITY DONE $(date '+%F %T')"

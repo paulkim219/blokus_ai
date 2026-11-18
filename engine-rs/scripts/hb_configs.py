@@ -8,6 +8,8 @@ Every config is a byte-level JSON transform of a recorded one, so its provenance
   ultra-W1D        = engine-rs/configs/v5.2-ultra.json + interiorCap {16, 4, 0.5} (no re-timing; probe only)
   ultra-W1D-lazy   = ultra-W1D + interiorCap.lazy true
   <tier>-lazy      = engine-rs/configs/v5.3-<tier>.json + interiorCap.lazy true (identity only)
+  pro-W1D-AD       = pro-W1D-ET + interiorCap.adaptive {split 11.7338 (train-half median n_eff, §2 probe),
+                     diffuse 1.25, concentrated 0.75} (§2 rule; iterationScale re-timed separately)
 Run from the repo root of the worktree; ROOT defaults to /Users/paulkim/Blokee/tmp/hb.
 """
 import json, os, sys
@@ -44,6 +46,9 @@ ultra = load("engine-rs/configs/v5.2-ultra.json")
 ultra["native"]["candidates"]["interiorCap"] = {"init": 16, "growth": 4, "exponent": 0.5}
 save("ultra-W1D", ultra)
 save("ultra-W1D-lazy", lazy(ultra))
+ad = json.loads(json.dumps(w1d))
+ad["native"]["candidates"]["interiorCap"]["adaptive"] = {"split": 11.7338, "diffuse": 1.25, "concentrated": 0.75}
+save("pro-W1D-AD", ad)
 for tier in ["v5.3-nano", "v5.3-lite", "v5.3", "v5.3-turbo"]:
     save(tier + "-lazy", lazy(load(f"engine-rs/configs/{tier}.json")))
 print("wrote", sorted(os.listdir(out)))
