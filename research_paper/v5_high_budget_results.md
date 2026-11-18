@@ -184,12 +184,12 @@ Descriptive:
 | n_eff middle tercile | 60,877 | 0.403 | 0.305 | — | 0.123 | 0.074 | — |
 | n_eff high tercile (> 18.5) | 60,878 | 0.607 | 0.515 | — | 0.268 | 0.180 | — |
 
-"Board contact", meaning any opponent piece in the mover's halo, holds in 97.5% of main-set decisions, so it does not separate positions. The useful split is *move contact*. L7's quiet, non-contact moves fall outside the window 3–6× as often as its contact moves.
+"Board contact", meaning any opponent piece in the mover's halo, holds in 97.5% of main-set decisions, so it does not separate positions. The useful split is *move contact*. L7's quiet, non-contact moves fall outside the window 2–8× as often as its contact moves; the ratio grows with the window.
 
 **Two-width bins (preregistered rule).** Split at the train-half median n_eff = 11.7338. Train miss rate, mean over N = 16, 64, 256: W1D 0.0893; f_d = 1.25: 0.0779; 1.5: 0.0784; 1.75: 0.1071. **Chosen: f_d = 1.25.** Diffuse nodes get floor(1.25·(16 + 4√N)) and concentrated nodes floor(0.75·(16 + 4√N)).
 - **Held-out** (test half, 91,168 decisions, 200 seeds): miss rate 0.0908 → 0.0794, difference **−0.0114 [−0.0120, −0.0108]**. **Supportive.**
 - Mean window on the test half equals W1D's within 0.3 at every N (e.g. 31.9 vs 32 at N = 16).
-- The gain is at diffuse nodes. In cramped positions the narrower window costs +0.003 at N = 1–4, and saves −0.002 to −0.005 from N = 16 on.
+- The gain is at diffuse nodes. In cramped positions the narrower window costs +0.001 to +0.003 at N = 1–4, and saves −0.002 to −0.005 from N = 16 on.
 
 **Reading (mine):**
 - The prior's own concentration is a strong signal of where W1D's window is too narrow: at N = 16, misses run 2% at concentrated nodes against 27% at diffuse nodes.
@@ -198,3 +198,34 @@ Descriptive:
 - The probe cannot see the depth cost: a wider window at diffuse nodes means shallower lines there. Only the match decides.
 - Game positions stand in for tree nodes, and L7's move stands in for "the necessary reply".
 - The miss rate for non-contact moves stays high under every window. That is a prior-model issue (quiet L7 moves score low), not a width issue.
+
+---
+
+# Preregistered next screens (not run tonight)
+
+## Screen P2: adaptive interior width at pro (preregistration 2026-11-17 21:45 CST, this commit's time; fixed before its cost is measured or any game is played)
+
+- **Candidate `W1D-AD`** = `tmp/hb/configs/pro-W1D-AD.json`. That is W1D-ET with `interiorCap.adaptive` {split 11.7338, diffuse 1.25, concentrated 0.75}, taken from the §2 rule above. Engine `47647a0` or later; the option-absent identity is re-checked on that build (`tmp/hb/identity2/`).
+- **Control:**
+  - If round 10 accepted W1D-ET: W1D-ET is the control, and the screen has two arms.
+  - If not: v5.2-pro stays the promotion control and W1D-ET is played as a diagnostic third arm. That is the plan's rule.
+- **Equal time:**
+  - Clean cost of W1D-AD vs W1D-ET comes from `p4_cost`: one thread, 60 positions of `tmp/d1/x1-l6a.moves.jsonl`, an unscored W1D-ET warm-up search, two rounds in reverse order. It runs tonight's quiet slot if time allows (`tmp/hb/quiet/ad-r*.csv`), else before the screen.
+  - If the ratio is outside 0.97–1.03, W1D-AD plays with `iterationScale` 239.172 / ratio (`W1D-AD-ET`). Otherwise it plays at 239.172.
+  - If v5.2-pro is the control, W1D-ET keeps its round-8 timing (cost 0.9386).
+- **Match:** as rounds 9 and 10. `blokee-pentobi --mode one-blokee --gtp-processes per-seat --level 7 --budget 300`, book on, Pentobi 31.0, 12 game threads, four rotations per seed. **300 fresh seeds 103,100,000–103,100,299**, in three 100-seed chunks with the arm order rotating per chunk. Resumable chunks with `.done` markers, merged by explicit file names.
+- **Rule (the standard):** cleared if the paired-by-seed 95% bootstrap Δ advantage (candidate − control) has a lower bound > 0 *and* the upper bound of the paired first-place Δ is ≥ 0, at equal clean time.
+  - A cleared screen goes to a confirmation on 800 fresh seeds 103,300,000–103,300,799, under its own preregistration.
+  - Descriptive only: mean tree depth and the share of simulations that reach the mover's next turn (`v55_speed`/`tree_shape`), and W1D-AD vs W1D-ET same-best on the probe positions.
+- **Cost estimate:** round 9's pro block took 6.2 h for 3 arms × 300 seeds, about 2.1 h per arm. So about **4.2 Mac hours** with two arms, or **6.2 h** with three.
+
+## Screen P1: reply-aware fit feature
+
+Not preregistered: the §1 gate did not pass. Block 103,000,000 stays unused.
+
+## §3 lazy allocation: what the speed result will decide (rule fixed in the §3 prereg)
+
+The read is lazy/eager clean ms at pro, from the quiet slot.
+- **At most 0.97:** screen **P3**. `W1D-ET-lazy-ET` (W1D-ET + lazy, `iterationScale` 239.172 / ratio) against the round-10 control. Same match setup as P2, **300 fresh seeds 103,200,000–103,200,299**, standard rule. About 4.2 Mac hours.
+- **Otherwise:** no screen. Lazy is a memory option that plays the same games.
+- **Separately (proposal, not preregistered):** the round-8 notes give about 4 h per 24 L9 seeds per arm with three simultaneous games. Ultra's L8/L9 calibration ran three games at a time because of memory (about 11 GB peak each). Lazy halves ultra's tree and peak RSS on the probe positions. With per-seat Pentobi a game keeps about one core busy, so on 48 GB about twice as many ultra games could run at once. Whether that holds at matched throughput needs a short pilot.
