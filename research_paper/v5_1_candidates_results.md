@@ -2086,8 +2086,58 @@ Complete seeds only (all four rotations). Read by `python3 engine-rs/scripts/v51
 **Amendment 2 (2026-11-17 14:08 CST, this commit's time; fixed before chunks 2–7 finish and before any result is read).**
 - **Pauses** (Paul's request, Mac unplugged):
   - **First pause, 12:28–13:25.** The coordinator sent SIGSTOP to `blokee-pentobi` and its Pentobi children, and killed caffeinate. Resumed with SIGCONT and a new `caffeinate -w`. `rol-W1D-ET-c0` was at 338/400; it completed at 13:34 with 400 games.
-  - **Second pause, from 14:07.** Same procedure, during `rol-W1D-ET-c1` at 296/400.
+  - **Second pause, from 14:07.** Same procedure, during `rol-W1D-ET-c1` at 296/400. (Added with the results: it ended at 20:08, when the coordinator sent SIGCONT and started a new caffeinate; `rol-W1D-ET-c1` completed at 20:18 with 400 games.)
 - **Games kept.** Nothing is killed or replayed for a pause: the games are iteration-budgeted.
 - **Equal-time check: chunks 2–7 only, both arms.** `rol-W1D-ET-c1`'s timings straddle the second pause, so chunk 1 is excluded along with chunk 0 (amendment 1). Chunk 1 is dropped for both arms so that the check compares the same chunks.
 - **Rules unchanged.** The acceptance rule and the seeds are as preregistered. Both pauses are recorded as deviations.
 - **How this was committed.** At 13:32 the main working tree was switched to `main` outside this session. This amendment is committed to `v6-native-engine-e4` with git plumbing (temporary index, `commit-tree`, `update-ref`), leaving the working tree untouched.
+
+## Round 10 — results: pro confirmation vs three level-7 seats, 800 seeds 102,000,000 (2026-11-17 09:29 – 2026-11-18 05:20; `tmp/v57/pro/confirm.md`, `tmp/v57/pro/report.md`)
+
+Both arms are complete: 16 chunk-arms of 400 games each, 3,200 games per arm, all 800 seeds paired. W1D-ET's moves differ from base's in 3,193 of the 3,200 games.
+
+**Read-out.** The chain's own read-out step could not run, because the main working tree had been switched to `main` (amendment 2). It was run by hand right after the games, from a `git archive` export of this branch at `d5b6771`, with the same commands: `v51b_report.py --roll-confirm tmp/v57/pro 800` and `v57_pro_report.py`.
+
+| Arm | Seeds | Advantage vs L7 [95% CI] | First place (any) | Paired Δ vs base [95% CI] | Paired Δ first place (any), pp [95% CI] | ms/move 3+ in-match, clean chunks 2–7 |
+|---|---:|---:|---:|---:|---:|---:|
+| base (`v5.2-pro.json`, 224.487) | 800 | −1.66 [−2.11, −1.22] | 18.8% | — | — | 1086.2 |
+| W1D-ET (floor(16 + 4·√N), 239.172) | 800 | −0.66 [−1.12, −0.20] | 22.6% | **+1.00 [+0.46, +1.55]** | **+3.78 [+2.06, +5.59]** | 1041.6 |
+
+First place (split, ties shared): 15.9% → 19.5%, Δ +3.61 pp [+2.01, +5.22].
+
+**Decision (preregistered rule): W1D-ET is accepted at pro.** The paired lower bound (+0.46) is above 0, and first place is up, not down. Saved as `engine-rs/configs/v5.3-cand-pro.json`, a byte copy of `tmp/v57/pro/configs/W1D-ET.json`. Paul names versions; no `v5.3-pro.json` is created.
+
+**Equal-time check (amendments 1 and 2, clean chunks 2–7 only): W1D-ET / base = 1041.6 / 1086.2 = 0.959. This is outside 0.97–1.03, on the low side.** As preregistered, it is reported and nothing is changed. Round 9 read 0.957 on the same configs. W1D-ET runs about 4% under base's in-match time, so the comparison is, if anything, against W1D-ET. Over all eight chunks, base reads 1107.4 and W1D-ET 2096.4: the second pause (14:07–20:08) falls inside `rol-W1D-ET-c1` (9,083 ms/move for that chunk). That figure is not a timing measurement.
+
+**Per chunk (descriptive), paired Δ:**
+
+| Chunk | c0 | c1 | c2 | c3 | c4 | c5 | c6 | c7 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Δ advantage | +1.62 | +0.52 | +1.76 | +0.72 | +1.52 | −0.17 | +0.27 | +1.75 |
+| Δ first place, pp | +2.75 | +4.25 | +3.50 | +1.00 | +7.75 | +4.75 | +0.75 | +5.50 |
+
+Seven of eight chunks are positive on advantage, and all eight on first place.
+
+**Descriptive, not the decision: pooled with the screen data.** These seeds are selection-biased, because W1D-ET was chosen on them.
+
+| Sample | Seeds | base | W1D-ET | Paired Δ [95% CI] | Δ first place (any), pp [95% CI] |
+|---|---:|---:|---:|---:|---:|
+| round 10 + round 9 (101,500,000) | 1,100 | −1.62 | −0.58 | +1.04 [+0.60, +1.50] | +3.18 [+1.75, +4.64] |
+| round 10 + round 9 + round 8 (100,300,000) | 1,200 | −1.58 | −0.57 | +1.01 [+0.58, +1.44] | +3.06 [+1.67, +4.42] |
+
+**Score relative to the game mean, by position relative to the lone seat** (lone / next / opposite / previous):
+- base: −1.24 / +2.97 / −0.99 / −0.74;
+- W1D-ET: −0.49 / +2.64 / −1.17 / −0.98.
+
+The seat after Blokee still gains about 2.6–3.0 points.
+
+**Deviations** (all recorded before the later games, in amendments 1 and 2):
+1. A low-battery sleep, 10:58–12:24, with battery throttling from about 10:12, during chunk 0.
+2. Pauses on Paul's request, 12:28–13:25 (chunk 0) and 14:07–20:08 (chunk 1). The coordinator sent SIGSTOP to the match and killed caffeinate, then resumed with SIGCONT.
+3. Effect on the games: none. They are iteration-budgeted and Pentobi's levels are fixed, so all of them were kept, no chunk was incomplete, and nothing was replayed. Chunks 0–1 are excluded from the time check only.
+4. Branch: the working tree was switched to `main` at 13:32, outside this session. Amendment 2 and these results are committed to `v6-native-engine-e4` with git plumbing, and the read-out ran from an export.
+
+**Reading (mine):**
+- The cap carries to pro in its mild shape. W1D, at about +1 point, matches the cheap tiers' W1C gain. At pro, it moves first place more (+3.8 pp) than at any tier so far.
+- With round 9's trend, the best window widens as the budget grows: W1C at nano and lite, W1A at base and turbo, W1D at pro.
+- The gain is at equal or lower in-match time (0.96×), so it is not bought with time.

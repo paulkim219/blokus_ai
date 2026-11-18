@@ -34,7 +34,7 @@ print(f"\n- {ARM} − base, {n} seeds: {fmt_ci(d)}; first place (any) {fmt_ci(f1
 ta, la = timing(C("base")[:-6] + ".timing.jsonl")
 tw, lw = timing(C(ARM)[:-6] + ".timing.jsonl")
 print(f"\nIn-match ms/move, all 8 chunks (CONTAMINATED: chunk 0 ran through battery throttling from about 10:12, a "
-      f"low-power sleep 10:58-12:24 and a pause 12:28-13:25 (amendment 1); chunk 1 straddles a pause from 14:07 (amendment 2)): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f} (all / own moves 3+); ratio (3+) {lw / la:.3f}")
+      f"low-power sleep 10:58-12:24 and a pause 12:28-13:25 (amendment 1); chunk 1 straddles a pause 14:07-20:08 (amendment 2)): base {ta:.1f} / {la:.1f}; {ARM} {tw:.1f} / {lw:.1f} (all / own moves 3+); ratio (3+) {lw / la:.3f}")
 # The equal-time check (amendments 1 and 2): clean chunks 2-7 only, both arms.
 CLEAN = range(2, 8)
 os.makedirs(f"{D}/pooled", exist_ok=True)
