@@ -58,9 +58,59 @@ struct Node {
     edge_ratio: Vec<f64>,
     prior_suffix: Vec<f64>,
     ratio_suffix: Vec<f64>,
+    /// High-budget §3 (`interiorCap.lazy`, interior nodes only): `children`, `child_visits` and
+    /// (with RAVE) `amaf` cover only the edges [0, children.len()) the window has opened; the rest
+    /// of the per-edge state is here. None is the eager layout (every array the length of `moves`).
+    lazy: Option<Box<LazyTail>>,
+}
+
+/// The lazy layout's per-node extra state.
+struct LazyTail {
+    /// Edge indices sorted by move id (moves are unique), for the move → edge lookup in AMAF updates.
+    by_move: Vec<u16>,
+    /// Whether this node keeps AMAF statistics (RAVE on here).
+    amaf: bool,
+    /// AMAF (sum, weight) of edges at or past the dense length, sorted by edge; each pair holds
+    /// exactly the additions the eager slot would hold, in the same order, and moves into `amaf`
+    /// unchanged when the window reaches its edge.
+    pending_edge: Vec<u16>,
+    pending: Vec<[f64; 2]>,
 }
 
 impl Node {
+    /// Lazy layout: make the dense per-edge arrays cover edges [0, want) (clamped to the move
+    /// count), moving pending AMAF pairs into place. No-op for an eager node or a covered range.
+    /// Returns the number of pending pairs moved (diagnostics).
+    fn ensure_dense(&mut self, want: usize) -> usize {
+        let Some(tail) = self.lazy.as_mut() else { return 0 };
+        let have = self.children.len();
+        let want = want.min(self.moves.len());
+        if want <= have {
+            return 0;
+        }
+        // Grow capacity by at least half (amortised O(1)), never past the move count.
+        let cap = self.children.capacity().max(have);
+        if want > cap {
+            let target = (cap + cap / 2).max(want).min(self.moves.len());
+            self.children.reserve_exact(target - have);
+            self.child_visits.reserve_exact(target - have);
+            if tail.amaf {
+                self.amaf.reserve_exact(target - have);
+            }
+        }
+        self.children.resize(want, NONE);
+        self.child_visits.resize(want, 0);
+        if tail.amaf {
+            self.amaf.resize(want, [0.0; 2]);
+            let k = tail.pending_edge.partition_point(|&e| (e as usize) < want);
+            for (e, a) in tail.pending_edge.drain(..k).zip(tail.pending.drain(..k)) {
+                self.amaf[e as usize] = a;
+            }
+            return k;
+        }
+        0
+    }
+
     fn new(position: &Position) -> Node {
         Node {
             hash_lo: position.hash_lo,
@@ -87,6 +137,7 @@ impl Node {
             edge_ratio: Vec::new(),
             prior_suffix: Vec::new(),
             ratio_suffix: Vec::new(),
+            lazy: None,
         }
     }
 
@@ -100,6 +151,9 @@ impl Node {
         self.moves.capacity() * 4 + self.priors.capacity() * 8 + self.children.capacity() * 4 + self.child_visits.capacity() * 4
             + self.amaf.capacity() * 16 + self.touched.capacity() * 4 + self.edge_cp.capacity() * 8 + self.edge_ratio.capacity() * 8
             + self.prior_suffix.capacity() * 8 + self.ratio_suffix.capacity() * 8
+            + self.lazy.as_ref().map_or(0, |t| {
+                std::mem::size_of::<LazyTail>() + t.by_move.capacity() * 2 + t.pending_edge.capacity() * 2 + t.pending.capacity() * 16
+            })
     }
 }
 
@@ -260,6 +314,10 @@ pub struct V12Search {
     interior_init_visits: f64,
     /// Round 8 W1 (`native.candidates.interiorCap`). None leaves selection exactly as before.
     interior_cap: Option<crate::config::InteriorCap>,
+    /// High-budget §3 (`interiorCap.lazy`): interior nodes use the lazy per-edge layout.
+    lazy_interior: bool,
+    /// Diagnostics: pending AMAF pairs moved into dense slots during the last search (lazy only).
+    lazy_moved: u64,
     /// Diagnostics: the tree part of each simulation (edges descended), summed and maximum.
     depth_sum: u64,
     depth_max: u32,
@@ -316,6 +374,9 @@ impl V12Search {
             interior_no_widening,
             interior_init_visits,
             interior_cap: candidates.as_ref().and_then(|c| c.interior_cap.clone()),
+            // fast_select is off whenever a cap is set, so it never sees a lazy node.
+            lazy_interior: candidates.as_ref().and_then(|c| c.interior_cap.as_ref()).is_some_and(|c| c.lazy),
+            lazy_moved: 0,
             depth_sum: 0,
             depth_max: 0,
             last_good_reply: lgr.is_some(),
@@ -507,6 +568,7 @@ impl V12Search {
             self.apply_net(position, root_seat);
         }
         self.iterations = 0;
+        self.lazy_moved = 0;
         self.depth_sum = 0;
         self.depth_max = 0;
         self.nodes[root as usize].move_count()
@@ -570,11 +632,21 @@ impl V12Search {
             return;
         };
         let shortlist = moves.len();
+        let lazy = self.lazy_interior && !is_root;
+        let rave_here = self.rave.as_ref().is_some_and(|r| is_root || !r.root_only());
         let node = &mut self.nodes[id as usize];
         node.moves = moves;
         node.priors = priors;
-        node.children = vec![NONE; shortlist];
-        node.child_visits = vec![0; shortlist];
+        if lazy {
+            // Dense arrays start empty; `select` opens them as the window grows.
+            debug_assert!(shortlist <= u16::MAX as usize + 1);
+            let mut by_move: Vec<u16> = (0..shortlist).map(|e| e as u16).collect();
+            by_move.sort_unstable_by_key(|&e| node.moves[e as usize]);
+            node.lazy = Some(Box::new(LazyTail { by_move, amaf: rave_here, pending_edge: Vec::new(), pending: Vec::new() }));
+        } else {
+            node.children = vec![NONE; shortlist];
+            node.child_visits = vec![0; shortlist];
+        }
         node.opened = 0;
         node.initialised = true;
         node.prior_max = node.priors.iter().copied().fold(0.0, f64::max);
@@ -594,9 +666,7 @@ impl V12Search {
                 node.ratio_suffix = suffix_max(node.edge_ratio.iter().copied());
             }
         }
-        if let Some(r) = &self.rave
-            && (is_root || !r.root_only())
-        {
+        if rave_here && !lazy {
             node.amaf = vec![[0.0; 2]; shortlist];
         }
     }
@@ -1078,11 +1148,22 @@ impl V12Search {
         if node.opened < allowed && node.opened < node.move_count() {
             let index = node.opened;
             node.opened += 1;
+            self.lazy_moved += node.ensure_dense(index + 1) as u64;
             return Some(index);
         }
         if node.opened == 0 {
             return None;
         }
+        // Round 8 W1: interior nodes consider only the first `cap(N)` children in prior order.
+        let limit = match (&self.interior_cap, id != self.root) {
+            (Some(c), true) => {
+                let cap = (c.init + c.growth * node.visits.powf(c.exponent)).floor().max(1.0);
+                if cap < node.opened as f64 { cap as usize } else { node.opened }
+            }
+            _ => node.opened,
+        };
+        // High-budget §3: a lazy node's dense arrays must cover the window (no-op when eager).
+        self.lazy_moved += node.ensure_dense(limit) as u64;
         let node = &self.nodes[id as usize];
         let s = &self.params.search;
         let seat = node.turn;
@@ -1230,14 +1311,6 @@ impl V12Search {
         }
         let mut best_index = None;
         let mut best_score = f64::NEG_INFINITY;
-        // Round 8 W1: interior nodes consider only the first `cap(N)` children in prior order.
-        let limit = match (&self.interior_cap, id != self.root) {
-            (Some(c), true) => {
-                let cap = (c.init + c.growth * node.visits.powf(c.exponent)).floor().max(1.0);
-                if cap < node.opened as f64 { cap as usize } else { node.opened }
-            }
-            _ => node.opened,
-        };
         for index in 0..limit {
             let child = node.children[index];
             let edge_visits = node.child_visits[index] as f64;
@@ -1483,6 +1556,47 @@ impl V12Search {
         for i in 0..depth {
             let id = self.path_nodes[i];
             let node = &mut self.nodes[id as usize];
+            if let Some(tail) = node.lazy.as_mut() {
+                // High-budget §3: the same credits as the eager loop below (each placement occurs
+                // once in a simulation, so each slot gets at most one addition per simulation), found
+                // from the simulation's moves by binary search instead of a scan of every edge.
+                if !tail.amaf {
+                    continue;
+                }
+                let seat = node.turn;
+                debug_assert_eq!(self.sim_moves[i].0, seat, "path move by another seat than the node's mover");
+                let v = value[if self.paranoid { self.root_seat } else { seat }];
+                let span = (total - i) as f64;
+                let dense = node.amaf.len();
+                for j in i..total {
+                    let (s, mv) = self.sim_moves[j];
+                    if s != seat {
+                        continue;
+                    }
+                    let moves = &node.moves;
+                    let Ok(k) = tail.by_move.binary_search_by_key(&mv, |&e| moves[e as usize]) else {
+                        continue;
+                    };
+                    let edge = tail.by_move[k] as usize;
+                    let w = if decay > 0.0 { 1.0 - decay * (j - i) as f64 / span } else { 1.0 };
+                    let slot = if edge < dense {
+                        &mut node.amaf[edge]
+                    } else {
+                        let p = match tail.pending_edge.binary_search(&(edge as u16)) {
+                            Ok(p) => p,
+                            Err(p) => {
+                                tail.pending_edge.insert(p, edge as u16);
+                                tail.pending.insert(p, [0.0; 2]);
+                                p
+                            }
+                        };
+                        &mut tail.pending[p]
+                    };
+                    slot[0] += w * v;
+                    slot[1] += w;
+                }
+                continue;
+            }
             if node.amaf.is_empty() {
                 continue;
             }
@@ -1556,6 +1670,20 @@ impl V12Search {
         }
         bytes += self.table.capacity() * (4 + std::mem::size_of::<Vec<u32>>()) + self.table.values().map(|b| b.capacity() * 4).sum::<usize>();
         (self.nodes.len(), initialised, edges, bytes)
+    }
+
+    /// Diagnostics (read only, high-budget §3): (lazy nodes, dense edges, pending pairs held now,
+    /// pending pairs moved into dense slots during the search). All zero for the eager layout.
+    pub fn lazy_stats(&self) -> (usize, usize, usize, u64) {
+        let (mut nodes, mut dense, mut pending) = (0, 0, 0);
+        for n in &self.nodes {
+            if let Some(t) = &n.lazy {
+                nodes += 1;
+                dense += n.children.len();
+                pending += t.pending.len();
+            }
+        }
+        (nodes, dense, pending, self.lazy_moved)
     }
 
     /// Diagnostics (read only): the shape of the tree the last search left.

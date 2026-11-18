@@ -211,6 +211,11 @@ impl Engine {
         self.last_tree.map(|_| self.search.tree_memory())
     }
 
+    /// Diagnostics (high-budget §3): the last search tree's lazy-layout counters (see `V12Search::lazy_stats`).
+    pub fn lazy_stats(&self) -> Option<(usize, usize, usize, u64)> {
+        self.last_tree.map(|_| self.search.lazy_stats())
+    }
+
     pub fn reply_stats(&mut self) -> Option<(u64, u64)> {
         self.search.reply_stats()
     }

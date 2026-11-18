@@ -581,6 +581,12 @@ pub struct InteriorCap {
     pub growth: f64,
     #[serde(default = "half")]
     pub exponent: f64,
+    /// High-budget §3: lazy interior allocation. Interior nodes keep their sorted moves and priors
+    /// but hold child ids, edge visits and AMAF slots only for the edges the window has opened; AMAF
+    /// credit for a move outside the window waits in a sparse pending list until its edge opens.
+    /// Same search, bit for bit, with less memory. false (default) is the eager layout.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lazy: bool,
 }
 
 fn half() -> f64 {
@@ -649,6 +655,8 @@ impl BitboardParams {
         reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()).and_then(|c| c.interior_cap.as_ref()) {
             reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
+            // E6's depth-1 policy re-sorts a root child's moves after initialisation.
+            reject(c.lazy && native.is_some_and(|n| n.net.is_some()), "native.candidates.interiorCap.lazy with native.net");
         }
         if let Some(r) = native.and_then(|n| n.rollout.as_ref()) {
             reject(!matches!(r.policy.as_str(), "sampled" | "all"), "native.rollout.policy must be sampled or all");
