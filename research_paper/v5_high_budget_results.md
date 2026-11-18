@@ -125,6 +125,13 @@ All runs are one thread at `nice -n 20` while round 10 played. That does not aff
 
 No "decisions differ" measurement is needed: the two layouts give the same search, bit for bit.
 
+**Re-check on the final engine** (`47647a0`, which adds the §2 `adaptive` option; binary `tmp/hb/bin2`, output `tmp/hb/identity2/`, 21:36–21:48):
+- `s4_identity`: old = new = lazy, all 1,440 lines byte-identical;
+- `blokee-match`: the same 8 games, only `challengerSeconds` differs;
+- `v55_speed` pro digests: old = new 50/50 (`pro-base`), 50/50 (`pro-W1D-ET`); eager = lazy 50/50;
+- `cargo test --release`: 36 tests pass. These include `adaptive_width_identity_points`: adaptive with both factors 1 = plain cap on 5 searches, and adaptive lazy = adaptive eager.
+- Descriptive, §2 arm on the same 50 pro positions: `pro-W1D-AD` has the same mean tree depth as W1D-ET (5.83 vs 5.83). Its best move matches W1D-ET's in 38/50 positions. Its memory is 4,652 bytes per iteration, eager layout.
+
 **Memory** (`tree_memory` heap bytes; peak RSS from `/usr/bin/time -l`; same positions and iterations for both layouts):
 
 | Tier / config | Positions | Tree bytes per iteration, eager → lazy | Largest tree, eager → lazy | Peak RSS, eager → lazy |
