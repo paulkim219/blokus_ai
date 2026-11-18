@@ -269,3 +269,81 @@ The read is lazy/eager clean ms at pro, from the quiet slot.
 - **At most 0.97:** screen **P3**. `W1D-ET-lazy-ET` (W1D-ET + lazy, `iterationScale` 239.172 / ratio) against the round-10 control. Same match setup as P2, **300 fresh seeds 103,200,000–103,200,299**, standard rule. About 4.2 Mac hours.
 - **Otherwise:** no screen. Lazy is a memory option that plays the same games.
 - **Separately (proposal, not preregistered):** the round-8 notes give about 4 h per 24 L9 seeds per arm with three simultaneous games. Round 6 found that memory limits ultra to about 3 concurrent games on this machine (peak about 8–11 GB per search). Lazy halves ultra's tree and peak RSS on the probe positions. With per-seat Pentobi a game keeps about one core busy, so on 48 GB about twice as many ultra games could run at once. Whether that holds at matched throughput needs a short pilot.
+
+---
+
+# Round 11 — ultra: measure first (preregistration 2026-11-18 CST, this commit's time; fixed before any round-11 probe, cost run or game)
+
+**Read so far:** this file; rounds 6–10 of `v6-native-engine-e4:research_paper/v5_1_candidates_results.md`; `docs/BENCHMARK.md` and `docs/V5_TRACKER.md` on that branch. No game on seeds 104,000,000+ exists (`grep` of `research_paper/`, `docs/`, `engine-rs/scripts/`; `tmp/v58/` is new). Round 11 starts only after screen P2's chain has exited. Raw output: `tmp/v58/`.
+
+**What is known about ultra.** `v5.2-ultra` (`engine-rs/configs/v5.2-ultra.json`, `iterationScale` 3948.432, byte-identical to the e4 branch) scored −4.14 [−8.55, +0.68] vs three L9 seats on 11 seeds, at about 15.3 s/move against Pentobi's 18.9 s/move under 3-game load. L8 has never been played, so ultra has no benchmark score. The interior cap has never been tried at ultra. The best cap window has widened with budget: W1C (2, 0.5) at nano and lite, W1A (4, 1) at base and turbo, W1D (16, 4) at pro.
+
+**Purpose.** Measure: tree shape, clean cost, memory, safe concurrency, and the time and variance of ultra games vs L8. **No acceptance decision is taken in this round.** It stops after the pilot; Paul chooses the screen's sample size from the projections.
+
+**Binary:** `tmp/hb/bin2` (engine `47647a0`), the binary P2 runs. No engine change.
+
+## Arms
+
+Each cap arm is `v5.2-ultra` plus `native.candidates.interiorCap` {init, growth, exponent 0.5, **lazy true**}. Configs are written by a script into `tmp/v58/configs/`; each is checked by `jq -S` diff against `v5.2-ultra.json` to differ only by that block (and, for -ET or the noise reference, `iterationScale`).
+
+| Name | Change |
+|---|---|
+| `U` | `v5.2-ultra` unchanged (control) |
+| `U-1pct` | `iterationScale` 3948.432 × 1.01 = 3987.916 (noise reference, probe only) |
+| `U16-4` | cap (16, 4) = W1D, pro's accepted shape |
+| `U16-8` | cap (16, 8) |
+| `U32-8` | cap (32, 8) |
+| `U64-16` | cap (64, 16) |
+
+**Deviation from the brief, fixed now:** the brief asks for `lazy: true` in every arm, the control included. `lazy` is a sub-option of `interiorCap` (`config.rs`), and `v5.2-ultra` has no cap, so the control cannot be lazy. A non-binding cap would not help: a window that covers every move opens every edge at once, so nothing is saved, and the capped path also switches off `fast_select`. **The control therefore keeps its eager, uncapped memory** (round 8: largest tree 8.35 GB, peak RSS 10.8 GB), and that, not the cap arm, sets the pilot's concurrency limit for the control. The cap arms are lazy. Lazy plays bit-identically to eager with the same cap (§3), so it changes no game; its extra time (about 2.7% at ultra, §3) is inside each cap arm's measured clean cost, so it is matched by the -ET rule below. Lazy in a future ultra config would shift that tier's time match to L9 by its cost; `v5.2-ultra` itself is unchanged.
+
+## Step A — no-game probe (tree shape)
+
+- `v55_speed`, one thread per process, budget 300, positions `tmp/d1/x1-l6a.moves.jsonl` (150 positions, every 5th = **30 positions**; round 8's 15 ultra positions are every 10th and so a subset).
+- All six arms, run as parallel single-threaded processes (results are deterministic: same RNG seed per position, fixed budget; ms from this step is not used). Peak RSS of each process from `/usr/bin/time -l`.
+- Reported per arm: mean depth, mean max depth, same best move as `U` (of 30), mean iterations, tree bytes per iteration, largest tree, peak RSS.
+
+**Shape chosen for the pilot (fixed rule).** Among the four cap arms:
+1. *Binding:* an arm counts only if its same-best count is at least 3 positions below `U-1pct`'s (otherwise the cap does not change the search beyond noise).
+2. *Memory:* peak RSS ≤ 6 GB (lazy).
+3. *Choice:* the arm whose mean-depth gain over `U` is closest to **+0.39 plies**, W1D's gain over v5.2 at pro on round 8's 50-position probe (5.39 → 5.78). That is: the ultra shape that changes the tree about as much as pro's accepted shape changed pro's. Gains within 0.05 of each other count as a tie, broken toward the wider arm (larger init, then larger growth), following the widening trend.
+4. If no arm passes 1–2, the pilot is played with `U16-4` and that is reported.
+
+This rule is a heuristic extrapolation, not strength evidence. The probe cannot measure strength; only games can.
+
+## Step B — clean cost (quiet machine)
+
+- Only after Step A's processes have exited, with no match, probe or build running, and 1-minute load < 3. Logged in `tmp/v58/cpu-log.txt`.
+- `p4_cost`, one thread, **30 positions** of `tmp/d1/x1-l6a.moves.jsonl`, round 9's warm-up procedure: round 1 = `U` (unscored warm-up), `U`, chosen arm; round 2 = `U` (warm-up), chosen arm, `U`. Read-out `hb_cost_report.py` (ratio of mean ms, mean of the two rounds).
+- **If the ratio is outside 0.97–1.03,** the arm plays re-timed: `iterationScale` 3948.432 / ratio (name suffix `-ET`, not re-checked, as rounds 8–10). Otherwise it plays at 3948.432.
+
+## Step C — memory and concurrency
+
+- **Baseline B:** after P2 exits and with no game running, B = wired + anonymous + compressor-occupied memory from `vm_stat` (the memory the rest of the machine holds: the Docker VM, apps).
+- **Pentobi:** one unscored game per level, `blokee-pentobi --mode pentobi-ladder --lone-level 1 --level 8` (then `--level 9`), 1 seed, `--rotations 1`, seed **104,900,000** (memory measurement only, never scored), RSS of each `pentobi-gtp` sampled every 5 s with `ps`. The L9 game is stopped after 8 minutes if not finished. P8, P9 = largest per-process RSS seen.
+- **Blokee per game:** R_arm = the arm's peak RSS in Step A (an engine keeps its tree capacity across a game's searches, so a game's peak is about its largest search).
+- **Rule:** C_arm = min(12, floor((48 − 8 − B) / (R_arm + 3·P8))) games at once (48 GB machine, at least 8 GB left free; 12 = the CPU limit used in every round, ~1 core per game). Each arm is played with its own C_arm. During the pilot, free memory, compressor and swap are logged every 60 s (`tmp/v58/pilot/mem.log`).
+- Per-arm concurrency means in-match ms/move are measured under different loads; they are descriptive. The equal-time standard is the clean cost (Step B).
+
+## Step D — pilot vs three L8 seats
+
+- **Arms:** `U` and the arm chosen in Step A (re-timed if Step B says so).
+- **Match:** `blokee-pentobi --mode one-blokee --gtp-processes per-seat --level 8 --budget 300`, book on, Pentobi 31.0, four rotations per seed. **12 seeds, 104,000,000–104,000,011**, in two 6-seed chunks (104,000,000 and 104,000,006); chunk 0 plays `U` then the cap arm, chunk 1 the reverse. Resumable chunk-arms with `.done` markers (24 result lines each), merged by explicit file names. Driver `engine-rs/scripts/v58-pilot.sh`, under `caffeinate -i -s -m -w <pid>`, launched through bash (nice 0).
+- **Reported (descriptive only; no acceptance decision):**
+  - in-match ms/move (own moves 5+ and 3+) for Blokee and Pentobi in each arm, and the Blokee / Pentobi ratio;
+  - each arm's lone-seat advantage vs L8 with its 95% seed-bootstrap interval, and first place;
+  - the paired Δ (cap − `U`) with its interval, and the **per-seed SD of the paired Δ**;
+  - wall time per game and games per hour per arm at its concurrency;
+  - **projected Mac hours** for a two-arm screen of 50 / 100 / 200 / 400 / 800 paired seeds vs L8; for an L9 block (scaled by the measured Pentobi time ratio L9/L8 and L9 memory); for **an L7 block of 50 seeds (fresh block 104,600,000)** for one arm; and the 95% half-width of the paired Δ that each sample size would give at the pilot SD.
+
+## Opponent for the ultra screen and confirmation (Paul's rule, 2026-11-18, fixed now)
+
+- **The opponent is L8 if `v5.2-ultra`'s pilot advantage vs three L8 seats is below 0 (point estimate), and L9 otherwise.**
+- The rule reads only the control arm's own level against Pentobi, never the paired Δ or the cap arm, so it cannot steer the acceptance test of any candidate.
+- If the opponent is L8, the ultra benchmark bracket needs an anchor where the engine is above zero, most likely L7, which is cheap: an L7 block of 50 seeds from **104,600,000** is in the projections.
+
+## What follows
+
+Nothing beyond the pilot is played in round 11. The ultra screen (fresh seeds from 104,100,000), its confirmation (104,300,000) and an L9 anchor (104,500,000) get their own preregistration once Paul has chosen the sample size. The acceptance rule stays the standard one: paired-by-seed 95% bootstrap Δ lower bound > 0 and first-place Δ upper bound ≥ 0, at equal clean time.
+
+**Seed blocks:** 104,000,000–104,000,011 (pilot); 104,900,000 (memory measurement, unscored). Reserved, unplayed: 104,100,000 (screen), 104,300,000 (confirmation), 104,500,000 (L9 anchor), 104,600,000 (L7 anchor).
