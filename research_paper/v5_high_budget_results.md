@@ -204,6 +204,10 @@ Descriptive:
 - n_eff tracks the legal-move count closely (median legal 15 vs 334 between the extreme terciles). The rule is largely "wider where there are more moves".
 - The probe cannot see the depth cost: a wider window at diffuse nodes means shallower lines there. Only the match decides.
 - Game positions stand in for tree nodes, and L7's move stands in for "the necessary reply".
+- **Tree diagnostics for the arm** (descriptive; one thread, nice 20; `tmp/hb/s2/shape/shape.csv`, `tmp/hb/identity2/`):
+  - On 50 pro positions W1D-AD changes the best move in 12/50 positions vs W1D-ET. The noise reference, W1D-ET with 1% more iterations, changes it in 0/50.
+  - The tree is otherwise the same: `p910_probe shape` on 50 positions gives mean depth 5.98 vs 5.98. The share of simulations reaching the mover's next turn (depth 4) is 0.871 vs 0.872, and depth 8 is 0.227 vs 0.226.
+  - So the arm changes which replies are searched, not how deep.
 - The miss rate for non-contact moves stays high under every window. That is a prior-model issue (quiet L7 moves score low), not a width issue.
 
 ---
