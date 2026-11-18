@@ -141,7 +141,20 @@ No "decisions differ" measurement is needed: the two layouts give the same searc
 
 For scale, v5.2-ultra without a cap had a largest tree of 8.35 GB and peak RSS of 10.8 GB on round 8's 15 positions. The cap alone does not change memory per iteration (eager 4.6–4.9 KB). The lazy layout halves it.
 
-**Speed:** quiet slot, below.
+**Speed (clean, quiet slot 05:24:48–05:43:15 CST 2026-11-18; `tmp/hb/quiet/`).** Round 10's chain exited at 05:20:13, and the slot opened at 1-minute load 2.94 with no Pentobi or match process left. The Docker VM and two macOS storage processes used about 1.5 cores throughout, as in round 8. Method: `p4_cost`, one thread, binary `tmp/hb/bin2`. Rounds 1 and 2 have reversed order. Pro and turbo have an unscored eager warm-up search per position first (round 9's procedure); ultra has none. Read-out: `engine-rs/scripts/hb_cost_report.py`.
+
+| Tier | Positions | Eager ms | Lazy ms | Lazy / eager, round 1 · round 2 | Mean | Same iterations, same move |
+|---|---:|---:|---:|---:|---:|---|
+| pro (`pro-W1D-ET`) | 60 | 895.6 · 904.9 | 933.7 · 940.9 | 1.0425 · 1.0397 | **1.041** | yes, 60/60 |
+| turbo (`v5.3-turbo`, W1A cap) | 150 | 93.0 · 92.6 | 97.7 · 96.5 | 1.0499 · 1.0425 | **1.046** | yes, 150/150 |
+| ultra (`ultra-W1D`) | 5 | 18,385 · 17,814 | 18,728 · 18,456 | 1.0187 · 1.0361 | **1.027** | yes, 5/5 |
+
+**Decision (preregistered rule):** the pro cost is 1.041, above 1.03. **Lazy is a memory option only. It is about 4% slower at pro and turbo, and about 3% at ultra (5 positions, so a noisy figure). There is no screen P3,** and block 103,200,000 stays unused. The option stays off by default.
+
+**Reading (mine):**
+- The extra time is probably in the AMAF update. Each credited move now costs a binary search with an indirect key (`moves[by_move[k]]`) instead of a stamp check in a linear scan. Each credit to an edge outside the window costs a sorted `Vec::insert`. The memory saved does not buy speed back, because `select` already scans only the window.
+- A cheaper layout would probably remove the gap: (move, edge) pairs stored together for the search, and pending pairs in an unsorted buffer merged when the window opens. That was not tried tonight because it would need clean timing again.
+- At ultra the case is capacity, not speed. Lazy halves the tree. Round 6 found that memory limits ultra to about 3 concurrent games, so lazy could roughly double ultra benchmark throughput, at a cost of about 3% of time per move. That cost would have to be matched in calibration (`iterationScale` / 1.03).
 
 ## §1 Fits after replies — development probe (measured; `tmp/hb/s1/`)
 
@@ -215,6 +228,13 @@ Descriptive:
 # Preregistered next screens (not run tonight)
 
 ## Screen P2: adaptive interior width at pro (preregistration 2026-11-17 21:45 CST, this commit's time; fixed before its cost is measured or any game is played)
+
+*Resolved 2026-11-18 05:45 (facts that the rule below branches on; no rule change):*
+- Round 10 accepted W1D-ET. `tmp/v57/pro/confirm.md` reads `NEW BASE: W1D-ET`, with paired +1.00 [+0.46, +1.55] and first place +3.78 pp [+2.06, +5.59] on 800 seeds. **So the control is W1D-ET, and P2 has two arms.**
+- The chain's log printed "R10 BENCH not run (nothing accepted)", which contradicts its confirm file. That is for round 10 to sort out.
+- **Clean cost of W1D-AD vs W1D-ET:** 0.9733 and 0.9694 in the two rounds, mean **0.971**. That is inside 0.97–1.03, so W1D-AD plays at `iterationScale` 239.172 (`tmp/hb/quiet/ad-r*.csv`).
+  - The ratio includes early exits: W1D-AD averages 49,604 iterations per search against 51,662.
+  - The same 60 positions give a different best move than W1D-ET in 25/60.
 
 - **Candidate `W1D-AD`** = `tmp/hb/configs/pro-W1D-AD.json`. That is W1D-ET with `interiorCap.adaptive` {split 11.7338, diffuse 1.25, concentrated 0.75}, taken from the §2 rule above. Engine `47647a0` or later; the option-absent identity is re-checked on that build (`tmp/hb/identity2/`).
 - **Control:**
