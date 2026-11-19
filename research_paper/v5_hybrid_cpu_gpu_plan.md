@@ -101,6 +101,49 @@ and loaded by the Rust engine through an `Evaluator` trait (implementations: `or
   mode (each call waits, batch of one thread) gives reproducible games for identity and debugging. Seed pairing for
   experiments still works, because seeds fix openings and Pentobi's seeds.
 
+## 4b. The player chooses the GPU share (Paul, 2026-11-19)
+
+Paul: "have the user choose whether to involve the GPU and by how much. This dynamic balance between CPU and GPU will
+ensure that people with different hardware can still have the performance of the different tiers they want."
+
+**A tier means a strength, not a machine.** Today a tier is a fixed amount of work: `iterationScale` was calibrated
+once against Pentobi's time on the Mac. Its strength is the same on any computer; a slow computer only takes longer per
+move. The hybrid keeps that principle. A tier has several **mixes** of equal strength, each a fixed amount of work:
+
+| Mix | CPU work | GPU work | Who it suits |
+|---|---|---|---|
+| CPU only | the tier's v5.x config, unchanged | none | no GPU, or the player wants the GPU free |
+| Light GPU | fewer iterations | network prior at the root and the busiest nodes (large T) | integrated or older GPUs |
+| Balanced | fewer still | prior and value from a moderate T | most discrete GPUs, Apple silicon |
+| Heavy GPU | the fewest | small T, large batches | strong GPUs (a 4080) |
+
+**What the player sees.**
+- **The tier.** As today.
+- **A GPU setting.** Off / Auto / a slider from light to heavy.
+- **Auto.** A one-off calibration of a few seconds on first use, repeatable from settings. It times this machine's CPU
+  iterations and GPU evaluations at a few batch sizes, then picks the mix that is fastest per move here. The slider
+  lets the player override it, for example to keep the GPU free or to save battery.
+- **Strength stays put.** Whatever the setting, the strength stays at the tier's level; only time per move, and which
+  chip does the work, changes.
+
+**How mixes are made equal in strength.** This is the experimental work this adds.
+- **Calibration.** For each tier, start from the CPU-only config. For each GPU mix, lower the iteration count until
+  the mix is no stronger than the CPU config.
+- **Measurement.** Each mix is a fixed config, measured against the same Pentobi level and against the CPU-only
+  config on the same seeds.
+- **Rule for offering a mix (non-inferiority).** A mix is offered for a tier only if its paired difference against the
+  CPU-only config has a lower bound above an agreed margin (proposal: −0.5 points) on 800 fresh seeds. A mix that is
+  clearly stronger is a candidate for a new version, not a new mix.
+- **Time.** Recorded for both machines (Mac and PC), so Auto has measured defaults to start from.
+- **Fewer mixes if needed.** If full equal-strength calibration proves too costly, ship fewer mixes. Every tier keeps
+  CPU-only, and the most useful second option is probably Balanced.
+
+**Consequences for the engine.**
+- **One setting.** A mix is a single dial: the threshold T and the iteration count move together along the tier's
+  table.
+- **Graceful failure.** If the GPU is missing, busy or slower than calibrated, the engine falls back to CPU-only for
+  that move. That is the fail-safe.
+
 ## 5. How it is compared (fairness)
 
 - **Equal wall time stays the standard.** It is set per move, on a named machine, as for every tier today. The hybrid
@@ -126,6 +169,7 @@ v5.4 and give a v5.5 decision.
 | **H3** | Asynchronous batching and the value channel; then multithreading | PC first | one screen per knob | T, λ (or n_v) and thread count screened against H2's winner; multithreaded arms against a CPU-only control with the same threads |
 | **H4** | Self-improvement: expert iteration with the hybrid search as expert, Gumbel root sampling, no per-generation gate, checkpoints scored against fixed anchors afterwards | PC | days per generation set | Only if H2 or H3 has a confirmed gain |
 | **H5** | Browser: `onnxruntime-web` (WebGPU, WebAssembly fallback) in the app's worker; tiers re-timed for the browser; the app offers the hybrid only where it is faster than the CPU tier it replaces | Mac (Chrome, Safari) | about a week of work | Same decisions as native in synchronous mode (up to float tolerance); measured ms per move per tier |
+| **H5b** | Equal-strength mixes per tier (section 4b): Light, Balanced and Heavy configs, each tested for non-inferiority against CPU-only; the Auto calibration in the engine and the app | PC (matches), Mac + PC (timing) | about one confirmation per mix per tier | Non-inferiority (lower bound above the agreed margin, 800 fresh seeds); Auto picks the measured-fastest mix on both machines |
 | **H6** | v5.5 decision | — | — | Paul's call, using the rule below |
 
 **H1 in detail:**
@@ -141,10 +185,11 @@ v5.4 and give a v5.5 decision.
   - the margin R² increment over the search value is at least E5's.
 
 **Decision rule for v5.5 (proposal):**
-- **Replaces v5.x** at a tier if the hybrid beats that tier's v5.x at equal wall time on the reference machine, by
-  the confirmation rule.
-- **Optional line** at a tier if it wins only with a GPU present. The app then offers it only where a GPU is detected.
-- **Stays experimental** if it wins nowhere.
+- **Stronger at equal wall time.** If the hybrid beats a tier's v5.x at equal wall time on the reference machine, by
+  the confirmation rule, it is a candidate for that tier's next version.
+- **Equal strength.** A tier gets the GPU setting (section 4b) once at least one GPU mix passes non-inferiority. CPU-only
+  always stays available.
+- **Stays experimental** if no mix passes at any tier.
 - **Nano and lite** may differ: one GPU round trip is a large share of 1.7–2.5 ms. There, a network-only move (one
   forward pass, or a few Gumbel simulations; tracker N9) is the arm to try.
 
@@ -178,12 +223,12 @@ games fit on a machine.
 | Browser: WebGPU missing or slower than WebAssembly for a small network | WebAssembly fallback; the app only offers the hybrid where measured faster |
 | Fairness against Pentobi (more hardware) | Promotion is against our own same-tier v5.x on the same machine; Pentobi scores are reported with the hardware named and with CPU and GPU time |
 
-## 9. What I need from Paul
+## 9. Decisions
 
-1. The name for the line (a placeholder is fine until H2).
-2. Whether the PC can be used for H1 self-play and training while the ultra screen runs on the Mac.
-3. Whether the app should eventually offer the hybrid as a separate choice or switch tiers automatically when a GPU is
-   available (affects H5 only).
+- 2026-11-19, Paul: **the PC runs this work** (H0 on both machines, H1 onward on the PC).
+- 2026-11-19, Paul: **the player chooses whether and how much to use the GPU** (section 4b). This adds stage H5b, the
+  equal-strength mixes and the Auto calibration, before the v5.5 decision.
+- Open: the name for the line (a placeholder is fine until H2).
 
 ## Sources
 
