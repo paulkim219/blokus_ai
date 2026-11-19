@@ -228,6 +228,29 @@ is kept:
 - `blokee-match` logs the challenger's searched moves, network positions and seconds per game
   (`challengerSearches`, `challengerNetEvals`, `challengerSeconds`) and prints evaluations/move.
 
+**In-process network (hybrid H0, `evaluator.rs`).** `net.evaluator` runs the same network inside the
+engine instead of over the socket (`socket` may then be omitted or empty):
+
+```json
+"native": { "net": { "evaluator": { "backend": "ort", "model": "ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx",
+                                    "device": "cuda", "threads": 0, "tf32": false },
+                     "rootBlend": 0.5, "temperature": 1.0, "depth1Blend": 0.0, "valueVisits": 0.0 } }
+```
+
+- The model is exported by `ml/torch/onnx_export.py` (fp32 and fp16, protocol 2's outputs); the
+  inputs are encoded in Rust by `net_features.rs`, a port of `ml/torch/features.py` that equals it
+  element for element (`ml/torch/h0_encoding_parity.py`).
+- `device` "cuda", "cpu" or "coreml" (cargo feature `ort-coreml`, not measured yet); `threads` is the
+  session's intra-op thread count (0: ONNX Runtime's default); `tf32` the CUDA provider's TF32 (off:
+  fp32 stays fp32). Engines in one process with the same options share one session.
+- Needs the cargo feature `ort` (`cargo build --release --features ort`, conventionally with
+  `CARGO_TARGET_DIR=target-ort`). ONNX Runtime is loaded at run time from `evaluator.library` or
+  `ORT_DYLIB_PATH`; on Linux `source engine-rs/scripts/h0-env.sh` points both it and the CUDA
+  libraries at the `onnxruntime-gpu` / torch wheels in `ml/.venv-hybrid`. A default build refuses an
+  `evaluator` config.
+- Without an `evaluator` key nothing changes: the socket client is the same code as before
+  (identity record in `research_paper/v5_hybrid_results.md`).
+
 ### Candidate generation (P4/P5, the first v5.0 port)
 
 `candidates` changes which root moves enter the tree, the prior they get, and the value a root child
