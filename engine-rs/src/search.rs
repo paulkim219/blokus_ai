@@ -13,7 +13,8 @@ use crate::packer::solve_sealed_region;
 use crate::placements::*;
 use crate::playout::Playout;
 use crate::position::{MAX_MOVES, Position, SEAT_COUNT, Undo};
-use crate::net::{NetClient, NetOptions, NetOutput};
+use crate::evaluator::Evaluator;
+use crate::net::{NetOptions, NetOutput};
 use crate::prior::{PriorClient, encode_request};
 use crate::rng::Rng;
 use crate::rollout_policy::RolloutPolicy;
@@ -263,7 +264,8 @@ pub struct V12Search {
     replay_settle: bool,
     /// `native.net` (E6). None leaves every path below exactly as it was.
     net_options: Option<NetOptions>,
-    net: Option<NetClient>,
+    /// The socket client, or an in-process evaluator when `native.net.evaluator` is set (hybrid H0).
+    net: Option<Box<dyn Evaluator>>,
     depth1_blend: f64,
     value_visits: f64,
     /// Per root edge, from this move's call; empty unless a child channel is on.
@@ -444,7 +446,7 @@ impl V12Search {
             self.prior = Some(PriorClient::connect(&options.socket)?);
         }
         if let Some(options) = &self.net_options {
-            self.net = Some(NetClient::connect(&options.socket)?);
+            self.net = Some(crate::evaluator::connect(options)?);
         }
         Ok(())
     }

@@ -26,8 +26,14 @@ pub const RESPONSE_BYTES: usize = 4 * RESPONSE_FLOATS;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetOptions {
-    /// Unix socket of a running `ml/torch/serve.py --protocol 2`.
+    /// Unix socket of a running `ml/torch/serve.py --protocol 2`. Unused (and may be omitted) when
+    /// `evaluator` is set.
+    #[serde(default)]
     pub socket: String,
+    /// Hybrid H0: run the network in-process instead of over the socket (`evaluator.rs`). Absent
+    /// leaves the socket path exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evaluator: Option<crate::evaluator::EvaluatorOptions>,
     /// Root prior: probability-space blend, 0 the hand prior, 1 the network's.
     #[serde(default = "half")]
     pub root_blend: f64,

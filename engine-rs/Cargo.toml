@@ -7,6 +7,15 @@ edition = "2024"
 rustc-hash = "2.1.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["float_roundtrip", "preserve_order"] }
+# Hybrid H0: in-process network evaluation (`src/evaluator.rs`). Off by default; ONNX Runtime is
+# loaded at run time (`load-dynamic`), from `native.net.evaluator.library` or `ORT_DYLIB_PATH`.
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "load-dynamic", "cuda", "api-31"], optional = true }
+
+[features]
+default = []
+ort = ["dep:ort"]
+# CoreML provider for the Mac (written, not measured in H0).
+ort-coreml = ["ort", "ort/coreml"]
 
 [profile.release]
 opt-level = 3

@@ -667,6 +667,16 @@ impl BitboardParams {
         let native = self.native.as_ref();
         reject(native.is_some_and(|n| n.prior.is_some() && n.net.is_some()), "native.prior and native.net together (use one)");
         reject(native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.value_visits < 0.0), "negative native.net.valueVisits");
+        if let Some(n) = native.and_then(|n| n.net.as_ref()) {
+            match &n.evaluator {
+                Some(e) => {
+                    if let Err(problem) = e.validate() {
+                        reject(true, &problem);
+                    }
+                }
+                None => reject(n.socket.is_empty(), "native.net needs a socket or an evaluator"),
+            }
+        }
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()).and_then(|c| c.interior_cap.as_ref()) {
             reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
             // E6's depth-1 policy re-sorts a root child's moves after initialisation.
