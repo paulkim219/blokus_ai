@@ -38,6 +38,7 @@ tuning/
 ml/data/
 ml/.venv/
 ml/.venv-torch/
+ml/.venv-hybrid/
 ml/__pycache__/
 __pycache__/
 ml/checkpoints/
