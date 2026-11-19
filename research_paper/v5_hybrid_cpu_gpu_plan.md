@@ -49,9 +49,28 @@ rebuilt on our engine and our evidence.
   backs up its own entry. Our E5 network already has per-seat margin, rank and first-place heads.
 - **AlphaBlokus (Blokus Duo, two players, 14×14):** pure AlphaZero, no rollouts, 8M-parameter ResNet, about 700k
   self-play games on rented RTX 5090s. Against Pentobi at equal time per move it scored 0.315 against level 9
-  (author's estimate: about 375 Elo short), and 20% wins against level 6 at 400 simulations. This is the strongest
-  public evidence that a network-only engine is expensive to bring up to Pentobi, and it is on the easier two-player
-  board. It supports keeping rollouts.
+  (author's estimate: about 375 Elo short), and 20% wins against level 6 at 400 simulations.
+- **AlphaBlokus by Shivam Sarodia (four-player Blokus), pointed out by Paul on 2026-11-19:**
+  https://github.com/ShivamSarodia/AlphaBlokus
+  - **Design:** AlphaZero-style network search with no random playouts. Its "rollouts" are MCTS simulations.
+    - a value vector of length 4 that sums to 1;
+    - KataGo-style fast rollouts ("running most moves in a game with a reduced number of MCTS rollouts");
+    - no virtual loss;
+    - policy loss over valid moves only (about 3× faster learning early on);
+    - value trained on final results only.
+  - **Stack:** self-play in Rust; training in PyTorch; inference through TensorRT with ONNX models.
+  - **Cost:** under $100 for the final run on rented machines. A typical machine was an RTX 3070 with about 40 GHz of
+    total CPU.
+  - **Result:** the strongest model, at 2,000 simulations, against Pentobi at maximum difficulty: "over 85 games,
+    Pentobi won or tied 33, while AlphaBlokus won or tied 63". The author calls this a statistically better win rate.
+  - **Caveats:**
+    - the README does not give the seat arrangement, time per move or tie rule;
+    - the counts sum to 96 over 85 games;
+    - the author says the comparison is not equal compute, because it uses a GPU and Pentobi does not.
+  - **What it changes:** it is the strongest public evidence on the four-player board, and it contradicts the reading
+    that a network-led engine is out of reach. A network-guided search (PUCT, with value from the network instead of
+    rollouts) belongs in this plan as the **Heavy end of the GPU dial**, not only as a later option. Several of its
+    design choices map directly onto ours: Rust self-play, ONNX with TensorRT, and a 4-seat value vector.
 - **Searchless chess (Ruoss et al., 2024):** a 270M-parameter transformer distilled from about 15 billion
   Stockfish-labelled positions plays at grandmaster level with no search. Distillation works at enormous data scale;
   not a near-term route for us (tracker item V6-A).
@@ -116,6 +135,7 @@ move. The hybrid keeps that principle. A tier has several **mixes** of equal str
 | Light GPU | fewer iterations | network prior at the root and the busiest nodes (large T) | integrated or older GPUs |
 | Balanced | fewer still | prior and value from a moderate T | most discrete GPUs, Apple silicon |
 | Heavy GPU | the fewest | small T, large batches | strong GPUs (a 4080) |
+| Network-led | none or a few rollouts | network prior and value at every expanded node (AlphaZero-style, as in Sarodia's AlphaBlokus) | strong GPUs; tested in H3 as its own arm |
 
 **What the player sees.**
 - **The tier.** As today.
