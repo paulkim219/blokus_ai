@@ -417,3 +417,51 @@ Nothing beyond the pilot is played in round 11. The ultra screen (fresh seeds fr
 **Cost of `U32-8` (lazy included) = 0.996 × `v5.2-ultra`: inside 0.97–1.03, so it plays at `iterationScale` 3948.432** (no -ET). The cap's saving in `select` about cancels lazy's ~3% cost. Early exits give U32-8 about 2% fewer iterations at the same time. A clean ultra search on this machine takes about 17.8 s, against Pentobi L9's 17.1 s/move (round 6 calibration).
 
 **Pilot launched 19:35:17** (`tmp/v58/pilot/`, `v58-pilot.sh` as amended, pid in `chain.pid`, under caffeinate, nice 0). This commit follows the launch by a few minutes; the cost result only fixes the iteration scale, by the preregistered rule.
+
+## Round 11 — Step D pilot vs three L8 seats (measured; `tmp/v58/pilot/report.md`, `screen.md`; 2026-11-18 19:35 – 2026-11-19 01:39)
+
+12 seeds 104,000,000–104,000,011 × 4 rotations, both arms complete (48 games each), the two arms side by side with one game thread each (amendment 1). On AC throughout; no sleep or pause. Swap stayed at 2.6–2.7 GB (no growth). Anonymous memory peaked at 27.3 GB with both games running (idle about 11–15 GB), so the games used about 12–16 GB at peak against the rule's 18.5 GB estimate.
+
+| Arm | Advantage vs L8 [95% CI] | First place | Blokee ms/move, own moves 5+ | Pentobi L8 ms/move, moves 5+ | Blokee / Pentobi | Seconds per game (Blokee + Pentobi) | Wall time, 48 games |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `U` (`v5.2-ultra`) | **+1.08 [−3.01, +5.72]** | 22.9% | 13,387 | 4,058 | 3.30 | 454 (235 + 219) | 6.06 h |
+| `U32-8` | +2.71 [−0.53, +5.81] | 31.2% | 12,916 | 4,026 | 3.21 | 442 (225 + 217) | 5.89 h |
+
+- Paired Δ (U32-8 − U): +1.62 [−2.77, +6.00]; first place +8.3 pp [−12.5, +29.2]. **Descriptive only; 12 seeds decide nothing.**
+- **Per-seed SD of the paired Δ: 7.87** (U's own advantage 8.00, U32-8's 5.99). That is close to pro's (about 7 at L7). The 95% half-width of a paired Δ is therefore about ±2.2 at 50 seeds, ±1.5 at 100, ±1.1 at 200, ±0.77 at 400 and ±0.55 at 800.
+- Time: under two-game load, ultra searched 13.4 s/move at own moves 5+ (14.3 s at 3+). That is 3.3× L8's 4.1 s and about 0.78× L9's 17.1 s (round 6 calibration). Round 6's in-match ratio against L9 was 15.3 / 18.9 = 0.81. The clean single-search time is 17.8 s (Step B), on positions from own move 3 on.
+- **First L8 anchor for ultra:** `v5.2-ultra` +1.08 [−3.01, +5.72] on 12 seeds. With round 6's L9 −4.14 [−8.55, +0.68] on 11 seeds, the point estimates put ultra's break-even level between 8 and 9 (linear: about 8.2), but both intervals span zero, so it is not bracketed with confidence.
+- Throughput: 12 seeds per arm in 6.06 h side by side, i.e. **about 2.0 seeds per hour for both arms vs L8**. At L9, Pentobi's time per move scales by 4.34 (17,069 / 3,932 ms, round 6), so a game takes about 235 + 950 = 1,185 s. That gives **about 0.76 seeds per hour** side by side.
+
+**Paul's opponent rule:** `v5.2-ultra`'s pilot advantage vs L8 is +1.08, not below 0, so **the ultra screen opponent is L9.** The rule reads only the control's level. The L7 anchor block is not needed for bracketing (L8 is already above zero on the point estimate) and is not run.
+
+**Projected Mac hours** (both arms side by side, one game each, steady state from the pilot's game times):
+
+| Block | Seeds | Hours (wall) | Days | Paired Δ 95% half-width at SD 7.87 |
+|---|---:|---:|---:|---:|
+| L8 screen | 50 | 25 | 1.1 | ±2.18 |
+| L8 screen | 100 | 50 | 2.1 | ±1.54 |
+| L8 screen | 200 | 101 | 4.2 | ±1.09 |
+| L8 screen | 400 | 202 | 8.4 | ±0.77 |
+| L8 screen | 800 | 404 | 16.8 | ±0.55 |
+| L9 screen (the rule's choice) | 24 | 32 | 1.3 | ±3.15 |
+| L9 screen | 48 | 63 | 2.6 | ±2.23 |
+| L9 screen | 100 | 132 | 5.5 | ±1.54 |
+| L9 screen | 200 | 263 | 11 | ±1.09 |
+| L9 screen | 400 | 527 | 22 | ±0.77 |
+| L9 screen | 800 | 1,053 | 44 | ±0.55 |
+| L7 anchor, one arm (not needed under the rule) | 50 | 16 | 0.7 | — |
+
+The L9 rows assume the SD measured at L8. The L9 hours assume Pentobi L9's calibrated time and the same one-game-per-arm concurrency.
+
+### Amendment 2 — the ultra screen (2026-11-19, this commit's time; fixed after the pilot and before any screen game)
+
+On Paul's instruction (relayed 22:50 CST):
+- **Arms:** `U32-8` (v5.2-ultra + interiorCap (32, 8), lazy, `iterationScale` 3948.432, clean cost 0.996) vs `U` (`v5.2-ultra`, byte copy). As preregistered, the control cannot be lazy: `lazy` is a sub-option of `interiorCap`, and the control has no cap. Both configs are the pilot's files, copied to `tmp/v58/screen/configs/`.
+- **Opponent: three Pentobi L9 seats** (Paul's rule, above).
+- **Seeds:** fresh, from 104,100,000, in 6-seed chunks played in order (chunk k = 104,100,000 + 6k). Both arms of a chunk are played side by side as in amendment 1 (one game thread each). Driver `engine-rs/scripts/v58-screen.sh`, `LEVEL=9`, under caffeinate. Hard ceiling 134 chunks (804 seeds).
+- **Memory at L9.** The Step C rule would allow one L9 game at a time (U 15.95 + U32-8 11.10 = 27.05 GB against 19.88 GB available). Paul asked for side by side. The pilot measured 12–16 GB for two L8 games, against 18.5 GB by the rule. Adding six L9 Pentobi processes (+8.5 GB over L8) gives an expected peak of about 36 GB anonymous plus 3 GB wired on a 51.5 GB machine, leaving about 12 GB. **Mechanical guard:** if swap use is more than 1 GB above its level at the chain's start at any chunk boundary, the chain plays the two arms one after the other from then on, and logs it. Memory is logged every 5 minutes (`tmp/v58/screen/mem.log`).
+- **Acceptance rule:** the standard one. `U32-8` clears if the paired-by-seed 95% bootstrap Δ advantage has a lower bound > 0 and the paired first-place Δ has an upper bound ≥ 0, at equal clean time (0.996, inside the band). Complete seeds only.
+- **When it is read:** only once, at the sample size N Paul chooses (a multiple of 6), with `engine-rs/scripts/v58-screen-read.sh N`, which merges chunks 0 … N/6 − 1 only. **If Paul names no N before it is reached, the read is at N = 48 seeds** (8 chunks, about 63 h, ±2.2). No chunk is looked at before then: the chain prints only progress lines, and nobody reads `tmp/v58/screen/chunks/*.jsonl` until the read. Seeds played beyond the chosen N are not part of this screen.
+- **Stopping:** `touch /Users/paulkim/Blokee/tmp/v58/screen/STOP` stops the chain at the next chunk boundary, after both arms finish the chunk in progress. Killing it mid-chunk loses only that chunk; the chain is resumable.
+- A cleared screen would go to a confirmation on fresh seeds from 104,300,000, under its own preregistration. Paul names versions.
