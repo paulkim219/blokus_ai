@@ -1,0 +1,17 @@
+2026-11-19 11:45:38 server: serving resnet2-b8w96 from ml/torch/results/resnet2-b8w96-g36k-s0.pt on /tmp/blokee-h0-e2e.sock (cpu), protocol 2, max batch 512, max wait 2.0 ms
+2026-11-19 11:47:57 G3d positions socket(cpu) vs ort-cpu, batch 1: {"a": "socket", "b": "ort cpu:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 1, "logitsMaxAbs": 3.815e-6, "utilitiesMaxAbs": 1.460e-6, "priorMaxAbs": 8.323e-7, "top1Agreement": 1.000000}
+2026-11-19 11:48:09 G3d positions socket(cpu) vs ort-cpu, batch 41: {"a": "socket", "b": "ort cpu:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 41, "logitsMaxAbs": 3.815e-6, "utilitiesMaxAbs": 1.103e-6, "priorMaxAbs": 7.652e-7, "top1Agreement": 1.000000}
+2026-11-19 11:49:05 games socket-cpu-server: 16 games; wrote tmp/h0/e2e/games-socket-cpu-server.jsonl; score it with: npm run aggregate -- tmp/h0/e2e/games-socket-cpu-server.jsonl
+2026-11-19 11:50:04 games ort-cpu: 16 games; wrote tmp/h0/e2e/games-ort-cpu.jsonl; score it with: npm run aggregate -- tmp/h0/e2e/games-ort-cpu.jsonl
+2026-11-19 11:50:04 games socket-cpu-server != ort-cpu: 8 of 16 games differ
+2026-11-19 11:50:07 server: serving resnet2-b8w96 from ml/torch/results/resnet2-b8w96-g36k-s0.pt on /tmp/blokee-h0-e2e.sock (cuda), protocol 2, max batch 512, max wait 2.0 ms
+2026-11-19 11:50:31 positions socket(cuda) vs ort-cuda, batch 1: {"a": "socket", "b": "ort cuda:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 1, "logitsMaxAbs": 1.986e-3, "utilitiesMaxAbs": 8.571e-4, "priorMaxAbs": 3.878e-4, "top1Agreement": 0.999500}
+2026-11-19 11:50:55 positions socket(cuda) vs ort-cuda-tf32, batch 1: {"a": "socket", "b": "ort cuda:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 1, "logitsMaxAbs": 3.979e-3, "utilitiesMaxAbs": 1.132e-3, "priorMaxAbs": 4.781e-4, "top1Agreement": 1.000000}
+2026-11-19 11:50:56 positions socket(cuda) vs ort-cuda, batch 41: {"a": "socket", "b": "ort cuda:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 41, "logitsMaxAbs": 1.963e-3, "utilitiesMaxAbs": 6.901e-4, "priorMaxAbs": 3.419e-4, "top1Agreement": 0.999500}
+2026-11-19 11:50:58 positions socket(cuda) vs ort-cuda-tf32, batch 41: {"a": "socket", "b": "ort cuda:0 ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx", "positions": 2000, "batch": 41, "logitsMaxAbs": 4.349e-3, "utilitiesMaxAbs": 1.624e-3, "priorMaxAbs": 7.410e-4, "top1Agreement": 1.000000}
+2026-11-19 11:51:52 games socket-cuda-server: 16 games; wrote tmp/h0/e2e/games-socket-cuda-server.jsonl; score it with: npm run aggregate -- tmp/h0/e2e/games-socket-cuda-server.jsonl
+2026-11-19 11:52:44 games ort-cuda: 16 games; wrote tmp/h0/e2e/games-ort-cuda.jsonl; score it with: npm run aggregate -- tmp/h0/e2e/games-ort-cuda.jsonl
+2026-11-19 11:52:44 games socket-cuda-server != ort-cuda: 16 of 16 games differ
+2026-11-19 11:52:44 games ort-cpu != ort-cuda: 8 of 16 games differ
+2026-11-19 11:52:59 4 threads sharing one ort CUDA session: 16 games; wrote tmp/h0/e2e/games-ort-cuda-4threads.jsonl; score it with: npm run aggregate -- tmp/h0/e2e/games-ort-cuda-4threads.jsonl
+2026-11-19 11:52:59 H0 E2E DONE

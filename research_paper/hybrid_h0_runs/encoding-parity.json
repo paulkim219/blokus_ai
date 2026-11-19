@@ -1,0 +1,30 @@
+{
+ "records": 72630,
+ "firstGame": 19000,
+ "rustLog": "encoded 72630 records into tmp/h0/encoding/rust; best of 5: 1.924 us per record (one thread)",
+ "elements": {
+  "planes": 377676000,
+  "hands": 6100920,
+  "footprint": 23241600,
+  "pieces": 4648320,
+  "mask": 4648320,
+  "seat": 72630
+ },
+ "mismatchedBytes": {
+  "planes": 0,
+  "hands": 0,
+  "footprint": 0,
+  "pieces": 0,
+  "mask": 0,
+  "seat": 0
+ },
+ "firstMismatchedRecord": {},
+ "recordsWithCandidates": 72630,
+ "seats": [
+  18183,
+  18334,
+  18257,
+  17856
+ ],
+ "G2": "PASS"
+}

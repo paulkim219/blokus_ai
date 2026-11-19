@@ -1,0 +1,75 @@
+{
+ "checkpoint": "ml/torch/results/resnet2-b8w96-g36k-s0.pt",
+ "arm": "resnet2-b8w96",
+ "records": 72630,
+ "firstGame": 19000,
+ "reference": "torch fp32 cpu, serve.Batcher.infer protocol 2",
+ "torch": "2.14.1+cu130",
+ "onnxruntime": "1.31.1",
+ "comparisons": {
+  "torch fp32 cuda (serve.py defaults: cudnn.allow_tf32=True, matmul.allow_tf32=False)": {
+   "logitsMaxAbs": 0.0025300979614257812,
+   "logitsP999Abs": 0.0012587725650519133,
+   "utilitiesMaxAbs": 0.0009643435478210449,
+   "utilitiesP999Abs": 0.0005076720262877643,
+   "paddingNonZero": 0,
+   "top1Agreement": 0.9997464431610086,
+   "top1Records": 70990
+  },
+  "onnx fp32 ort cpu": {
+   "logitsMaxAbs": 4.291534423828125e-06,
+   "logitsP999Abs": 2.384185791015625e-06,
+   "utilitiesMaxAbs": 1.430511474609375e-06,
+   "utilitiesP999Abs": 7.450580596923828e-07,
+   "paddingNonZero": 0,
+   "top1Agreement": 1.0,
+   "top1Records": 70990
+  },
+  "onnx fp32 ort cuda tf32=0": {
+   "logitsMaxAbs": 4.76837158203125e-06,
+   "logitsP999Abs": 2.4437904357910156e-06,
+   "utilitiesMaxAbs": 1.8477439880371094e-06,
+   "utilitiesP999Abs": 8.344650268554688e-07,
+   "paddingNonZero": 0,
+   "top1Agreement": 1.0,
+   "top1Records": 70990
+  },
+  "onnx fp32 ort cuda tf32=1": {
+   "logitsMaxAbs": 0.005813121795654297,
+   "logitsP999Abs": 0.0028219223022460938,
+   "utilitiesMaxAbs": 0.002306044101715088,
+   "utilitiesP999Abs": 0.0009745026472955942,
+   "paddingNonZero": 0,
+   "top1Agreement": 0.9994928863220172,
+   "top1Records": 70990
+  },
+  "onnx fp16 ort cpu": {
+   "logitsMaxAbs": 0.007568359375,
+   "logitsP999Abs": 0.003474158002063632,
+   "utilitiesMaxAbs": 0.0021149814128875732,
+   "utilitiesP999Abs": 0.0011138319969177246,
+   "paddingNonZero": 0,
+   "top1Agreement": 0.9991548105366953,
+   "top1Records": 70990
+  },
+  "onnx fp16 ort cuda tf32=0": {
+   "logitsMaxAbs": 0.01014089584350586,
+   "logitsP999Abs": 0.0052073001861572266,
+   "utilitiesMaxAbs": 0.0035071372985839844,
+   "utilitiesP999Abs": 0.0017293038545176387,
+   "paddingNonZero": 0,
+   "top1Agreement": 0.9971686152979293,
+   "top1Records": 70990
+  },
+  "onnx fp16 ort cuda tf32=1": {
+   "logitsMaxAbs": 0.010446786880493164,
+   "logitsP999Abs": 0.005202293395996094,
+   "utilitiesMaxAbs": 0.003987699747085571,
+   "utilitiesP999Abs": 0.0017195052932947874,
+   "paddingNonZero": 0,
+   "top1Agreement": 0.9985350049302719,
+   "top1Records": 70990
+  }
+ },
+ "G1": "PASS"
+}

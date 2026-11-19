@@ -1,0 +1,32 @@
+{
+ "checkpoint": "ml/torch/results/resnet2-b8w96-g36k-s0.pt",
+ "checkpointSha256": "31f1b3714fbb4ed0ba60bf3f1fdb1658089bf9ef7e3125f96fa85495005e3447",
+ "arm": "resnet2-b8w96",
+ "opset": 17,
+ "torch": "2.14.1+cu130",
+ "onnx": "1.23.2",
+ "inputs": [
+  "planes",
+  "hands",
+  "footprint",
+  "pieces",
+  "mask",
+  "seat"
+ ],
+ "outputs": [
+  "logits",
+  "utilities"
+ ],
+ "files": {
+  "fp32": {
+   "path": "ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx",
+   "sha256": "a94ecfd37ad73175f9c03544a4f9318edb6deedcba7db2b3b2477ceedd15511c",
+   "bytes": 6340146
+  },
+  "fp16": {
+   "path": "ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx",
+   "sha256": "7a85d458d134058afb0c9c2f5b5206d2182f99a15d7a416165f28bea91b347e5",
+   "bytes": 3196632
+  }
+ }
+}

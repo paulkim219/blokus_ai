@@ -1,0 +1,17 @@
+2026-11-19 11:45:36 G3c selfplay v4.2-ultra shard-00.bin: base == new (4a24f90885879217, 150016 bytes)
+2026-11-19 11:45:36 G3c selfplay v4.2-ultra games.jsonl: base == new (6210cc1aeb8564e2, 504 bytes)
+2026-11-19 11:45:36 G3c selfplay v4.2-ultra shard-00.bin: base == ort (4a24f90885879217, 150016 bytes)
+2026-11-19 11:45:36 G3c selfplay v4.2-ultra games.jsonl: base == ort (6210cc1aeb8564e2, 504 bytes)
+2026-11-19 11:48:12 G3c selfplay v5.3-turbo shard-00.bin: base == new (44f24a925d3e1470, 149504 bytes)
+2026-11-19 11:48:12 G3c selfplay v5.3-turbo games.jsonl: base == new (a4d94228729d6e4e, 505 bytes)
+2026-11-19 11:48:12 G3c selfplay v5.3-turbo shard-00.bin: base == ort (44f24a925d3e1470, 149504 bytes)
+2026-11-19 11:48:12 G3c selfplay v5.3-turbo games.jsonl: base == ort (a4d94228729d6e4e, 505 bytes)
+2026-11-19 11:51:33 G3c match: base == new (8 games, all fields but challengerSeconds)
+2026-11-19 11:51:33 G3c match: base == ort (8 games, all fields but challengerSeconds)
+2026-11-19 11:53:54 G3c s4_identity: base == new (1440 lines, 54dbaa2a546fe955)
+2026-11-19 11:53:54 G3c s4_identity: base == ort (1440 lines, 54dbaa2a546fe955)
+2026-11-19 11:55:49 G3b mirror new v5.3-turbo: Advantage (score − mean of the three v5.3-turbo seats): -0.00 [95% CI -0.00, 0.00] → not significant
+2026-11-19 11:56:03 G3b mirror new v4.2-ultra: Advantage (score − mean of the three v4.2-ultra seats): 0.00 [95% CI 0.00, 0.00] → not significant
+2026-11-19 11:57:54 G3b mirror ort v5.3-turbo: Advantage (score − mean of the three v5.3-turbo seats): -0.00 [95% CI -0.00, 0.00] → not significant
+2026-11-19 11:58:09 G3b mirror ort v4.2-ultra: Advantage (score − mean of the three v4.2-ultra seats): 0.00 [95% CI 0.00, 0.00] → not significant
+2026-11-19 11:58:09 H0 IDENTITY DONE

@@ -1,0 +1,6 @@
+2026-11-19 11:55:07 ort-cpu twice: identical
+2026-11-19 11:56:14 ort-cuda twice: identical
+2026-11-19 11:57:38 socket(cpu server) twice: identical
+self-play game 0: first difference at decision 26 of 72 (ply 26, seat 2, 40 candidates, iterations 4800 / 4608); chosen 13272 / 13272; slots with different visits: 38; top visits socket [1245, 1120, 833, 779], ort [1232, 1035, 835, 831]; earlier decisions identical: True
+self-play game 1: first difference at decision 19 of 74 (ply 19, seat 3, 40 candidates, iterations 3456 / 3392); chosen 16399 / 16399; slots with different visits: 35; top visits socket [1611, 233, 209, 131], ort [1680, 236, 170, 129]; earlier decisions identical: True
+2026-11-19 11:58:00 H0 DIVERGENCE DONE

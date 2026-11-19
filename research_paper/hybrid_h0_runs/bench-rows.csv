@@ -1,0 +1,220 @@
+label,backend,mode,batch,calls,first_ms,median_us,p10_us,p90_us,us_per_position,positions_per_s
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,setup,0,1,303.711,,,,,
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,1,618,225.708,1227.8,1093.2,2582.8,1227.77,814
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,2,833,16.842,1136.9,1069.8,1312.5,568.46,1759
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,4,799,15.350,1191.5,1099.3,1408.8,297.88,3357
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,8,654,13.336,1374.5,1299.0,2105.2,171.82,5820
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,16,550,15.556,1785.2,1733.7,1904.4,111.58,8962
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,32,420,15.849,2340.1,2295.8,2497.8,73.13,13675
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,64,243,16.127,4102.4,4064.6,4179.1,64.10,15601
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,128,126,16.014,7934.5,7888.5,8043.0,61.99,16132
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,256,52,20.892,19511.8,19447.4,19620.8,76.22,13120
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,512,50,50.714,44076.9,43932.5,44264.6,86.09,11616
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,1,725,14.256,1241.0,1154.0,1965.9,1241.01,806
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,2,726,17.518,1220.4,1151.5,2017.0,610.18,1639
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,4,697,13.695,1280.5,1184.7,2122.2,320.12,3124
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,8,650,14.037,1423.7,1355.6,1948.6,177.97,5619
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,16,531,13.765,1859.1,1816.8,1957.4,116.19,8606
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,32,400,14.004,2471.4,2426.4,2605.8,77.23,12948
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,64,241,14.006,4124.8,4078.0,4249.4,64.45,15516
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,128,122,14.036,8195.7,8134.8,8297.7,64.03,15618
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,256,50,21.377,20010.3,19921.5,20168.3,78.17,12793
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,512,50,46.168,45007.9,44890.5,45195.2,87.91,11376
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,1,778,14.612,1218.2,1144.9,1426.8,1218.18,821
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,2,737,14.975,1270.6,1172.1,1539.9,635.32,1574
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,4,771,14.528,1246.6,1183.3,1376.3,311.65,3209
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,8,680,15.699,1415.5,1351.2,1571.7,176.94,5652
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,16,521,13.613,1882.1,1843.5,1989.0,117.63,8501
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,32,393,13.688,2503.7,2459.7,2638.3,78.24,12781
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,64,236,13.957,4221.6,4163.5,4353.8,65.96,15160
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,128,119,15.032,8403.5,8343.6,8554.0,65.65,15232
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,256,50,23.449,20396.9,20270.2,20532.1,79.68,12551
+ort-cuda-fp32,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,512,50,50.109,46089.4,45837.5,46392.5,90.02,11109
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,setup,0,1,232.768,,,,,
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,1,688,357.722,1415.4,1380.2,1515.5,1415.42,707
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,2,657,24.136,1491.1,1432.5,1595.3,745.54,1341
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,4,654,24.024,1495.9,1421.4,1626.2,373.99,2674
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,8,626,36.113,1582.7,1525.6,1672.0,197.84,5055
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,16,585,23.265,1670.3,1562.4,1827.8,104.40,9579
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,32,428,22.895,2315.8,2272.8,2419.8,72.37,13818
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,64,278,90.965,3574.4,3539.7,3681.6,55.85,17905
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,128,144,25.949,6967.0,6933.7,7028.5,54.43,18372
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,256,67,30.734,15096.7,15049.7,15196.5,58.97,16957
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,device,512,50,51.333,36169.5,36072.8,36417.7,70.64,14156
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,1,646,24.509,1481.6,1427.6,1773.3,1481.62,675
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,2,642,24.087,1513.0,1451.7,1640.1,756.51,1322
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,4,623,24.531,1566.1,1462.4,1805.8,391.51,2554
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,8,597,22.506,1630.5,1578.6,1776.9,203.81,4906
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,16,548,22.055,1782.0,1653.3,1959.5,111.38,8979
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,32,400,22.213,2455.2,2384.1,2632.7,76.72,13034
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,64,264,21.943,3758.0,3721.2,3871.2,58.72,17030
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,128,137,23.064,7254.8,7204.8,7459.8,56.68,17643
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,256,64,25.471,15616.1,15528.9,15836.7,61.00,16393
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,512,50,39.953,37243.6,37106.1,37680.9,72.74,13747
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,1,592,22.784,1492.5,1430.8,2273.2,1492.53,670
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,2,627,25.046,1529.8,1462.0,1737.5,764.92,1307
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,4,625,23.369,1576.3,1482.8,1708.6,394.07,2538
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,8,590,22.244,1656.3,1604.3,1797.4,207.04,4830
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,16,514,22.531,1844.1,1689.5,2452.8,115.26,8676
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,32,392,22.186,2496.2,2434.0,2686.6,78.01,12819
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,64,252,24.941,3895.8,3815.4,4099.7,60.87,16428
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,128,134,23.345,7448.7,7389.9,7596.4,58.19,17184
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,256,63,25.275,16073.0,15928.4,16301.1,62.79,15927
+ort-cuda-fp16,ort cuda threads=0 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,512,50,42.089,38321.5,38048.3,38686.9,74.85,13361
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,setup,0,1,235.027,,,,,
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,1,702,194.486,1379.1,1265.3,1556.8,1379.07,725
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,2,665,22.178,1399.7,1300.4,1781.6,699.85,1429
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,4,662,16.295,1425.8,1320.5,1699.8,356.44,2806
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,8,631,16.688,1466.6,1408.2,2066.8,183.33,5455
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,16,452,32.030,2178.7,2086.8,2319.6,136.17,7344
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,32,338,14.402,2930.3,2887.2,3039.4,91.57,10920
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,64,246,15.650,4062.9,4031.6,4141.1,63.48,15752
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,128,135,15.846,7432.8,7406.6,7509.8,58.07,17221
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,256,61,20.998,16637.4,16576.0,16719.5,64.99,15387
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,device,512,50,48.238,41284.1,41165.8,41403.1,80.63,12402
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,1,663,14.623,1410.7,1303.4,1692.4,1410.69,709
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,2,649,14.494,1458.0,1356.8,1657.4,729.00,1372
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,4,621,13.688,1505.8,1409.0,1784.3,376.46,2656
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,8,615,16.418,1536.1,1477.6,2031.2,192.01,5208
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,16,436,13.793,2263.4,2166.8,2422.6,141.46,7069
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,32,319,13.939,3122.3,3068.2,3209.5,97.57,10249
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,64,233,15.476,4288.6,4238.9,4387.4,67.01,14923
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,128,130,14.492,7722.7,7682.1,7829.3,60.33,16574
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,256,59,18.772,17154.3,17077.9,17267.2,67.01,14923
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,512,50,43.703,42340.6,42184.6,42576.8,82.70,12092
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,1,674,14.144,1416.5,1301.6,1603.3,1416.50,706
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,2,685,14.058,1405.6,1339.5,1569.0,702.78,1423
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,4,630,13.653,1509.0,1416.5,1745.2,377.26,2651
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,8,623,14.579,1536.0,1493.1,1693.8,192.00,5208
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,16,436,13.774,2267.6,2172.9,2418.4,141.73,7056
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,32,316,14.089,3149.9,3096.5,3249.9,98.44,10159
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,64,229,15.642,4358.3,4319.6,4468.5,68.10,14685
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,128,125,16.757,7992.2,7904.2,8157.9,62.44,16016
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,256,57,21.255,17604.1,17480.8,17868.5,68.77,14542
+ort-cuda-fp32-tf32,ort cuda threads=0 tf32=true ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,512,50,47.497,43405.6,43123.7,43704.6,84.78,11796
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,setup,0,1,33.406,,,,,
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,1,659,1.809,1519.3,1372.2,1656.4,1519.34,658
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,2,363,2.775,2737.5,2566.2,2949.3,1368.75,731
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,4,203,5.138,4930.2,4752.9,5191.8,1232.55,811
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,8,105,10.328,9519.5,9153.6,10117.3,1189.94,840
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,16,51,19.800,19837.0,18851.2,20581.8,1239.81,807
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,32,50,43.318,37916.4,36217.5,39677.2,1184.89,844
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,64,50,91.045,80077.6,76250.4,83501.3,1251.21,799
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,128,50,179.998,179148.2,174974.7,185513.6,1399.60,714
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,256,50,464.227,423969.0,404281.4,451952.0,1656.13,604
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,512,50,913.815,944863.9,918172.2,956111.5,1845.44,542
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,1,642,11.300,1563.6,1388.6,1715.3,1563.55,640
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,2,346,3.027,2896.7,2706.3,3070.2,1448.37,690
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,4,196,5.115,5104.8,4914.6,5363.7,1276.20,784
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,8,103,10.561,9752.2,9416.8,10054.3,1219.03,820
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,16,53,19.598,18955.9,18401.0,19336.4,1184.75,844
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,32,50,39.516,36995.0,35523.5,37877.0,1156.09,865
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,64,50,82.331,76119.2,73949.7,77670.9,1189.36,841
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,128,50,183.921,182191.2,173826.2,188084.1,1423.37,703
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,256,50,509.527,433990.0,410440.7,450036.5,1695.27,590
+ort-cpu-fp32-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,512,50,943.436,953207.8,937786.7,969855.3,1861.73,537
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,setup,0,1,58.807,,,,,
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,1,631,2.450,1443.1,1299.8,2047.0,1443.08,693
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,2,348,3.655,2530.5,2281.5,3887.2,1265.23,790
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,4,224,4.350,4148.7,3715.0,5423.7,1037.18,964
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,8,126,8.143,7266.2,6802.8,11046.4,908.28,1101
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,16,59,15.338,16195.8,13672.5,20446.0,1012.24,988
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,32,50,33.682,30086.2,27850.9,36261.6,940.19,1064
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,64,50,68.729,61746.6,55244.8,71057.8,964.79,1036
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,128,50,177.533,147909.1,134120.5,162573.7,1155.54,865
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,256,50,414.136,368357.4,344710.4,399781.1,1438.90,695
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,512,50,833.565,857204.2,837208.9,894629.2,1674.23,597
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,1,609,11.742,1492.2,1353.1,2108.4,1492.21,670
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,2,346,9.678,2630.0,2357.4,3662.4,1315.01,760
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,4,228,7.341,4083.7,3770.5,5437.4,1020.93,980
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,8,125,9.590,7396.4,6825.6,10092.2,924.55,1082
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,16,70,19.234,13698.7,13014.9,16742.8,856.17,1168
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,32,50,31.690,26854.8,25502.3,32707.6,839.21,1192
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,64,50,63.355,58588.1,54175.3,70596.2,915.44,1092
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,128,50,160.427,147946.2,136404.7,161570.7,1155.83,865
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,256,50,402.817,368086.9,336303.7,396362.9,1437.84,695
+ort-cpu-fp32-t16,ort cpu threads=16 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,512,50,863.339,867857.8,856344.2,891978.4,1695.03,590
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,setup,0,1,37.943,,,,,
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,1,238,4.594,4185.1,3980.7,4467.9,4185.11,239
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,2,122,8.508,8178.4,7956.9,8505.2,4089.19,245
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,4,61,16.824,16360.8,16045.2,16902.5,4090.20,244
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,8,50,33.208,32390.7,31853.8,32999.4,4048.84,247
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,16,50,65.659,65250.6,64045.3,66696.9,4078.16,245
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,32,50,140.711,132062.9,129860.2,135978.3,4126.96,242
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,64,50,281.144,276110.3,270464.5,281573.8,4314.22,232
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,128,50,606.638,581921.9,575364.2,592045.3,4546.26,220
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,256,50,1214.515,1209830.4,1181065.2,1232657.3,4725.90,212
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,host,512,50,2509.082,2508601.0,2488432.0,2538468.9,4899.61,204
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,1,249,4.343,3982.4,3842.5,4295.1,3982.38,251
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,2,124,9.408,7979.4,7798.3,8651.5,3989.71,251
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,4,64,16.007,15766.0,15464.1,16075.5,3941.51,254
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,8,50,32.049,31648.7,31231.0,32221.0,3956.09,253
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,16,50,64.299,62959.4,62363.0,63894.3,3934.96,254
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,32,50,128.182,126114.8,124880.4,127603.4,3941.09,254
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,64,50,266.531,264578.5,261941.3,268217.3,4134.04,242
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,128,50,577.738,572805.7,563447.8,583017.1,4475.04,223
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,256,50,1233.800,1189783.9,1162562.1,1235434.1,4647.59,215
+ort-cpu-fp32-t1,ort cpu threads=1 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp32.onnx,e2e,512,50,2532.954,2523673.0,2507333.0,2553759.2,4929.05,203
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,setup,0,1,37.944,,,,,
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,1,681,1.889,1474.1,1322.2,1589.6,1474.14,678
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,2,367,2.548,2730.6,2552.8,2890.1,1365.32,732
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,4,208,5.392,4821.7,4610.1,5013.0,1205.42,830
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,8,105,10.151,9519.5,9210.8,10140.1,1189.93,840
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,16,52,21.671,19502.8,18643.8,20260.9,1218.92,820
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,32,50,42.707,36759.3,35506.3,38615.0,1148.73,871
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,64,50,92.784,77842.9,72551.9,81719.6,1216.29,822
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,128,50,195.814,176995.6,169616.9,184799.0,1382.78,723
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,256,50,432.576,421964.0,414969.6,434711.4,1648.30,607
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,host,512,50,934.316,930929.4,909523.7,942716.2,1818.22,550
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,1,653,1.581,1532.8,1388.1,1662.9,1532.84,652
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,2,354,2.782,2795.1,2596.3,2988.3,1397.55,716
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,4,205,5.277,4868.1,4705.5,5115.5,1217.01,822
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,8,106,9.909,9512.4,9220.3,9806.2,1189.05,841
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,16,55,18.225,18243.9,17830.3,18695.2,1140.24,877
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,32,50,36.832,35827.2,34812.4,36641.6,1119.60,893
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,64,50,79.186,74468.2,72909.3,76519.0,1163.57,859
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,128,50,179.724,181314.5,171363.6,191636.8,1416.52,706
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,256,50,462.121,429097.8,411264.8,441949.0,1676.16,597
+ort-cpu-fp16-t8,ort cpu threads=8 tf32=false ml/data/onnx/resnet2-b8w96-g36k-s0.fp16.onnx,e2e,512,50,1002.102,934950.0,917441.2,950409.1,1826.07,548
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,setup,0,1,0.057,,,,,
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,1,201,6.631,4931.1,4577.2,5355.3,4931.10,203
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,2,187,25.199,5246.9,4761.9,6065.6,2623.45,381
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,4,199,5.639,5014.0,4578.1,5432.6,1253.51,798
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,8,185,5.073,5162.2,4817.0,6045.9,645.27,1550
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,16,180,52.473,5509.2,5128.2,5991.3,344.33,2904
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,32,126,9.956,7608.2,6734.8,10007.5,237.76,4206
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,64,120,11.045,8484.6,7162.9,9044.9,132.57,7543
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,128,93,14.393,10694.8,10246.4,11381.3,83.55,11968
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,256,50,22.941,20264.2,19556.9,20746.4,79.16,12633
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,host,512,50,46.370,41896.9,41168.1,42770.7,81.83,12220
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,1,194,6.123,5108.6,4639.1,5607.8,5108.56,196
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,2,199,5.354,4937.6,4632.4,5490.5,2468.82,405
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,4,200,5.057,5000.8,4575.3,5380.1,1250.20,800
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,8,194,4.907,5105.0,4782.7,5564.6,638.13,1567
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,16,166,6.572,5971.2,5602.8,6491.8,373.20,2680
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,32,128,8.121,7491.4,6647.8,8955.1,234.11,4272
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,64,121,9.233,8243.9,7140.8,9147.3,128.81,7763
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,128,93,11.068,10747.5,10322.1,11296.3,83.96,11910
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,256,50,19.468,20241.4,19619.9,20940.0,79.07,12647
+socket-cuda-wait2ms,socket /tmp/blokee-h0-bench.sock,e2e,512,50,41.465,41854.9,41195.6,42481.8,81.75,12233
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,setup,0,1,0.056,,,,,
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,1,389,4.046,2464.9,2267.5,2923.7,2464.90,406
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,2,369,24.396,2594.9,2366.1,3038.8,1297.44,771
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,4,371,3.072,2580.6,2381.9,3132.9,645.14,1550
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,8,363,3.004,2630.6,2369.7,3144.4,328.83,3041
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,16,343,48.089,2795.9,2692.9,3149.0,174.74,5723
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,32,196,8.379,4352.7,3550.7,8104.2,136.02,7352
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,64,179,6.888,5062.5,4579.1,6742.4,79.10,12642
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,128,113,12.006,8796.2,8128.1,9382.3,68.72,14552
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,256,56,20.951,17940.8,17315.0,18473.3,70.08,14269
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,host,512,50,45.138,40799.5,38146.4,42634.6,79.69,12549
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,1,378,2.774,2504.3,2303.2,3122.1,2504.28,399
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,2,374,3.825,2606.4,2390.9,2989.9,1303.18,767
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,4,356,2.794,2653.5,2421.4,3288.0,663.38,1507
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,8,370,2.541,2634.4,2407.7,3017.5,329.30,3037
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,16,344,3.115,2847.2,2705.1,3208.6,177.95,5620
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,32,190,6.262,4372.3,3515.3,8510.7,136.63,7319
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,64,172,6.702,5016.6,4627.7,8712.3,78.38,12758
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,128,117,7.856,8653.7,8033.4,8971.4,67.61,14791
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,256,56,17.408,17914.5,17447.0,18867.9,69.98,14290
+socket-cuda-wait0ms,socket /tmp/blokee-h0-bench.sock,e2e,512,50,43.880,40595.7,35920.4,42848.9,79.29,12612

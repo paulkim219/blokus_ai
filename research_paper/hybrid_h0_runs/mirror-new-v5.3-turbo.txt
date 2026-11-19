@@ -1,0 +1,9 @@
+Pooled 1 logs → 20 complete seeds (80 games), seeds 80900000–80900019
+
+v5.3-turbo vs v5.3-turbo — 80 games over 20 seeds
+Advantage (score − mean of the three v5.3-turbo seats): -0.00 [95% CI -0.00, 0.00] → not significant
+First place: 28.7% (par 25%), sole wins 21.3%
+Mean score: -10.97 (opponents -10.97), squares placed 76.90 / 89
+Per-seat advantage: blue 1.77  yellow -6.77  purple 0.03  green 4.97
+
+Minimum detectable effect at this sample size (80% power): ~3.00
