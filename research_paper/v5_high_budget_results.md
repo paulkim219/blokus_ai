@@ -404,3 +404,16 @@ Nothing beyond the pilot is played in round 11. The ultra screen (fresh seeds fr
 - Why: run one after the other at C = 1 and C = 2, the pilot would take about 11 hours and might not finish before the 08:00 hand-back. Run side by side, it takes about 7 hours, and both arms see the same machine load, which makes their in-match times more comparable.
 - Chunk 1 starts when both arms have finished chunk 0. The arm order within a chunk no longer applies.
 - Nothing else changes: seeds, arms, the read-outs, and no acceptance decision.
+
+## Round 11 — Step B clean cost (measured; `tmp/v58/cost/`, 18:41–19:35)
+
+`v58-cost.sh`: `p4_cost`, one thread, 30 positions, round 9's warm-up procedure, two rounds in reverse order. The script's quiet gate (no match or probe, 1-minute load < 3) opened at 18:41 (load 2.70). The Docker VM and two macOS storage processes used about 2.5 cores throughout, a little more than the ~1.5 in earlier rounds; this hits both arms alike within each position.
+
+| Round | U ms | U32-8 ms | Ratio | Iterations U / U32-8 | Same move as U |
+|---|---:|---:|---:|---:|---:|
+| 1 (U warm-up, U, U32-8) | 17,897 | 17,741 | 0.9913 | 814,550 / 799,868 | 15/30 |
+| 2 (U warm-up, U32-8, U) | 17,812 | 17,810 | 0.9999 | 814,550 / 799,868 | 15/30 |
+
+**Cost of `U32-8` (lazy included) = 0.996 × `v5.2-ultra`: inside 0.97–1.03, so it plays at `iterationScale` 3948.432** (no -ET). The cap's saving in `select` about cancels lazy's ~3% cost. Early exits give U32-8 about 2% fewer iterations at the same time. A clean ultra search on this machine takes about 17.8 s, against Pentobi L9's 17.1 s/move (round 6 calibration).
+
+**Pilot launched 19:35:17** (`tmp/v58/pilot/`, `v58-pilot.sh` as amended, pid in `chain.pid`, under caffeinate, nice 0). This commit follows the launch by a few minutes; the cost result only fixes the iteration scale, by the preregistered rule.
