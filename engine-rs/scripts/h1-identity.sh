@@ -81,6 +81,7 @@ for l in open(sys.argv[1]):
 fi
 
 # Parity tests in both builds (G3a of H0, now with the record-v3 and net_v3 unit tests).
+[ -f $HOME/.cargo/env ] && source $HOME/.cargo/env
 for b in new ort; do
   if [ $b = ort ]; then T=$( (cd engine-rs && CARGO_TARGET_DIR=target-ort cargo test --release --features ort 2>&1) | grep -E "^test result" )
   else T=$( (cd engine-rs && cargo test --release 2>&1) | grep -E "^test result" ); fi

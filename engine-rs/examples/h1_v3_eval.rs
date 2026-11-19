@@ -111,6 +111,25 @@ fn main() {
             checked += 1;
         }
     }
+    // Latency of the search's call (`evaluate_moves`, one position with its legal moves, synchronous),
+    // as the root or an interior node makes it: median and 10th / 90th percentiles over the records.
+    {
+        let mut times: Vec<f64> = Vec::new();
+        for (k, (_, r)) in records.iter().enumerate().take(1000) {
+            let q = request(r);
+            let moves: Vec<i32> = r.moves.iter().map(|&m| m as i32).collect();
+            let t = std::time::Instant::now();
+            let o = teacher_eval.evaluate_moves(&[q], &[&moves[..]]).unwrap();
+            let dt = t.elapsed().as_secs_f64() * 1000.0;
+            assert_eq!(o.len(), 1);
+            if k >= 20 {
+                times.push(dt);
+            }
+        }
+        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let q = |f: f64| times[((times.len() - 1) as f64 * f) as usize];
+        eprintln!("h1_v3_eval: batch-1 evaluate_moves latency over {} calls: median {:.3} ms, p10 {:.3}, p90 {:.3}", times.len(), q(0.5), q(0.1), q(0.9));
+    }
     let mut t_out = std::io::BufWriter::new(std::fs::File::create(format!("{out}.policy_table.u16")).unwrap());
     for s in 0..4 {
         for &v in &table.policy[s] {

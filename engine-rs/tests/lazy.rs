@@ -111,15 +111,24 @@ fn lazy_searches_exactly_as_eager() {
     eprintln!("lazy identity: {compared} searches, {moved} pending pairs moved");
 }
 
+/// Hybrid H1 changed this rule: the lazy layout is refused only with a network that re-sorts a
+/// node's moves after initialisation (`depth1Blend` > 0); a v2 network is still refused with the v5
+/// candidates (64-slot records), and a v3 root-prior network may run with the lazy layout.
 #[test]
 fn lazy_is_refused_with_the_network() {
-    let mut v: Value = serde_json::from_str(&std::fs::read_to_string(BASE).unwrap()).unwrap();
-    v["native"]["candidates"]["interiorCap"]["lazy"] = json!(true);
-    v["native"]["net"] = json!({"socket": "/nonexistent"});
-    let p: Result<BitboardParams, _> = serde_json::from_value(v);
-    if let Ok(p) = p {
-        assert!(p.unsupported().iter().any(|r| r.contains("lazy")), "{:?}", p.unsupported());
-    }
+    let base: Value = serde_json::from_str(&std::fs::read_to_string(BASE).unwrap()).unwrap();
+    let unsupported = |net: Value| -> Vec<String> {
+        let mut v = base.clone();
+        v["native"]["candidates"]["interiorCap"]["lazy"] = json!(true);
+        v["native"]["net"] = net;
+        serde_json::from_value::<BitboardParams>(v).unwrap().unsupported()
+    };
+    let v3 = json!({"backend": "ort", "model": "x.onnx", "format": "v3"});
+    assert!(!unsupported(json!({"socket": "/nonexistent"})).is_empty());
+    let u = unsupported(json!({"evaluator": v3.clone(), "depth1Blend": 0.5}));
+    assert!(u.iter().any(|r| r.contains("lazy")), "{u:?}");
+    let u = unsupported(json!({"evaluator": v3, "rootBlend": 0.5}));
+    assert!(!u.iter().any(|r| r.contains("lazy")), "{u:?}");
 }
 
 /// High-budget §2 gates: `interiorCap.adaptive` with both factors 1 searches exactly as the plain
