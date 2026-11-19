@@ -118,6 +118,8 @@ pub struct Decision<'a> {
     pub ranked: &'a [Ranked],
     pub chosen: i32,
     pub stats: &'a MoveStats,
+    /// The engine that chose the move (read only; e.g. `Engine::root_snapshot` for record format v3).
+    pub engine: &'a Engine,
 }
 
 pub fn play_game(pool: &mut [Engine], seat_engine: [usize; SEAT_COUNT], policies: [Policy; SEAT_COUNT], options: &GameOptions) -> Result<GameRecord, String> {
@@ -179,7 +181,8 @@ pub fn play_game_observed(
                 choose_ranked(&ranked, plies, options, &mut opening_rng)
             };
             if let Some(mv) = chosen {
-                observe(Decision { state: &state, ply: plies, seat, ranked: &ranked, chosen: mv, stats: &stats });
+                let engine = &pool[seat_engine[seat]];
+                observe(Decision { state: &state, ply: plies, seat, ranked: &ranked, chosen: mv, stats: &stats, engine });
             }
         }
         match chosen {

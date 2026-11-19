@@ -170,6 +170,16 @@ pub struct RankedPlacement {
     pub prior: f64,
 }
 
+/// `V12Search::root_snapshot`.
+#[derive(Clone, Debug)]
+pub struct RootSnapshot {
+    pub moves: Vec<i32>,
+    pub priors: Vec<f64>,
+    pub visits: Vec<i32>,
+    pub root_visits: f64,
+    pub root_values: [f64; SEAT_COUNT],
+}
+
 pub struct SearchResult {
     pub best: i32,
     pub ranked: Vec<RankedPlacement>,
@@ -1656,6 +1666,22 @@ impl V12Search {
         }
         let bucket = self.table.get(&position.hash_lo)?;
         bucket.iter().map(|&id| &self.nodes[id as usize]).find(|n| n.hash_hi == position.hash_hi).map(|n| n.visits)
+    }
+
+    /// Hybrid H1 (record format v3, read only): the root as the last search left it — moves in tree
+    /// order, their priors and real visits (`child_visits`; the virtual `initVisits` are never added
+    /// there), the root's real visit count and its mean backed-up value per seat (`values[s] / visits`,
+    /// NaN with no visits).
+    pub fn root_snapshot(&self) -> RootSnapshot {
+        let root = &self.nodes[self.root as usize];
+        let visits = root.visits;
+        RootSnapshot {
+            moves: root.moves.clone(),
+            priors: root.priors.clone(),
+            visits: root.child_visits.clone(),
+            root_visits: visits,
+            root_values: std::array::from_fn(|s| if visits > 0.0 { root.values[s] / visits } else { f64::NAN }),
+        }
     }
 
     /// Diagnostics (read only): per root edge, (real visits, AMAF weight sum); the AMAF part is 0

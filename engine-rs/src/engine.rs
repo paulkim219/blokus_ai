@@ -196,6 +196,11 @@ impl Engine {
         self.last_tree.map(|_| self.search.root_edge_stats())
     }
 
+    /// Hybrid H1 (record format v3): the last tree search's root (None after a non-search decision).
+    pub fn root_snapshot(&self) -> Option<crate::search::RootSnapshot> {
+        self.last_tree.map(|_| self.search.root_snapshot())
+    }
+
     /// Diagnostics: the shape of the last tree search's tree (None after a non-search decision).
     pub fn tree_shape(&self) -> Option<crate::search::TreeShape> {
         self.last_tree.map(|_| self.search.tree_shape())

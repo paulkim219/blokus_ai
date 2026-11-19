@@ -9,7 +9,10 @@
 //! every move; default `shared`, one process for all Pentobi seats); since round 4 each per-seat process
 //! is seeded with `seed ^ (0x9E3779B9 · (seat + 1))`, seat in turn order. `--mode pentobi-control` plays
 //! Pentobi in all four seats: the rotated lone seat in its own process, the other three in one shared
-//! process (the JSONL `seat` is the lone seat; `challenger` is "<pentobi>-own-process"). One `pentobi-gtp` process per game plays every Pentobi
+//! process (the JSONL `seat` is the lone seat; `challenger` is "<pentobi>-own-process"). Hybrid H1:
+//! `--mode pentobi-self` plays Pentobi in all four seats from one `pentobi-gtp` process per game
+//! (seeded with the game seed; use `--rotations 1`, since every rotation of a seed is the same game),
+//! for recording Pentobi's decisions with `--moves-out`. One `pentobi-gtp` process per game plays every Pentobi
 //! colour and receives every Blokee move with `play`. Blokee seats search and choose exactly as the
 //! match harness does (first 8 plies sampled from the top 3). The JSONL is blokee-match's, scored
 //! by Blokee's own rules; score it with `npx tsx scripts/aggregateMatches.ts <out>` only.
@@ -192,9 +195,11 @@ fn main() {
         "two-two" => (true, true),
         "pentobi-control" => (false, false),
         "pentobi-ladder" => (false, false),
-        other => panic!("--mode must be one-blokee, one-pentobi, two-two, pentobi-control or pentobi-ladder, not {other}"),
+        "pentobi-self" => (false, false),
+        other => panic!("--mode must be one-blokee, one-pentobi, two-two, pentobi-control, pentobi-ladder or pentobi-self, not {other}"),
     };
     let control = mode == "pentobi-control";
+    let pentobi_self = mode == "pentobi-self";
     // Squeeze benchmark: `--mode one-pentobi --squeeze`, the Blokee config is the squeeze adversary
     // (`native.reward` kind "squeeze") in the three seats around the Pentobi target.
     let squeeze = argv.iter().any(|a| a == "--squeeze");
@@ -229,7 +234,9 @@ fn main() {
     let slot_name = move |k: usize| if two_two { pair_name(k) } else { DISPLAY[k].to_string() };
     let blokee_name = arg(&argv, "blokee-name", &stem(&blokee_path));
     let pentobi_name = format!("pentobi-{}-L{}", version.trim_start_matches("Pentobi ").replace(' ', "_"), spec.level);
-    let (challenger_name, champion_name) = if ladder {
+    let (challenger_name, champion_name) = if pentobi_self {
+        (pentobi_name.clone(), pentobi_name.clone())
+    } else if ladder {
         (format!("pentobi-{}-L{lone_level}", version.trim_start_matches("Pentobi ").replace(' ', "_")), pentobi_name.clone())
     } else if control {
         (format!("{pentobi_name}-own-process"), pentobi_name.clone())
@@ -313,7 +320,7 @@ fn main() {
                     if two_two {
                         players[PAIRS[display_seat].1] = lone;
                     }
-                    if control || ladder {
+                    if control || ladder || pentobi_self {
                         players = [Player::Gtp; 4];
                     }
                     let game_started = Instant::now();

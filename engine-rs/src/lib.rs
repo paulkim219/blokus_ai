@@ -26,6 +26,7 @@ pub mod placements;
 pub mod playout;
 pub mod position;
 pub mod prior;
+pub mod record_v3;
 pub mod regions;
 pub mod reply_table;
 pub mod rng;
