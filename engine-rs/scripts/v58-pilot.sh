@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Round 11 Step D pilot (prereg in research_paper/v5_high_budget_results.md, "Round 11"): lone seat vs three
-# Pentobi level-8 seats, 12 seeds 104,000,000-104,000,011 in two 6-seed chunks, chunk 0 = U then the cap
-# arm, chunk 1 reversed. Per-arm concurrency from $D/THREADS ("<arm> <n>" lines). Resumable: a chunk-arm
+# Pentobi level-8 seats, 12 seeds 104,000,000-104,000,011 in two 6-seed chunks; amendment 1: within a chunk
+# both arms play at the same time (separate processes), chunk 1 starts when both finish chunk 0. Per-arm concurrency from $D/THREADS ("<arm> <n>" lines). Resumable: a chunk-arm
 # with .done and 24 result lines is skipped; anything else is replayed. Memory logged every 60 s.
 # Setup: $D/configs/{U,<arm>}.json, $D/PLAYED (= <arm>), $D/THREADS, $D/manifest.json, $D/COSTS.
 # usage (from the repo root, through bash): bash engine-rs/scripts/v58-pilot.sh
@@ -29,9 +29,13 @@ play() {  # play <arm> <chunk>
   if [ "$(wc -l < $out.jsonl 2>/dev/null || echo 0)" -eq 24 ]; then touch $out.done; echo "=== pil-$arm-c$k done $(date '+%F %T')"
   else echo "=== pil-$arm-c$k INCOMPLETE $(date '+%F %T')"; return 1; fi
 }
-echo "pilot start $(date '+%F %T'); arms: U $ARM"
-play U 0 || exit 1; play $ARM 0 || exit 1; echo "PILOT CHUNK 0 DONE $(date '+%F %T')"
-play $ARM 1 || exit 1; play U 1 || exit 1; echo "PILOT CHUNK 1 DONE $(date '+%F %T')"
+echo "pilot start $(date '+%F %T'); arms: U $ARM (amendment 1: both arms of a chunk at the same time)"
+for k in 0 1; do
+  play U $k & a=$!; play $ARM $k & b=$!
+  wait $a; ra=$?; wait $b; rb=$?
+  [ $ra -eq 0 ] && [ $rb -eq 0 ] || exit 1
+  echo "PILOT CHUNK $k DONE $(date '+%F %T')"
+done
 for arm in U $ARM; do
   for x in jsonl moves.jsonl timing.jsonl; do
     : > $D/screen/rol-$arm.$x

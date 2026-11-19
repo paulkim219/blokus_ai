@@ -368,3 +368,39 @@ This rule is a heuristic extrapolation, not strength evidence. The probe cannot 
 Nothing beyond the pilot is played in round 11. The ultra screen (fresh seeds from 104,100,000), its confirmation (104,300,000) and an L9 anchor (104,500,000) get their own preregistration once Paul has chosen the sample size. The acceptance rule stays the standard one: paired-by-seed 95% bootstrap Δ lower bound > 0 and first-place Δ upper bound ≥ 0, at equal clean time.
 
 **Seed blocks:** 104,000,000–104,000,011 (pilot); 104,900,000 (memory measurement, unscored). Reserved, unplayed: 104,100,000 (screen), 104,300,000 (confirmation), 104,500,000 (L9 anchor), 104,600,000 (L7 anchor).
+
+## Round 11 — Step A probe and Step C memory (measured; `tmp/v58/probe/probe.md`, `tmp/v58/mem/`)
+
+**Step A** (`v58-probe.sh`, 18:10–18:33, two waves of three single-threaded `v55_speed` processes, 30 positions; ms is under 3-process load and not a timing figure):
+
+| Arm | Mean depth | Δ depth vs U | Mean max depth | Same best as U (of 30) | Iterations | Tree bytes / iteration | Largest tree | Peak RSS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| U (`v5.2-ultra`, eager, uncapped) | 7.66 | — | 15.2 | — | 834,533 | 3,904 | 9.37 GB | 9.86 GB |
+| U-1pct (noise reference) | 7.67 | +0.01 | 15.2 | 30 | 842,583 | 3,894 | 9.41 GB | 10.30 GB |
+| U16-4 (W1D) | 8.23 | +0.57 | 16.5 | 18 | 788,816 | 2,514 | 3.77 GB | 3.73 GB |
+| U16-8 | 7.94 | +0.28 | 15.9 | 21 | 870,128 | 2,492 | 5.28 GB | 5.61 GB |
+| U32-8 | 8.07 | +0.41 | 15.9 | 19 | 836,247 | 2,608 | 4.86 GB | 5.01 GB |
+| U64-16 | 7.78 | +0.12 | 15.3 | 20 | 830,764 | 2,828 | 4.77 GB | 4.85 GB |
+
+- The noise reference keeps the best move in 30/30 positions; every cap shape changes it in 9–12 of 30. All four bind, and all are under 6 GB.
+- **Chosen by the preregistered rule: `U32-8`** (depth gain +0.41, closest to +0.39; no other shape within 0.05).
+- Depth is not monotone in the window here: (16, 8) deepens less than (32, 8). The windows differ in where they bind (init vs √N growth), and 30 positions is a small sample.
+- The cap arms use about a third less tree memory per iteration (lazy layout) and half the peak RSS of the uncapped control.
+
+**Step C** (`v58-mem.sh`, 17:59–18:11):
+- Baseline with no game running (17:59:36, a minute after P2 exited): wired 3.09 + anonymous 17.03 + compressor 0.00 = **B = 20.12 GB**; swap used 2.7 GB of 4 GB (already in use before round 11). A later reading during the cost wait (18:33) showed anonymous 11.3 GB, so the baseline fluctuates with the Docker VM and apps. The preregistered rule uses the 17:59 snapshot, the larger one.
+- Pentobi per-process RSS (allocated at start, flat over the game): **L8 0.61 GB, L9 2.03 GB.** The L8 game finished (3.0 min, Pentobi 2.56 s/move mean over 70 moves); the L9 game was stopped at 8 minutes as preregistered.
+- *Deviation:* stopping the L9 game left one `pentobi-gtp` process orphaned (pid 5408, 2.0 GB, about one core). It ran on until 18:12, overlapping the first two minutes of Step A's first wave. Step A's outputs are deterministic and its ms is not used, so nothing is affected. It was killed by hand.
+
+**Concurrency by the preregistered rule** (48 − 8 − B = 19.88 GB available):
+- `U`: per game 9.86 + 3 × 0.61 = 11.69 GB → **C = 1**.
+- `U32-8`: per game 5.01 + 1.83 = 6.84 GB → **C = 2**.
+- At L9 (P9 = 2.03 GB): `U` 15.95 GB → C = 1; `U32-8` 11.10 GB → C = 1.
+- This machine, with its usual load of apps and the Docker VM (about 20 GB), fits **one uncapped ultra game at a time**. Round 6's "about 3" ran without this 8 GB margin.
+
+### Amendment 1 (2026-11-18, this commit's time; before any pilot game and before the cost result is read)
+
+- **Both arms of a pilot chunk play at the same time**, as two `blokee-pentobi` processes with one game thread each (`U` 1 + `U32-8` 1). Together they need 11.69 + 6.84 = 18.53 GB, inside the 19.88 GB budget. That is the largest total the rule allows: `U32-8` at 2 alongside `U` would need 25.4 GB.
+- Why: run one after the other at C = 1 and C = 2, the pilot would take about 11 hours and might not finish before the 08:00 hand-back. Run side by side, it takes about 7 hours, and both arms see the same machine load, which makes their in-match times more comparable.
+- Chunk 1 starts when both arms have finished chunk 0. The arm order within a chunk no longer applies.
+- Nothing else changes: seeds, arms, the read-outs, and no acceptance decision.
