@@ -18,7 +18,7 @@ test split `train.py` used), read as `serve.py` reads them.
 
 | # | Gate | Pass |
 |---|---|---|
-| G1 | ONNX export, fp32, all protocol-2 outputs (64 logits by candidate slot, 0 on padding; 12 utilities) | Max abs difference ≤ 1e-3 against PyTorch fp32 on the CPU (no TF32), on logits and on utilities separately, on every test record. Checked with ONNX Runtime's CPU and CUDA providers. |
+| G1 | ONNX export, fp32, all protocol-2 outputs (64 logits by candidate slot, 0 on padding; 12 utilities) | Max abs difference ≤ 1e-3 against PyTorch fp32 on the CPU (no TF32), on logits and on utilities separately, on every test record. Checked with ONNX Runtime's CPU provider and its CUDA provider with TF32 off (fp32 means fp32). The CUDA provider with TF32 on (its default) is reported, not gated. |
 | G1h | Same, fp16 export | Reported, not gated (max and 99.9th percentile abs difference, top-1 agreement) |
 | G2 | Rust feature encoding against `ml/torch/features.py` | All six model inputs (planes, hands, footprints, piece ids, mask, seat) equal, element for element, on every test record (at least a few thousand). Tolerance: none (the inputs are 0/1 floats and integers). |
 | G3a | Identity, parity tests | `cargo test --release` passes, in the default build and in the build with the `ort` feature |
