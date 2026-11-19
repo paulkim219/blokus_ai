@@ -109,8 +109,8 @@ def margin_head(model, tables, corpus: Corpus, rows: np.ndarray) -> np.ndarray:
     return np.concatenate(out).astype(np.float64)
 
 
-def gate3(model, tables, corpus: Corpus, resamples: int) -> dict:
-    rows = np.nonzero((corpus.record_split == 2) & (corpus.head == 0))[0]
+def gate3(model, tables, corpus: Corpus, resamples: int, split: int = 2) -> dict:
+    rows = np.nonzero((corpus.record_split == split) & (corpus.head == 0))[0]
     root_all = corpus.root_values.cpu().numpy()
     seat = corpus.seat.cpu().numpy()
     root = root_all[rows, seat[rows]].astype(np.float64)
@@ -146,16 +146,18 @@ def main() -> None:
     ap.add_argument("--resamples", type=int, default=2000)
     ap.add_argument("--fuel-resamples", type=int, default=300)
     ap.add_argument("--also-visits-head", action="store_true", help="also report G1/G2 for policy head 0 (descriptive)")
+    ap.add_argument("--split", choices=["test", "val"], default="test", help="val: dry runs of this script only")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+    split = {"test": 2, "val": 1}[args.split]
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tables = Tables(PolicyIndex(args.placements), dev)
     model = load_model(args.checkpoint, dev)
-    result = {"checkpoint": args.checkpoint}
+    result = {"checkpoint": args.checkpoint, "split": args.split}
 
     # G1, G2: Pentobi level-7 test decisions.
     teacher = Corpus(args.teacher_cache, dev, "teacher")
-    rows = np.nonzero((teacher.record_split == 2) & (teacher.head == 1))[0]
+    rows = np.nonzero((teacher.record_split == split) & (teacher.head == 1))[0]
     seeds = teacher.game_seed[teacher.game[rows]]
     plies = teacher.ply[rows]
     prior = fitted_prior(args.n11_dump, args.weights)
@@ -186,7 +188,7 @@ def main() -> None:
     # G3: value fuel on self-play test games.
     for key, path in (("fuel", args.selfplay_cache), ("fuel2", args.selfplay_cache2)):
         if path:
-            result[key] = {"cache": path} | gate3(model, tables, Corpus(path, dev, key), args.fuel_resamples)
+            result[key] = {"cache": path} | gate3(model, tables, Corpus(path, dev, key), args.fuel_resamples, split)
     json.dump(result, open(args.out, "w"), indent=1)
     print(json.dumps(result, indent=1))
 
