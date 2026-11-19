@@ -48,6 +48,16 @@ pub struct NetOptions {
     /// Root-child value: virtual visits `n_v` of the re-centred network utility in root selection.
     #[serde(default)]
     pub value_visits: f64,
+    /// Hybrid H1 (network v3 only): an interior node whose visits reach this gets one synchronous network
+    /// call; the policy's softmax at `interiorTemperature` is blended into its prior at `interiorBlend`
+    /// and its moves are stably re-sorted by the blended prior (with their statistics), so the interior
+    /// cap's window holds the best of them by that prior. 0 (default): off.
+    #[serde(default)]
+    pub interior_visits: f64,
+    #[serde(default = "half")]
+    pub interior_blend: f64,
+    #[serde(default = "one")]
+    pub interior_temperature: f64,
 }
 
 fn half() -> f64 {

@@ -56,6 +56,30 @@ for b in new ort; do
   else log "H1 blokee-pentobi one-blokee L1: base != $b  FAIL"; fi
 done
 
+# Network on, weight 0: a v3 network at rootBlend 0 (interiorVisits 0) inside v5.3-turbo is called once per
+# searched move but changes no prior, so it must play exactly v5.3-turbo's games (ort build, CUDA).
+if [ -n "${V3_MODEL:-}" ]; then
+  python3 - "$V3_MODEL" $OUT/noop.json <<'PY'
+import json, sys
+c = json.load(open("engine-rs/configs/v5.3-turbo.json"))
+c["native"]["net"] = {"evaluator": {"backend": "ort", "model": sys.argv[1], "device": "cuda", "format": "v3", "head": "teacher"},
+                      "rootBlend": 0.0, "temperature": 1.0}
+json.dump(c, open(sys.argv[2], "w"), indent=1)
+PY
+  ( source engine-rs/scripts/h0-env.sh
+    for arm in noop plain; do
+      CH=$OUT/noop.json; [ $arm = plain ] && CH=$E/v5.3-turbo.json
+      rm -f $OUT/noop-$arm.jsonl
+      engine-rs/target-ort/release/blokee-match --challenger $CH --champion $E/v5.3-turbo.json --seeds 4 --seed-base 80960000 \
+        --budget 300 --threads 4 --label h1-noop --out $OUT/noop-$arm.jsonl > /dev/null 2>&1 || echo "noop $arm FAILED" >> $OUT/log.txt
+      python3 -c "import json,sys
+for l in open(sys.argv[1]):
+    d=json.loads(l); [d.pop(k,None) for k in ('challengerSeconds','challenger','challengerNetEvals')]; print(json.dumps(d,sort_keys=True))" $OUT/noop-$arm.jsonl | sort > $OUT/noop-$arm.cmp
+    done )
+  if cmp -s $OUT/noop-noop.cmp $OUT/noop-plain.cmp; then log "H1 v3 network at weight 0 inside v5.3-turbo: same $(wc -l < $OUT/noop-plain.cmp) games as v5.3-turbo"
+  else log "H1 v3 network at weight 0: games differ  FAIL"; fi
+fi
+
 # Parity tests in both builds (G3a of H0, now with the record-v3 and net_v3 unit tests).
 for b in new ort; do
   if [ $b = ort ]; then T=$( (cd engine-rs && CARGO_TARGET_DIR=target-ort cargo test --release --features ort 2>&1) | grep -E "^test result" )

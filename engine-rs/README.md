@@ -284,6 +284,13 @@ holds every legal move:
   children's ratios `sqrt(p_i / p_max)` are recomputed from the blended prior. `interiorCap.lazy` and
   `interiorCap.adaptive` are refused only with `depth1Blend` > 0. `valueVisits` > 0 is refused with
   `native.candidates.initVisits` > 0 (both would set the root's Q).
+- **Interior prior** (`interiorVisits` T, `interiorBlend`, `interiorTemperature`; v3 only, off by
+  default). When an interior node's real visits reach T, the search makes one synchronous network
+  call for it, blends the network's softmax into the node's prior and stably re-sorts the node's moves
+  by the blended prior, carrying each edge's child, visits and AMAF statistics along. The interior
+  cap's window (the first floor(a + b·√N) moves in prior order) then holds the best moves by the
+  blended prior. Needs `interiorFull` and `interiorNoWidening`; refused with `interiorCap.lazy` or
+  `adaptive`. Each call counts as one network evaluation in `blokee-match`'s log.
 - **Rank reward.** `native.reward` "rank" is no longer refused with `native.net`. Under rank the
   search's values are in rank units (fraction of opponents beaten, plus zero-mean quality and length
   bonuses in [−1, 1] times their weights), so the value channel's utility is the network's rank head

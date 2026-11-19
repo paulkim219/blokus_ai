@@ -65,6 +65,8 @@ struct Node {
     lazy: Option<Box<LazyTail>>,
     /// High-budget §2 (`interiorCap.adaptive`): this interior node's window factor (1 when off).
     cap_factor: f64,
+    /// Hybrid H1 (`native.net.interiorVisits`): this interior node's prior has had the network's blended in.
+    net_done: bool,
 }
 
 /// The lazy layout's per-node extra state.
@@ -142,6 +144,7 @@ impl Node {
             ratio_suffix: Vec::new(),
             lazy: None,
             cap_factor: 1.0,
+            net_done: false,
         }
     }
 
@@ -284,6 +287,11 @@ pub struct V12Search {
     net_value_delta: Vec<Option<f64>>,
     /// Positions sent to the network for the current move.
     net_positions: u32,
+    /// Hybrid H1 (`native.net.interiorVisits`): an interior node gets the network's prior when its
+    /// visits reach this (0: off), blended at `interiorBlend` after a softmax at `interiorTemperature`.
+    interior_net_visits: f64,
+    interior_net_blend: f64,
+    interior_net_temperature: f64,
     /// The range a backed-up value can take, for clamping the E6 value channel's virtual value: [0, 1]
     /// for the blend reward, [−(q + l), 1 + q + l] for the rank reward (hybrid H1).
     value_range: (f64, f64),
@@ -416,6 +424,9 @@ impl V12Search {
             init_ratio: Vec::new(),
             depth1_blend: net_options.as_ref().map_or(0.0, |n| n.depth1_blend.clamp(0.0, 1.0)),
             value_visits: net_options.as_ref().map_or(0.0, |n| n.value_visits.max(0.0)),
+            interior_net_visits: net_options.as_ref().map_or(0.0, |n| n.interior_visits.max(0.0)),
+            interior_net_blend: net_options.as_ref().map_or(0.0, |n| n.interior_blend.clamp(0.0, 1.0)),
+            interior_net_temperature: net_options.as_ref().map_or(1.0, |n| n.interior_temperature),
             net_options,
             net: None,
             net_edges: Vec::new(),
@@ -994,6 +1005,41 @@ impl V12Search {
         }
     }
 
+    /// Hybrid H1 (`native.net.interiorVisits`): one synchronous network-v3 call for interior node `id`
+    /// (`position` is its position, `node.turn` to move). The network's softmax is blended into the
+    /// node's prior and the node's per-edge arrays (moves, priors, children, child visits, AMAF) are
+    /// permuted together into the stable order of the blended prior, so every edge keeps its
+    /// statistics and only the order (hence the interior cap's window) and the priors change.
+    /// Needs the eager layout (`interiorCap.lazy` is refused with it) and no widening at interior
+    /// nodes (`interiorNoWidening`), so every edge stays opened.
+    fn apply_interior_net(&mut self, id: u32, position: &Position) {
+        let (mover, moves) = {
+            let n = &self.nodes[id as usize];
+            (n.turn, n.moves.clone())
+        };
+        let record = encode_request(position, mover, &[]);
+        let client = self.net.as_mut().expect("native.net configured but not connected");
+        let outputs = client.evaluate_moves(&[record], &[&moves[..]]).unwrap_or_else(|e| panic!("{e}"));
+        self.net_positions += 1;
+        let scores: Vec<f64> = outputs[0].logits.iter().map(|&l| l as f64).collect();
+        let mut net = vec![0.0; scores.len()];
+        softmax_priors(&scores, self.interior_net_temperature, &mut net);
+        let blend = self.interior_net_blend;
+        let node = &mut self.nodes[id as usize];
+        node.net_done = true;
+        let blended: Vec<f64> = node.priors.iter().zip(&net).map(|(&hand, &learned)| (1.0 - blend) * hand + blend * learned).collect();
+        let mut order: Vec<usize> = (0..blended.len()).collect();
+        order.sort_by(|&a, &b| blended[b].partial_cmp(&blended[a]).unwrap_or(std::cmp::Ordering::Equal));
+        node.moves = order.iter().map(|&i| node.moves[i]).collect();
+        node.priors = order.iter().map(|&i| blended[i]).collect();
+        node.children = order.iter().map(|&i| node.children[i]).collect();
+        node.child_visits = order.iter().map(|&i| node.child_visits[i]).collect();
+        if !node.amaf.is_empty() {
+            node.amaf = order.iter().map(|&i| node.amaf[i]).collect();
+        }
+        node.prior_max = node.priors.iter().copied().fold(0.0, f64::max);
+    }
+
     /// E6 depth-1 policy: blend the network's policy into a just-initialised root child's prior
     /// (matched by move id) and stably re-sort its moves by the blended prior, best first, so
     /// progressive widening opens them in that order.
@@ -1136,6 +1182,12 @@ impl V12Search {
                     }
                 } else if self.replay_settle {
                     self.enter_node(node, position);
+                }
+            }
+            if self.interior_net_visits > 0.0 && node != root {
+                let n = &self.nodes[node as usize];
+                if !n.net_done && n.visits >= self.interior_net_visits && n.moves.len() >= 2 {
+                    self.apply_interior_net(node, position);
                 }
             }
             let Some(index) = self.select(node) else {

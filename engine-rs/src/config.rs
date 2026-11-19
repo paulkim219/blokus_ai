@@ -687,6 +687,15 @@ impl BitboardParams {
         // root prior and the depth-1 policy only change priors. The value channel stays refused with
         // RAVE and the priorLog rule (it adds counts to the root's Q that neither is defined against).
         let net_v3 = native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.v3());
+        if let Some(n) = native.and_then(|n| n.net.as_ref()).filter(|n| n.interior_visits > 0.0) {
+            // The interior channel permutes a node's eager per-edge arrays and needs every edge opened.
+            let c = native.and_then(|x| x.candidates.as_ref());
+            reject(!n.v3(), "native.net.interiorVisits needs a v3 network");
+            reject(!n.interior_visits.is_finite(), "native.net.interiorVisits must be finite");
+            reject(!(n.interior_temperature > 0.0 && n.interior_temperature.is_finite()), "native.net.interiorTemperature must be > 0");
+            reject(!c.is_some_and(|c| c.interior_full && c.interior_no_widening), "native.net.interiorVisits needs native.candidates interiorFull and interiorNoWidening");
+            reject(c.and_then(|c| c.interior_cap.as_ref()).is_some_and(|cap| cap.lazy || cap.adaptive.is_some()), "native.net.interiorVisits with interiorCap.lazy or adaptive");
+        }
         let net_v3_prior_only = native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.v3() && n.value_visits == 0.0);
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()).and_then(|c| c.interior_cap.as_ref()) {
             reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
