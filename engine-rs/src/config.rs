@@ -676,15 +676,32 @@ impl BitboardParams {
                 }
                 None => reject(n.socket.is_empty(), "native.net needs a socket or an evaluator"),
             }
+            // Hybrid H1: with value-initialised root children both the E6 value channel and `initVisits`
+            // would set the root's Q; the mix is not defined, so the pair is refused.
+            reject(
+                n.value_visits > 0.0 && native.and_then(|x| x.candidates.as_ref()).is_some_and(|c| c.init_visits > 0.0),
+                "native.net.valueVisits with native.candidates.initVisits",
+            );
         }
+        // Hybrid H1: a network-v3 model (policy over every move) may run inside the v5 search: the
+        // root prior and the depth-1 policy only change priors. The value channel stays refused with
+        // RAVE and the priorLog rule (it adds counts to the root's Q that neither is defined against).
+        let net_v3 = native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.v3());
+        let net_v3_prior_only = native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.v3() && n.value_visits == 0.0);
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()).and_then(|c| c.interior_cap.as_ref()) {
             reject(!(c.init.is_finite() && c.growth.is_finite() && c.exponent.is_finite() && c.growth >= 0.0), "native.candidates.interiorCap must be finite with growth >= 0");
             // E6's depth-1 policy re-sorts a root child's moves after initialisation.
-            reject(c.lazy && native.is_some_and(|n| n.net.is_some()), "native.candidates.interiorCap.lazy with native.net");
+            reject(
+                c.lazy && native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.depth1_blend > 0.0),
+                "native.candidates.interiorCap.lazy with native.net.depth1Blend",
+            );
             if let Some(a) = &c.adaptive {
                 reject(!(a.split.is_finite() && a.diffuse.is_finite() && a.concentrated.is_finite() && a.diffuse > 0.0 && a.concentrated > 0.0),
                     "native.candidates.interiorCap.adaptive must be finite with positive factors");
-                reject(native.is_some_and(|n| n.net.is_some()), "native.candidates.interiorCap.adaptive with native.net");
+                reject(
+                    native.and_then(|n| n.net.as_ref()).is_some_and(|n| n.depth1_blend > 0.0),
+                    "native.candidates.interiorCap.adaptive with native.net.depth1Blend",
+                );
             }
         }
         if let Some(r) = native.and_then(|n| n.rollout.as_ref()) {
@@ -724,8 +741,9 @@ impl BitboardParams {
             reject(r.first_weight > 0.0 && !r.rank(), "native.reward.firstWeight needs kind rank");
             reject(!(r.next_weight >= 0.0 && r.next_weight <= 10.0), "native.reward.nextWeight must be in [0, 10]");
             reject(r.next_weight > 0.0 && !r.rank(), "native.reward.nextWeight needs kind rank");
-            // The E6 value channel and the leaf-material blend mix the old reward's scale into Q.
-            reject(r.rank() && native.is_some_and(|n| n.net.is_some()), "native.reward rank with native.net");
+            // The leaf-material blend mixes the old reward's scale into Q. (Hybrid H1: rank with
+            // `native.net` is allowed; under rank the E6 value channel uses the network's rank head,
+            // `V12Search::apply_net`.)
             reject(r.rank() && s.leaf_material_blend > 0.0, "native.reward rank with leafMaterialBlend");
         }
         if let Some(r) = native.and_then(|n| n.rave.as_ref()) {
@@ -735,7 +753,10 @@ impl BitboardParams {
             reject(!matches!(r.scope.as_str(), "all" | "root"), "native.rave.scope must be all or root");
             // The E6 network value channel and the learned prior's pseudo-visits mix extra counts into
             // the root's Q and decision; the blend is not defined against them.
-            reject(r.on() && native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.rave with native.net or native.prior");
+            reject(
+                r.on() && native.is_some_and(|n| n.prior.is_some() || (n.net.is_some() && !net_v3_prior_only)),
+                "native.rave with native.prior, or with native.net other than a v3 network without valueVisits",
+            );
             // Virtual loss and the ensemble are refused anyway; BRS moves the turn in the tree, so a
             // node's mover is not the seat whose later placements the statistics would credit.
             reject(r.on() && s.opponent_policy == "brs", "native.rave with opponentPolicy brs");
@@ -747,7 +768,10 @@ impl BitboardParams {
         if let Some(c) = native.and_then(|n| n.candidates.as_ref()) {
             // Protocol-1/2 records carry at most 64 candidates and E6 recomputes root-child shortlists
             // outside the tree; neither is defined for these roots, so the combination is refused.
-            reject(native.is_some_and(|n| n.prior.is_some() || n.net.is_some()), "native.candidates with native.prior or native.net");
+            reject(
+                native.is_some_and(|n| n.prior.is_some() || (n.net.is_some() && !net_v3)),
+                "native.candidates with native.prior, or with native.net other than a v3 network",
+            );
             reject(!matches!(c.root_scorer.as_str(), "ordering" | "fitted"), "native.candidates.rootScorer must be ordering or fitted");
             reject(!matches!(c.interior_scorer.as_str(), "ordering" | "fitted"), "native.candidates.interiorScorer must be ordering or fitted");
             reject(!(c.init_visits >= 0.0 && c.init_visits.is_finite()), "native.candidates.initVisits must be >= 0");
@@ -776,7 +800,10 @@ impl BitboardParams {
             // 2026-11-14). The cut-off stays exact (it compares the blended Q with the same bound). The
             // E6 value channel / learned prior add counts to the root; the rule is not defined there.
             let changes = sel.prior_log() || sel.cutoff > 0.0;
-            reject(changes && native.is_some_and(|n| n.net.is_some() || n.prior.is_some()), "native.selection with native.net or native.prior");
+            reject(
+                changes && native.is_some_and(|n| n.prior.is_some() || (n.net.is_some() && !net_v3_prior_only)),
+                "native.selection with native.prior, or with native.net other than a v3 network without valueVisits",
+            );
         }
         if let Some(o) = native.and_then(|n| n.opening.as_ref()) {
             reject(!(o.centre_max_own_move >= 0.0 && o.centre_max_own_move.is_finite()), "native.opening.centreMaxOwnMove must be >= 0");

@@ -284,6 +284,9 @@ pub struct V12Search {
     net_value_delta: Vec<Option<f64>>,
     /// Positions sent to the network for the current move.
     net_positions: u32,
+    /// The range a backed-up value can take, for clamping the E6 value channel's virtual value: [0, 1]
+    /// for the blend reward, [−(q + l), 1 + q + l] for the rank reward (hybrid H1).
+    value_range: (f64, f64),
     /// `native.candidates` (P4/P5). None leaves every path below exactly as it was.
     candidates: Option<CandidateOptions>,
     /// The game's last placements before this root, (seat, placement), for the local features.
@@ -418,6 +421,8 @@ impl V12Search {
             net_edges: Vec::new(),
             net_value_delta: Vec::new(),
             net_positions: 0,
+            value_range: params.native.as_ref().and_then(|n| n.reward.as_ref()).filter(|r| r.rank())
+                .map_or((0.0, 1.0), |r| (-(r.quality_weight + r.length_weight), 1.0 + r.quality_weight + r.length_weight)),
             aggregation: Aggregation::parse(&params.search.opponent_aggregation),
             brs: params.search.opponent_policy == "brs",
             replay_settle: params.search.replay_settle.unwrap_or(false),
@@ -899,11 +904,21 @@ impl V12Search {
             return;
         }
         let root_moves = self.nodes[root].moves.clone();
-        let mut records = vec![encode_request(position, root_seat, &root_moves)];
+        // Hybrid H1: a network-v3 model reads only the board from a record and scores any number of
+        // moves (`Evaluator::evaluate_moves`); a v2 model gets the first 64 moves in the record, as before.
+        let v3 = options.v3();
+        let mut records = vec![encode_request(position, root_seat, if v3 { &[][..] } else { &root_moves[..] })];
         let mut sizes = vec![root_moves.len()];
         let mut children: Vec<(usize, usize, Vec<i32>)> = Vec::new();
         if options.wants_children() {
             for (edge, &mv) in root_moves.iter().enumerate() {
+                // The tree path as `iterate` will have it when it initialises this child, so a fitted
+                // interior prior (`native.candidates`, v3 only) sees the same recent placements. Without
+                // `native.candidates` the shortlist does not read the path. `iterate` clears both.
+                self.path_nodes.clear();
+                self.path_edges.clear();
+                self.path_nodes.push(root as u32);
+                self.path_edges.push(edge);
                 let undo = position.apply(mv);
                 if self.brs && position.turn != self.root_seat && !position.finished() && position.out[self.root_seat] == 0 {
                     position.force_turn(self.root_seat);
@@ -912,15 +927,23 @@ impl V12Search {
                 if !position.finished()
                     && let Some((moves, _)) = self.shortlist(position, false)
                 {
-                    records.push(encode_request(position, position.turn, &moves));
+                    records.push(encode_request(position, position.turn, if v3 { &[][..] } else { &moves[..] }));
                     sizes.push(moves.len());
                     children.push((edge, position.turn, moves));
                 }
                 position.undo(&undo);
             }
+            self.path_nodes.clear();
+            self.path_edges.clear();
         }
         let client = self.net.as_mut().expect("native.net configured but not connected");
-        let outputs = client.evaluate(&records, &sizes).unwrap_or_else(|e| panic!("{e}"));
+        let outputs = if v3 {
+            let lists: Vec<&[i32]> = std::iter::once(&root_moves[..]).chain(children.iter().map(|(_, _, m)| &m[..])).collect();
+            client.evaluate_moves(&records, &lists)
+        } else {
+            client.evaluate(&records, &sizes)
+        }
+        .unwrap_or_else(|e| panic!("{e}"));
         self.net_positions = records.len() as u32;
 
         let scores: Vec<f64> = outputs[0].logits.iter().map(|&l| l as f64).collect();
@@ -929,6 +952,17 @@ impl V12Search {
         let blend = options.root_blend.clamp(0.0, 1.0);
         for (prior, learned) in self.nodes[root].priors.iter_mut().zip(&net) {
             *prior = (1.0 - blend) * *prior + blend * learned;
+        }
+        if v3 {
+            // The blended prior is the root's prior from here on: its maximum (priorLog cut-off) and,
+            // with value-initialised root children (`native.candidates.initVisits`), their initial
+            // values m · sqrt(p_i / p_max) are recomputed from it. Only reachable with a v3 network.
+            let node = &mut self.nodes[root];
+            node.prior_max = node.priors.iter().copied().fold(0.0, f64::max);
+            if !self.init_ratio.is_empty() {
+                let max = node.prior_max;
+                self.init_ratio = node.priors.iter().map(|&p| if max > 0.0 { (p / max).sqrt() } else { 1.0 }).collect();
+            }
         }
 
         if children.is_empty() {
@@ -946,7 +980,11 @@ impl V12Search {
                 .map(|e| {
                     e.as_ref().map(|e| {
                         let (margin, rank) = e.output.margin_rank(e.mover, root_seat);
-                        (1.0 - beta) * margin + beta * rank
+                        // Hybrid H1: under `native.reward` "rank" the search's values are in rank units
+                        // (fraction of opponents beaten, plus zero-mean quality and length bonuses), so
+                        // the network's utility is its rank head alone; only differences between
+                        // siblings enter (re-centred below). The blend reward keeps E6's mix.
+                        if self.reward.is_some() { rank } else { (1.0 - beta) * margin + beta * rank }
                     })
                 })
                 .collect();
@@ -1345,7 +1383,7 @@ impl V12Search {
                     (c.values[self.root_seat] + n0 * v) / (c.visits + n0)
                 }
             } else if net_value && let Some(delta) = self.net_value_delta[index] {
-                let u = (root_mean + delta).clamp(0.0, 1.0);
+                let u = (root_mean + delta).clamp(self.value_range.0, self.value_range.1);
                 if child == NONE || self.nodes[child as usize].visits == 0.0 {
                     u
                 } else {

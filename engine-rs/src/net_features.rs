@@ -100,6 +100,22 @@ impl Inputs {
     /// neighbours); `push_record_reference` is the cell-by-cell version, and the two are tested equal.
     pub fn push_record(&mut self, record: &[u8; REQUEST_BYTES]) {
         let mover = record[6] as usize % SEAT_COUNT;
+        self.push_planes(record, mover);
+        self.push_rest(record, mover);
+    }
+
+    /// Network v3 (hybrid H1): planes, hands and seat only; the candidate tensors stay empty (the v3
+    /// network has no candidate inputs). The record's candidate fields are ignored.
+    pub fn push_board(&mut self, record: &[u8; REQUEST_BYTES]) {
+        let mover = record[6] as usize % SEAT_COUNT;
+        self.push_planes(record, mover);
+        self.push_hands(record, mover);
+        self.seat.push(mover as i64);
+        self.batch += 1;
+    }
+
+    /// The 13 planes of `push_record`.
+    fn push_planes(&mut self, record: &[u8; REQUEST_BYTES], mover: usize) {
         let canon = &CANON[mover];
         let word = |at: usize| u32::from_le_bytes(record[at..at + 4].try_into().unwrap());
         let own: [Board; SEAT_COUNT] = std::array::from_fn(|r| {
@@ -141,7 +157,6 @@ impl Inputs {
         let empty = &mut planes[3 * SEAT_COUNT * CELL_COUNT..];
         empty.fill(1.0);
         scatter(&occ, canon, empty, 0.0);
-        self.push_rest(record, mover);
     }
 
     /// The cell-by-cell encoder, a direct transcription of `features.py`; kept as the reference the
@@ -227,14 +242,19 @@ impl Inputs {
         self.push_rest(record, mover);
     }
 
-    /// Hands, candidates and seat (shared by both board encoders).
-    fn push_rest(&mut self, record: &[u8; REQUEST_BYTES], mover: usize) {
-        let canon = &CANON[mover];
+    /// The four relative hands.
+    fn push_hands(&mut self, record: &[u8; REQUEST_BYTES], mover: usize) {
         let word = |at: usize| u32::from_le_bytes(record[at..at + 4].try_into().unwrap());
         for r in 0..SEAT_COUNT {
             let hand = word(216 + 4 * ((mover + r) % SEAT_COUNT));
             self.hands.extend((0..HAND_BITS).map(|k| ((hand >> k) & 1) as f32));
         }
+    }
+
+    /// Hands, candidates and seat (shared by both board encoders).
+    fn push_rest(&mut self, record: &[u8; REQUEST_BYTES], mover: usize) {
+        let canon = &CANON[mover];
+        self.push_hands(record, mover);
 
         let t = placements();
         let count = record[236] as usize;

@@ -246,6 +246,58 @@ def utility_probabilities(utility_logits: torch.Tensor) -> torch.Tensor:
     return torch.cat([out[..., :2], torch.softmax(utility_logits[..., 2], dim=1).unsqueeze(-1)], dim=-1)
 
 
+class ResNet3(nn.Module):
+    """Hybrid H1 network v3: the `ResNet2` trunk with a policy head over **every** placement.
+
+    Inputs: the 13 planes and four relative hands of `features.Encoder.board` and the mover's absolute
+    seat (no candidate list). Outputs (dict):
+
+    - **policy**: (B, H, 36,400) logits, one map of 91 orientations × 400 anchor cells per policy head
+      (`policy_index.py` fixes the indexing); head 0 is trained on the search's root visits, head 1 on
+      the teacher's (Pentobi's) move. A caller masks them to the legal moves.
+    - **margins**, **utility**, **search**, **ownership**: as `Heads2` (search: the mover's root value
+      in the search's reward units).
+
+    The policy head is a 3×3 convolution with a KataGo-style global pooling bias, then a 1×1
+    convolution to 91 · H channels, so each output cell sees the whole board through the trunk.
+    """
+
+    version = 3
+
+    def __init__(self, width: int = 96, blocks: int = 8, policy_heads: int = 2, value_hidden: int = 256) -> None:
+        super().__init__()
+        self.policy_heads = policy_heads
+        self.stem = nn.Sequential(nn.Conv2d(PLANES, width, 3, padding=1, bias=False), nn.BatchNorm2d(width), nn.ReLU())
+        self.hands = nn.Linear(84 + 4, width)
+        self.blocks = nn.Sequential(*[GlobalPoolBlock(width) for _ in range(blocks)])
+        self.glob = nn.Linear(2 * width, width)
+        self.policy_conv = nn.Conv2d(width, width, 3, padding=1, bias=False)
+        self.policy_norm = nn.BatchNorm2d(width)
+        self.policy_pool = nn.Linear(2 * width, width)
+        self.policy_out = nn.Conv2d(width, 91 * policy_heads, 1)
+        self.value = nn.Sequential(nn.Linear(width, value_hidden), nn.GELU(), nn.Linear(value_hidden, 4 + 12 + 1))
+        self.ownership = nn.Conv2d(width, 5, 1)
+
+    def forward(self, planes, hands, seat) -> dict[str, torch.Tensor]:
+        b = planes.shape[0]
+        seat_onehot = F.one_hot(seat.long(), 4).to(planes.dtype)
+        x = self.stem(planes) + self.hands(torch.cat([hand_vector(hands), seat_onehot], 1)).view(b, -1, 1, 1)
+        x = self.blocks(x)
+        glob = F.gelu(self.glob(torch.cat([x.mean((2, 3)), x.amax((2, 3))], 1)))
+        p = F.relu(self.policy_norm(self.policy_conv(x)))
+        bias = self.policy_pool(torch.cat([p.mean((2, 3)), p.amax((2, 3))], 1))
+        p = F.relu(p + bias.view(b, -1, 1, 1))
+        policy = self.policy_out(p).float().view(b, self.policy_heads, 91 * 400)
+        value = self.value(glob).float()
+        return {
+            "policy": policy,
+            "margins": value[:, :4],
+            "utility": value[:, 4:16].view(b, 4, 3),
+            "search": value[:, 16],
+            "ownership": self.ownership(x).float().flatten(2).transpose(1, 2),
+        }
+
+
 ARMS = {
     "conv-small": lambda: ConvSmall(),
     "resnet": lambda: ResNet(),
@@ -255,9 +307,11 @@ ARMS = {
     "resnet2-b8w96": lambda: ResNet2(width=96, blocks=8),
     "resnet2-b12w128": lambda: ResNet2(width=128, blocks=12),
     "resnet2-b16w160": lambda: ResNet2(width=160, blocks=16),
+    "resnet3-b8w96": lambda: ResNet3(width=96, blocks=8),
 }
 
 V2_ARMS = frozenset(name for name in ARMS if name.startswith("resnet2-"))
+V3_ARMS = frozenset(name for name in ARMS if name.startswith("resnet3-"))
 
 
 def model_version(model: nn.Module) -> int:

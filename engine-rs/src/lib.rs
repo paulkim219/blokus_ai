@@ -20,6 +20,7 @@ pub mod jsmath;
 pub mod move_lists;
 pub mod net;
 pub mod net_features;
+pub mod net_v3;
 pub mod ordering;
 pub mod packer;
 pub mod placements;

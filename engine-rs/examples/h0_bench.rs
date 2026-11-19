@@ -208,6 +208,8 @@ fn main() {
                 threads: args.or("threads", "0").parse().unwrap(),
                 tf32: args.or("tf32", "0") == "1",
                 library: args.get("library").map(String::from),
+                format: None,
+                head: None,
             };
             (Box::new(ort_bench::OrtBench::open(&options)), format!("ort {} threads={} tf32={} {}", options.device, options.threads, options.tf32, options.model))
         }

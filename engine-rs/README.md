@@ -91,6 +91,17 @@ npm run aggregate -- selfplay-results/m.jsonl
 engine-rs/target/release/blokee-selfplay --config engine-rs/configs/v4.1-ultra.json \
   --games 20000 --budget 300 --threads 11 --seed-base 61000000 --out ml/data/selfplay-v41u-300
 
+# Hybrid H1: record format v3 (every legal move with its real root visits and prior, root values for all
+# four seats, final scores; layout in src/record_v3.rs and <out>/meta.json, reader ml/torch/records_v3.py).
+engine-rs/target/release/blokee-selfplay --config engine-rs/configs/v5.3-turbo.json --format v3 \
+  --games 20000 --budget 300 --threads 16 --seed-base 105100000 --out tmp/h1/data/turbo
+
+# Hybrid H1: Pentobi in all four seats from one pentobi-gtp process per game, its moves recorded,
+# then converted to v3 records (one-hot on the move played).
+engine-rs/target/release/blokee-pentobi --mode pentobi-self --level 7 --rotations 1 --seeds 100 \
+  --seed-base 105300000 --threads 16 --label h1-L7 --out tmp/h1/L7.jsonl --moves-out tmp/h1/L7.moves.jsonl
+engine-rs/target/release/examples/h1_moves_v3 tmp/h1/data/L7 7 tmp/h1/L7.moves.jsonl
+
 # External benchmark against Pentobi's GTP engine (X1; build and gate in docs/E6_RUNBOOK.md).
 engine-rs/target/release/blokee-pentobi --blokee engine-rs/configs/v4.2-ultra.json \
   --pentobi ~/src/pentobi-build/pentobi_gtp/pentobi-gtp --mode one-blokee --level 9 \
@@ -250,6 +261,35 @@ engine instead of over the socket (`socket` may then be omitted or empty):
   `evaluator` config.
 - Without an `evaluator` key nothing changes: the socket client is the same code as before
   (identity record in `research_paper/v5_hybrid_results.md`).
+
+**Network v3 (hybrid H1).** `evaluator.format` "v3" loads a model from `ml/torch/onnx_export_v3.py`:
+its policy covers every placement (91 orientations × 400 anchor cells in the mover's frame,
+`net_v3.rs` / `ml/torch/policy_index.py`), so it scores any number of moves, including a v5 root that
+holds every legal move:
+
+```json
+"native": { "candidates": { ... }, "rave": { ... }, "selection": { ... }, "reward": { "kind": "rank", ... },
+            "net": { "evaluator": { "backend": "ort", "model": "ml/data/onnx/<name>.fp32.onnx", "device": "cuda",
+                                    "format": "v3", "head": "teacher" },
+                     "rootBlend": 0.5, "temperature": 1.0 } }
+```
+
+- `head` picks the policy output: "teacher" (default; trained on Pentobi's moves) or "policy"
+  (trained on the search's root visits). The 12 utilities are the same as protocol 2's.
+- The inputs are the board only (`Inputs::push_board`); the logits returned are those of the moves
+  asked for, in order (`Evaluator::evaluate_moves`). The socket path has no v3 mode.
+- **With the v5 features.** A v3 network may be combined with `native.candidates`, and, when
+  `valueVisits` is 0, with `native.rave` and `native.selection` (they only see changed priors). After
+  the root prior is blended, the root's largest prior and, with `initVisits`, the value-initialised
+  children's ratios `sqrt(p_i / p_max)` are recomputed from the blended prior. `interiorCap.lazy` and
+  `interiorCap.adaptive` are refused only with `depth1Blend` > 0. `valueVisits` > 0 is refused with
+  `native.candidates.initVisits` > 0 (both would set the root's Q).
+- **Rank reward.** `native.reward` "rank" is no longer refused with `native.net`. Under rank the
+  search's values are in rank units (fraction of opponents beaten, plus zero-mean quality and length
+  bonuses in [−1, 1] times their weights), so the value channel's utility is the network's rank head
+  alone, `u_i = rank_i`, and only its differences between siblings enter
+  (`u'_i = root mean + u_i − mean_j u_j`, clamped to the reward's range [−(q + l), 1 + q + l] instead
+  of [0, 1]). With the blend reward the channel is unchanged. Nothing changes without `native.net`.
 
 ### Candidate generation (P4/P5, the first v5.0 port)
 

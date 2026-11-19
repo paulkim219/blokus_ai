@@ -63,6 +63,11 @@ impl NetOptions {
     pub fn wants_children(&self) -> bool {
         self.depth1_blend > 0.0 || self.value_visits > 0.0
     }
+
+    /// Hybrid H1: the in-process evaluator runs a network-v3 model (policy over every move).
+    pub fn v3(&self) -> bool {
+        self.evaluator.as_ref().is_some_and(|e| e.v3())
+    }
 }
 
 /// One position's network output.

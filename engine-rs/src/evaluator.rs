@@ -15,6 +15,14 @@
 //!
 //! Calls are synchronous: `evaluate` returns when the batch is done. Engines in one process that
 //! name the same model and device share one ONNX Runtime session (behind a mutex).
+//!
+//! **Network v3** (hybrid H1; `format` "v3"): the model of `ml/torch/onnx_export_v3.py`, with a policy
+//! over every placement (91 × 400 in the mover's frame) instead of 64 candidate slots. Its inputs are
+//! the board only (planes, hands, seat: `Inputs::push_board`), and [`Evaluator::evaluate_moves`]
+//! returns, per position, the logits of exactly the moves asked for (any number), read from the
+//! chosen policy head (`head` "teacher", the default, trained on Pentobi's moves, or "policy",
+//! trained on the search's visits) through `net_v3::policy_table`, plus the 12 utilities. A v3
+//! evaluator refuses `evaluate` (64-slot records) and a v2 one refuses `evaluate_moves`.
 
 use crate::net::{NetClient, NetOptions, NetOutput, UTILITIES};
 use crate::prior::{MAX_CANDIDATES, REQUEST_BYTES};
@@ -23,6 +31,12 @@ use serde::{Deserialize, Serialize};
 pub trait Evaluator: Send {
     /// Protocol-2 outputs for `records`, one per record, logits truncated to `candidates[i]`.
     fn evaluate(&mut self, records: &[[u8; REQUEST_BYTES]], candidates: &[usize]) -> Result<Vec<NetOutput>, String>;
+
+    /// Network v3: for each record (only its board, hands and mover are read), the logits of
+    /// `moves[i]` in that order, and the 12 utilities.
+    fn evaluate_moves(&mut self, _records: &[[u8; REQUEST_BYTES]], _moves: &[&[i32]]) -> Result<Vec<NetOutput>, String> {
+        Err(format!("{}: no network-v3 path (native.net.evaluator.format \"v3\")", self.describe()))
+    }
 
     /// Short description for logs ("socket /tmp/x.sock", "ort cuda:0 model.onnx").
     fn describe(&self) -> String;
@@ -50,6 +64,12 @@ pub struct EvaluatorOptions {
     /// ONNX Runtime shared library; None reads `ORT_DYLIB_PATH`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub library: Option<String>,
+    /// Hybrid H1: "v3" for a network-v3 model (`onnx_export_v3.py`). Absent: the H0 (protocol-2) model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+    /// Network v3: which policy output to read, "teacher" (default) or "policy".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head: Option<String>,
 }
 
 fn cpu_device() -> String {
@@ -67,7 +87,27 @@ impl EvaluatorOptions {
         if self.model.is_empty() {
             return Err("native.net.evaluator.model is empty".into());
         }
+        if let Some(f) = &self.format {
+            if f != "v3" {
+                return Err(format!("native.net.evaluator.format {f:?} (only \"v3\")"));
+            }
+        }
+        if let Some(h) = &self.head {
+            if !self.v3() || !matches!(h.as_str(), "teacher" | "policy") {
+                return Err(format!("native.net.evaluator.head {h:?} (\"teacher\" or \"policy\", with format \"v3\")"));
+            }
+        }
         Ok(())
+    }
+
+    /// A network-v3 model.
+    pub fn v3(&self) -> bool {
+        self.format.as_deref() == Some("v3")
+    }
+
+    /// The v3 policy output read: "teacher" unless `head` says "policy".
+    pub fn head_output(&self) -> &str {
+        self.head.as_deref().unwrap_or("teacher")
     }
 }
 
@@ -185,6 +225,27 @@ pub mod ort_backend {
         Ok(session)
     }
 
+    /// Network v3: runs `inputs` (from `Inputs::push_board`) through `session`: (B × 36,400 logits of
+    /// the output named `head`, B × 12 utilities).
+    pub fn run_v3(session: &mut Session, inputs: &Inputs, head: &str) -> Result<(Vec<f32>, Vec<f32>), String> {
+        use crate::net_v3::POLICY_SIZE;
+        let b = inputs.batch;
+        let e = |e: ort::Error| format!("ort run: {e}");
+        let outputs = session
+            .run(ort::inputs![
+                "planes" => TensorRef::from_array_view(([b, PLANES, 20, 20], &inputs.planes[..])).map_err(e)?,
+                "hands" => TensorRef::from_array_view(([b, SEAT_COUNT, HAND_BITS], &inputs.hands[..])).map_err(e)?,
+                "seat" => TensorRef::from_array_view(([b], &inputs.seat[..])).map_err(e)?,
+            ])
+            .map_err(e)?;
+        let (_, logits) = outputs[head].try_extract_tensor::<f32>().map_err(e)?;
+        let (_, utilities) = outputs["utilities"].try_extract_tensor::<f32>().map_err(e)?;
+        if logits.len() != b * POLICY_SIZE || utilities.len() != b * UTILITIES {
+            return Err(format!("ort run: v3 output sizes {} and {} for batch {b}", logits.len(), utilities.len()));
+        }
+        Ok((logits.to_vec(), utilities.to_vec()))
+    }
+
     /// Runs `inputs` through `session`: (B × 64 logits, B × 12 utilities).
     pub fn run(session: &mut Session, inputs: &Inputs) -> Result<(Vec<f32>, Vec<f32>), String> {
         let b = inputs.batch;
@@ -221,6 +282,9 @@ pub mod ort_backend {
 
     impl Evaluator for OrtEvaluator {
         fn evaluate(&mut self, records: &[[u8; REQUEST_BYTES]], candidates: &[usize]) -> Result<Vec<NetOutput>, String> {
+            if self.options.v3() {
+                return Err(format!("{}: a network-v3 model has no 64-slot path (evaluate_moves)", self.describe()));
+            }
             if records.is_empty() {
                 return Ok(Vec::new());
             }
@@ -230,6 +294,34 @@ pub mod ort_backend {
             }
             let (logits, utilities) = run(&mut self.session.lock().unwrap(), &self.inputs)?;
             Ok(split_outputs(&logits, &utilities, candidates))
+        }
+
+        fn evaluate_moves(&mut self, records: &[[u8; REQUEST_BYTES]], moves: &[&[i32]]) -> Result<Vec<NetOutput>, String> {
+            use crate::net_v3::{POLICY_SIZE, policy_table};
+            if !self.options.v3() {
+                return Err(format!("{}: not a network-v3 model (native.net.evaluator.format)", self.describe()));
+            }
+            if records.is_empty() {
+                return Ok(Vec::new());
+            }
+            self.inputs.clear();
+            for record in records {
+                self.inputs.push_board(record);
+            }
+            let (logits, utilities) = run_v3(&mut self.session.lock().unwrap(), &self.inputs, self.options.head_output())?;
+            let table = policy_table();
+            Ok(records
+                .iter()
+                .enumerate()
+                .map(|(i, record)| {
+                    let mover = record[6] as usize % SEAT_COUNT;
+                    let row = &logits[i * POLICY_SIZE..(i + 1) * POLICY_SIZE];
+                    NetOutput {
+                        logits: moves[i].iter().map(|&m| row[table.policy[mover][m as usize] as usize]).collect(),
+                        utility: std::array::from_fn(|u| utilities[i * UTILITIES + u]),
+                    }
+                })
+                .collect())
         }
 
         fn describe(&self) -> String {
