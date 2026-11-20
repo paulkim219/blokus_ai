@@ -161,3 +161,64 @@ is new. `engine-rs/README.md`, "Network v3".
 - What H1 passes is reported gate by gate; a failed gate is reported with its numbers, nulls as nulls,
   and no gate is changed after it is read.
 - If the corpus has to be cut (time or a failure), training uses what was collected and the report says so.
+
+## H2: the network-v3 prior inside the v5 tree (DRAFT, written 2026-11-19 at the end of H1; not in force, nothing run)
+
+Plan section 6, stage H2. To be reviewed by Paul before it is committed as a preregistration and run.
+
+**Question.** At equal wall time on the PC, does the H1 network's policy, used as a prior inside the v5
+tree, make `v5.3-turbo` and `v5.3-pro` stronger against their tier's Pentobi level?
+
+**Network.** The network selected in H1 ((to be filled in from H1)), fp32 ONNX, `ort` CUDA provider, TF32 off,
+`head` "teacher" (the head the offline gates read). Synchronous calls, one search thread per game.
+
+**Arms** (each = the tier's config plus a `native.net` block; written as unnamed configs under
+`tmp/h2/configs`, not in `engine-rs/configs`):
+
+| Tier (opponent) | Arm | Network use |
+|---|---|---|
+| turbo (Pentobi level 6) | control | `v5.3-turbo` unchanged |
+| | T-R50 | root prior, `rootBlend` 0.5, temperature 1 |
+| | T-R100 | root prior, `rootBlend` 1.0 |
+| pro (Pentobi level 7) | control | `v5.3-pro` unchanged (eager layout) |
+| | P-R50 | root prior, `rootBlend` 0.5 |
+| | P-RI | root prior 0.5 plus the interior prior (`interiorVisits` T, `interiorBlend` 0.5), T fixed before any game as the smallest power of two whose mean interior calls per move on the calibration positions is at most 40 |
+
+Interior calls are not used at turbo: one call costs about 1.2–1.5 ms (H0: 1.2 ms for the v2 network at batch 1; the v3 latency is still to be measured on a quiet PC), so a handful per
+move already takes several percent of a 72 ms move.
+
+**Equal wall time.** Before any game, on a quiet PC, one thread: each arm's ms/move on the 150 recorded
+positions of `tmp/h0/x1-l6a.moves.jsonl` (own moves 3+), against its control's. The arm's
+`iterationScale` is set to control's × (control time / arm time) and re-measured until the ratio is
+within 0.97–1.03. The network's time counts. In-match ms/move is reported for every arm.
+
+**Screen.** Lone seat against three Pentobi 31.0 seats of the tier's level, one process per Pentobi seat
+with seat-derived seeds, book on, budget 300, 4 rotations per seed, binary pinned. 300 seeds: turbo
+105,500,000–105,500,299; pro 105,600,000–105,600,299. Every arm and its control play the same seeds.
+An arm **clears** if its seed-paired advantage over the control has a 95% bootstrap lower bound above 0.
+At most one arm per tier (the cleared one with the larger point estimate) goes to confirmation; none
+cleared → null for that tier.
+
+**Confirmation.** The selected arm and its control on 800 fresh seeds: turbo 105,700,000–105,700,799;
+pro 105,800,000–105,800,799. **Pass** (a candidate for the tier's next version, Paul's call): paired
+advantage lower bound above 0 and the paired first-place difference's upper bound ≥ 0.
+
+**Reported, not gated:** advantage and first place of each arm against Pentobi; in-match ms/move;
+CPU core-seconds per move; network evaluations per move; GPU milliseconds per move (evaluations ×
+measured latency); GPU power from `nvidia-smi` sampled during the runs.
+
+**Seed blocks** (fresh; 105,000,000–105,499,999 are H1's data blocks, 110,000,000–110,299,999 reserved
+by the squeeze benchmark): 105,500,000–299, 105,600,000–299, 105,700,000–799, 105,800,000–799.
+
+**Projected PC time** (from H1's pilot rates; Pentobi level 7 ≈ 0.93 s/move and level 6 ≈ 0.07 s/move
+under load; pro eager ≈ 1.6 GB per game with its three Pentobi processes, so 7 games at once):
+
+| Step | Games | Hours |
+|---|---:|---:|
+| Calibration (5 arms, quiet) | — | ≈ 1 |
+| Turbo screen, 3 configs × 1,200 games, 12 at once (≈ 6 s each) | 3,600 | ≈ 0.5 |
+| Pro screen, 3 configs × 1,200 games, 7 at once (≈ 78 s each) | 3,600 | ≈ 11 |
+| Turbo confirmation, 2 × 3,200 games | 6,400 | ≈ 1 |
+| Pro confirmation, 2 × 3,200 games | 6,400 | ≈ 20 |
+
+Screens ≈ 12.5 h; with both confirmations ≈ 33 h.

@@ -297,3 +297,88 @@ On the PC, from the repo root:
   `h0_bench_report.py`.
 
 Logs and summaries are in `research_paper/hybrid_h0_runs/`.
+
+## H1: data, network v3 and the engine interface (2026-11-19; in progress)
+
+Gates: `research_paper/v5_hybrid_preregistered.md`, "H1" (committed `d39275e`, before training and before
+any gate was read).
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `8379697` | Record format v3 (`engine-rs/src/record_v3.rs`, `blokee-selfplay --format v3`); `blokee-pentobi --mode pentobi-self` (Pentobi in all four seats, one process per game); `examples/h1_moves_v3.rs` (Pentobi moves → v3 records, one-hot); Python readers `ml/torch/records_v3.py`, `h1_check_v3.py`; the policy index `ml/torch/policy_index.py` |
+| `675b655` | Network v3 (`model.ResNet3`), `h1_data.py` (caches, GPU board encoder and legal mask), `train_v3.py`, `h1_gates.py`, `onnx_export_v3.py`, `h1_parity.py`; engine: `net_v3.rs` policy table, `Inputs::push_board`, `Evaluator::evaluate_moves` (format v3), the config changes (rank reward with `native.net`, v3 with `native.candidates` / RAVE / priorLog); scripts `h1-pilot.sh`, `h1-data.sh`, `h1-identity.sh`; `examples/h1_v3_eval.rs` |
+| `bb59d03` | Interior network prior (`native.net.interiorVisits`, v3 only) and the weight-0 network identity check |
+| `d39275e` | H1 preregistration |
+
+**Record format v3.** Per decision: the position, the mover, every legal move with its real root
+visits and root prior, the root's mean value for all four seats and real visit count, iterations, and
+the game's final scores. `initVisits` (root, 3 in v5.3) and `interiorInitVisits` (1) are virtual
+visits: `select` mixes them into Q, `backup` never adds them to `child_visits` or `visits`, so nothing
+is subtracted; the reader checks that each search record's visits sum to its root's visits (all
+records pass). Variable length (296-byte header + 10 bytes per legal move); about 190 KB per turbo
+game. Moves the root does not hold (none with `rootFull`) would be listed with 0 visits.
+
+**Policy indexing.** 91 piece-orientations × the top-left corner of the placement's bounding box, in
+the mover's frame (the board rotated so the mover's home corner is cell 0). 30,433 of the 36,400 slots
+are placements. The engine's table (`net_v3.rs`) equals Python's element for element.
+
+**Legal mask on the GPU.** Training recomputes the mover's legal placements from the encoded planes
+(empty cells, not edge-adjacent to own stones, touching an own open corner or the home corner, piece in
+hand). On the pilot records it equals the engine's legal sets exactly (every record of the L7 pilot,
+3,000 turbo records, as sets).
+
+### Pilot (2026-11-19, 15:02–15:19; measured)
+
+`engine-rs/scripts/h1-pilot.sh`, binaries `8379697` pinned in `tmp/h1/bin-data`, nothing else running.
+
+| Source | Games | Parallel | Wall | Rate | Peak memory (system) | Records/game |
+|---|---:|---:|---:|---:|---:|---:|
+| `v5.3-turbo` self-play | 160 | 16 threads | 193 s | ≈ 2,990 games/h | 3.3 GB | 72.0 (59.5 searched) |
+| `v5.3-pro` self-play, lazy layout | 32 | 16 threads | 414 s | ≈ 280 games/h | 6.0 GB | 72.1 (59.7 searched) |
+| Pentobi level 7 (one process per game) | 32 | 16 games | 153 s | ≈ 750 games/h | 4.9 GB | 72.4 decisions |
+| Pentobi level 8 (the same) | 14 | 14 games | 261 s | ≈ 190 games/h | 9.8 GB | 73.0 decisions |
+
+- Searched records: mean 228.5 legal moves at turbo (max 838) with 83.4 of them visited, 5,798
+  iterations; at pro 224.8 legal, 153.1 visited, 51,725 iterations.
+- Pentobi moves: 931 ms (level 7) and 3,149 ms (level 8) per move on average under this load. The 32
+  level-7 games are all distinct from ply 8 on.
+- `v5.3-pro` eager and lazy wrote byte-identical v3 shards on 2 games.
+
+### Corpus collection (in progress)
+
+`engine-rs/scripts/h1-data.sh` started 15:20. **Paused at Paul's request at 20:08** (SIGSTOP by the
+coordinator) at 15,850–15,876 of 22,000 turbo games, about 3,000 games/h while running. Levels 7 and 8 and the pro self-play have not started.
+
+### Identity with the network off (H1-E2, measured 15:45–16:20 while the corpus ran)
+
+`engine-rs/scripts/h1-identity.sh tmp/h1/identity`, binaries built from `d39275e`, base `~/Blokee-h0-base`
+(`5b57f48`). Every check passed:
+
+- H0's whole G3 suite again, 0 FAIL lines: self-play shards and `games.jsonl` identical for
+  `v4.2-ultra` (`4a24f908…` / `6210cc1a…`) and `v5.3-turbo` (`44f24a92…` / `a4d94228…`), the same
+  hashes as in H0; `blokee-match` 8 games identical; `s4_identity` 1,440 lines identical
+  (`54dbaa2a…`); mirrors `v5.3-turbo` −0.00 [−0.00, 0.00] and `v4.2-ultra` 0.00 [0.00, 0.00], default and
+  `ort` builds.
+- `--format v2` spelled out: shard, `games.jsonl` and `meta.json` identical to base, both configs,
+  both builds. `--format v3`: the same games (scores and iterations per game).
+- `blokee-pentobi --mode one-blokee` at level 1 (1 seed × 4 rotations, per-seat processes): results
+  and moves identical to base, both builds.
+- `cargo test --release`: 39 passed, 0 failed in the default and `ort` builds (after `4ac57b9`; the
+  script's own test step did not find `cargo` in the tmux shell and was re-run by hand). One test was
+  changed with the rule it checks: `tests/lazy.rs` `lazy_is_refused_with_the_network` now asserts that
+  the lazy layout is refused with `depth1Blend` > 0, a v2 network is still refused with the v5
+  candidates, and a v3 root-prior network is accepted.
+
+### Engine interface, smoke checks (not the gate; the gate uses the selected network)
+
+With a 400-step smoke network trained on the pilot data:
+- ONNX against PyTorch (2,000 pilot records): fp32 ORT CPU and CUDA (TF32 off) max abs 1.3e-5 on all
+  logits, 3.7e-6 on utilities; the engine's path (Rust encoder, table, ORT) 1.0e-5 (CPU) and 3.3e-5
+  (CUDA) on legal-move logits; the tables equal; `evaluate_moves` equals the raw outputs bit for bit.
+- Inside `v5.3-turbo` (1 seed × 4 rotations each, functional only): root prior 1.0 call per searched
+  move; with `depth1Blend` 0.5, 228 positions per move and no depth-1 shortlist mismatch; with
+  `interiorVisits` 200, about 10 interior calls per move.
+- At `rootBlend` 0 the v3 network inside `v5.3-turbo` played the same 8 games as `v5.3-turbo` (H1-E3's
+  check, smoke network).
