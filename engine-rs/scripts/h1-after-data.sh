@@ -43,6 +43,7 @@ step() { # name, command... : skipped if done; output to <after>/<name>.log
 
 # 0. Wait for the corpus and for the machine to be free of data processes.
 if [ -z "${DRY:-}" ]; then
+  [ -f $A/report.done ] || echo "H1 chain started $(date '+%F %T'); waiting for the corpus (tmp/h1/data/L8.done), then the steps in $A/chain.log" > $SUMMARY
   until [ -f $D/L8.done ] || grep -q "DATA DONE" $D/log.txt 2>/dev/null; do sleep 300; done
   while pgrep -f "tmp/h1/bin-data/blokee-(selfplay|pentobi)" > /dev/null; do sleep 60; done
   [ -f $D/L8.done ] || log "NOTE: L8.done is missing (blokee-pentobi reported failures; see $D/L8.failures.jsonl); continuing with the games written"
