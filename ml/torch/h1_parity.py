@@ -61,6 +61,7 @@ def main() -> None:
     ap.add_argument("--rust", nargs="*", default=[], help="prefixes written by examples/h1_v3_eval.rs")
     ap.add_argument("--placements", default="ml/data/placements.json")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--cpu-only", action="store_true", help="dry runs of this script only: CPU providers")
     args = ap.parse_args()
     torch.backends.cudnn.allow_tf32 = False
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -96,6 +97,8 @@ def main() -> None:
     runs = [("fp32", "CPUExecutionProvider", {}), ("fp32", "CUDAExecutionProvider", {"use_tf32": 0}),
             ("fp32", "CUDAExecutionProvider", {"use_tf32": 1}), ("fp16", "CUDAExecutionProvider", {"use_tf32": 0}),
             ("fp16", "CPUExecutionProvider", {})]
+    if args.cpu_only:
+        runs = [r for r in runs if r[1] == "CPUExecutionProvider"]
     sessions = {}
     for precision, provider, opts in runs:
         key = f"{precision} {provider.replace('ExecutionProvider', '')}" + (f" tf32={opts['use_tf32']}" if opts else "")

@@ -146,10 +146,12 @@ def main() -> None:
     ap.add_argument("--name", required=True)
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--check-legal", action="store_true", help="assert the GPU legal mask on every training batch")
+    ap.add_argument("--device", default="cuda", help="cuda (the preregistered runs) or cpu (dry runs of this script only)")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
-    dev = torch.device("cuda")
+    dev = torch.device(args.device)
+    cuda = dev.type == "cuda"
     torch.backends.cudnn.benchmark = True
     amp = {"off": None, "bf16": torch.bfloat16, "fp16": torch.float16}[args.amp]
     tables = Tables(PolicyIndex(args.placements), dev)
@@ -195,7 +197,8 @@ def main() -> None:
         optimizer.load_state_dict(ck["optimizer"])
         ema.state, ema.updates = ck["ema"], ck["ema_updates"]
         rng.bit_generator.state = ck["rng"]
-        torch.cuda.set_rng_state(ck["cuda_rng"].cpu())
+        if cuda and ck["cuda_rng"] is not None:
+            torch.cuda.set_rng_state(ck["cuda_rng"].cpu())
         best, best_state, best_step, history, first_step = ck["best"], ck["best_state"], ck["best_step"], ck["history"], ck["step"]
         print(f"{args.name}: resumed at step {first_step} (best val {best:.4f} at step {best_step})", flush=True)
     started = last = time.time() - (history[-1]["seconds"] if history else 0)
@@ -232,7 +235,7 @@ def main() -> None:
                 best, best_step = v["loss"], step + 1
                 best_state = {k: t.detach().clone() for k, t in shadow.state_dict().items()}
             torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(), "ema": ema.state, "ema_updates": ema.updates,
-                        "rng": rng.bit_generator.state, "cuda_rng": torch.cuda.get_rng_state(), "best": best,
+                        "rng": rng.bit_generator.state, "cuda_rng": torch.cuda.get_rng_state() if cuda else None, "best": best,
                         "best_state": best_state, "best_step": best_step, "history": history, "step": step + 1},
                        resume_path + ".tmp")
             os.replace(resume_path + ".tmp", resume_path)

@@ -179,7 +179,8 @@ def main() -> None:
         say(f"Training-time encoder equals `features.Encoder.board`: {par.get('encoderEqual')}. Engine policy table equals "
             f"`policy_index.py`: {all(r['tableEqual'] for r in par['rust'].values())}. `evaluate_moves` equal to the raw session outputs "
             f"bit for bit: asserted by `examples/h1_v3_eval.rs` (the step fails otherwise).")
-        verdicts["H1-E1"] = e1 and bool(par["rust"])
+        # Both gated ONNX paths and both engine paths (CPU and CUDA) must be present.
+        verdicts["H1-E1"] = e1 and all(k in par["onnx"] for k in FP32_GATED) and len(par["rust"]) >= 2
         say()
     lat = []
     for path in sorted(glob.glob(f"{A}/parity/rust-*.log")):
