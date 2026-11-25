@@ -1,5 +1,8 @@
 # Hybrid line on the PC: runbook
 
+**Start with `docs/HYBRID_HANDOFF.md`** (current state, next steps, decision points, standing rules). This file
+is the operating detail.
+
 For a person or a Claude Code session working **on the PC** (`~/Blokee-hybrid`, WSL2 Ubuntu, Ryzen 7 9700X
 8 cores / 16 threads, RTX 4080, 15 GB for WSL). The plan is `research_paper/v5_hybrid_cpu_gpu_plan.md`,
 the gates are in `research_paper/v5_hybrid_preregistered.md`, results go in
@@ -102,55 +105,20 @@ committed on the PC as "Hybrid H1 results … (generated on the PC …)". The ru
 prereg's (`d39275e`). Deviations to mention by hand in the write-up: the pause on 2026-11-19, the two
 Windows restarts and how the turbo block was completed, and anything in `tmp/h1/after/chain.log`.
 
-## H2: the network prior inside the v5 tree (needs Paul's go-ahead)
+## H2: the network prior inside the v5 tree (approved 2026-11-25; running)
 
-The draft prereg is the "H2 (DRAFT …)" section of `research_paper/v5_hybrid_preregistered.md`. Before
-running: Paul reviews it, the H1 network and verdicts are filled in, and the final text is committed.
+The prereg is in force (`research_paper/v5_hybrid_preregistered.md`, "H2", commit `051b98c`). Everything runs in
+`engine-rs/scripts/h2-chain.sh` (tmux session `h2`), resumable like the H1 chain:
 
-Code that exists: the v3 evaluator (`native.net.evaluator.format "v3"`, `head`), the root prior
-(`rootBlend`, `temperature`) and the interior prior (`interiorVisits`, `interiorBlend`,
-`interiorTemperature`); see `engine-rs/README.md`, "Network v3". Steps:
+```bash
+cat tmp/h2/SUMMARY.txt; tail tmp/h2/chain.log; ls tmp/h2/steps/*.done   # status
+tail -c 300 tmp/h2/steps/screen-pro-P-RI.log                            # a running match step (bridge progress)
+tmux new-session -d -s h2 "bash engine-rs/scripts/h2-chain.sh; exec bash"   # (re)start after a restart
+```
 
-1. **Configs** (unnamed, under `tmp/h2/configs`): the tier config plus
-   ```json
-   "net": { "evaluator": { "backend": "ort", "model": "tmp/h1/onnx/h1-selected.fp32.onnx", "device": "cuda",
-                           "format": "v3", "head": "teacher" },
-            "rootBlend": 0.5, "temperature": 1.0 }
-   ```
-   (`T-R100`: `rootBlend` 1.0; `P-RI`: add `"interiorVisits": T, "interiorBlend": 0.5`). The pro base is
-   `tmp/h1/configs/v5.3-pro.json` (eager; the interior prior refuses the lazy layout).
-2. **Choose T for P-RI** (before any game): count interior calls per move on the calibration positions
-   (`blokee-match` prints network evaluations per move; or add a counter run) and take the smallest
-   power of two giving at most 40 calls per move.
-3. **Equal wall time** (quiet PC, one thread):
-   ```bash
-   source engine-rs/scripts/h0-env.sh
-   engine-rs/target-ort/release/examples/p4_cost tmp/h0/x1-l6a.moves.jsonl 150 1 tmp/h2/cost.csv \
-       engine-rs/configs/v5.3-turbo.json tmp/h2/configs/T-R50.json tmp/h2/configs/T-R100.json
-   ```
-   Scale each arm's `search.iterationScale` by control ms / arm ms and re-measure until the ratio is in
-   0.97–1.03 (the pro configs likewise with `tmp/h1/configs/v5.3-pro.json`).
-4. **Screen** (300 seeds; `bench.sh` adds 10,000 × level to its seed base, so these bases give the
-   prereg's blocks; use the `ort` build for every arm, control included, and pin it):
-   ```bash
-   mkdir -p tmp/h2/bin && cp engine-rs/target-ort/release/blokee-pentobi tmp/h2/bin/
-   source engine-rs/scripts/h0-env.sh
-   # turbo vs level 6, seeds 105,500,000-299
-   for c in v5.3-turbo T-R50 T-R100; do engine-rs/scripts/bench.sh <config of $c> h2-$c "6" 300 105440000 12 tmp/h2/bin; done
-   # pro vs level 7, seeds 105,600,000-299 (7 games at once for memory)
-   for c in v5.3-pro P-R50 P-RI; do engine-rs/scripts/bench.sh <config of $c> h2-$c "7" 300 105530000 7 tmp/h2/bin; done
-   ```
-   Each arm against its control: seed-and-seat-paired difference of the lone seat's advantage with a
-   bootstrap over seeds; clear if the lower bound is above 0 (a pairing script must be chosen or
-   written before the read; `scripts/aggregateMatches.ts` reads each arm alone). Run each long screen
-   in tmux; `blokee-pentobi` resumes by seed/seat if rerun with the same `--out`.
-5. **Confirmation** (only a cleared arm; 800 fresh seeds): turbo base 105640000 ("6") → seeds
-   105,700,000–799; pro base 105730000 ("7") → 105,800,000–799. Pass: paired lower bound > 0 and the
-   first-place difference's upper bound ≥ 0. A passing arm is a candidate for Paul to name.
-6. Report also: in-match ms/move, network evaluations per move, GPU ms per move (evaluations × the
-   latency measured in H1's parity step), GPU power (`nvidia-smi --query-gpu=power.draw --format=csv -l 1`).
-
-Projected PC time (draft prereg): screens ≈ 12.5 h, both confirmations ≈ 20 h more.
+Pieces: `examples/h2_cost.rs` (cost and network evaluations on recorded positions), `scripts/h2_calibrate.py`
+(arm configs in `tmp/h2/configs`, T, equal-time calibration), `scripts/h2_report.py` (screen and confirmation
+rules, the read-out). Match logs: `tmp/h2/games/<stage>-<tier>-<config>.jsonl` (+ `.timing.jsonl`, `.gpu.csv`).
 
 ## H3 onward (decision points; most code does not exist yet)
 
