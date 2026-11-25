@@ -185,8 +185,21 @@ def main() -> None:
     n_new = args.batch - n_old
     old_sizes = np.array([len(r) for r in old_rows], dtype=np.float64)
     best, best_state, best_step, history = float("inf"), None, 0, []
-    started = last = time.time()
-    for step in range(args.steps):
+    first_step = 0
+    # Resumable: a checkpoint is written after every validation (`<out>/<name>.resume.pt`); a rerun with
+    # the same arguments continues from it (weights, optimiser, EMA, sampler state, best so far).
+    resume_path = os.path.join(args.out, f"{args.name}.resume.pt")
+    if os.path.exists(resume_path):
+        ck = torch.load(resume_path, map_location=dev, weights_only=False)
+        model.load_state_dict(ck["model"])
+        optimizer.load_state_dict(ck["optimizer"])
+        ema.state, ema.updates = ck["ema"], ck["ema_updates"]
+        rng.bit_generator.state = ck["rng"]
+        torch.cuda.set_rng_state(ck["cuda_rng"].cpu())
+        best, best_state, best_step, history, first_step = ck["best"], ck["best_state"], ck["best_step"], ck["history"], ck["step"]
+        print(f"{args.name}: resumed at step {first_step} (best val {best:.4f} at step {best_step})", flush=True)
+    started = last = time.time() - (history[-1]["seconds"] if history else 0)
+    for step in range(first_step, args.steps):
         for group in optimizer.param_groups:
             group["lr"] = args.lr * cosine(step, args.steps, warmup=500)
         per = rng.multinomial(n_new, share)
@@ -218,6 +231,11 @@ def main() -> None:
             if v["loss"] < best:
                 best, best_step = v["loss"], step + 1
                 best_state = {k: t.detach().clone() for k, t in shadow.state_dict().items()}
+            torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(), "ema": ema.state, "ema_updates": ema.updates,
+                        "rng": rng.bit_generator.state, "cuda_rng": torch.cuda.get_rng_state(), "best": best,
+                        "best_state": best_state, "best_step": best_step, "history": history, "step": step + 1},
+                       resume_path + ".tmp")
+            os.replace(resume_path + ".tmp", resume_path)
             last = time.time()
     meta = {"arm": args.arm, "name": args.name, "steps": args.steps, "bestStep": best_step, "bestValLoss": best,
             "selfplay": args.selfplay, "teacher": args.teacher, "old": args.old, "oldShare": args.old_share if old else 0.0,

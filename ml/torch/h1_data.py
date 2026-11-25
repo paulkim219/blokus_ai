@@ -36,7 +36,7 @@ import torch.nn.functional as F
 sys.path.insert(0, os.path.dirname(__file__))
 from features import CANON, HOME, PAD_CELL, SOURCE, game_utilities  # noqa: E402
 from policy_index import POLICY_SIZE, PolicyIndex  # noqa: E402
-from records_v3 import SOURCE_SEARCH, SOURCE_TEACHER, load_run_v3  # noqa: E402
+from records_v3 import SOURCE_SEARCH, SOURCE_TEACHER  # noqa: E402
 
 PER_RECORD = ["seat", "source", "teacher", "own_moves", "ply", "n", "game", "own", "hand", "root_values", "chosen",
               "chosen_index", "iterations", "pol_start", "pol_index", "pol_visits"]
@@ -58,42 +58,65 @@ def final_owner(moves: list[int], cells: np.ndarray) -> np.ndarray:
 
 
 def build_v3(runs: list[str], pi: PolicyIndex, kind: str) -> dict[str, np.ndarray]:
+    """One corpus from v3 runs, read shard by shard (memory stays at about one shard's size). Records
+    of games without a `games.jsonl` line (interrupted) are dropped. Records stay in shard order (the
+    trainer samples by index; nothing needs them sorted). Seeds must be unique across the runs."""
+    import glob
+
+    from records_v3 import read_shard
+
+    want_source = SOURCE_TEACHER if kind == "teacher" else SOURCE_SEARCH
     parts = []
     game_rows = {"game_seed": [], "game_scores": [], "game_owner": []}
     offset = 0
+    seen: set[int] = set()
     for run in runs:
-        data, games = load_run_v3(run)
-        h = data["header"]
+        games: dict[int, dict] = {}
+        with open(os.path.join(run, "games.jsonl")) as handle:
+            for line in handle:
+                g = json.loads(line)
+                games[g["game"]] = g
         ids = sorted(games)
-        row_of = {g: offset + i for i, g in enumerate(ids)}
-        for g in ids:
+        row_of = np.full(max(ids) + 1 if ids else 1, -1, dtype=np.int64)
+        for i, g in enumerate(ids):
+            row_of[g] = offset + i
             game = games[g]
+            if game["seed"] in seen:
+                raise SystemExit(f"{run}: seed {game['seed']} already in an earlier run")
+            seen.add(game["seed"])
             game_rows["game_seed"].append(game["seed"])
             game_rows["game_scores"].append(game["scores"])
             game_rows["game_owner"].append(final_owner(game["moves"], pi.cells))
         offset += len(ids)
-        n = np.diff(data["start"])
-        seat_rep = np.repeat(h["seat"].astype(np.int64), n)
-        keep = data["visits"] > 0
-        if kind == "teacher":
-            keep &= h["source"][np.repeat(np.arange(len(h)), n)] == SOURCE_TEACHER
-        else:
-            keep &= h["source"][np.repeat(np.arange(len(h)), n)] == SOURCE_SEARCH
-        rec = np.repeat(np.arange(len(h)), n)[keep]
-        pol_index = pi.policy[seat_rep[keep], data["moves"][keep].astype(np.int64)].astype(np.uint16)
-        pol_visits = data["visits"][keep].astype(np.uint32)
-        counts = np.bincount(rec, minlength=len(h))
-        parts.append({
-            "seat": h["seat"].copy(), "source": h["source"].copy(), "teacher": h["teacher"].copy(),
-            "own_moves": h["own_moves"].copy(), "ply": h["ply"].copy(), "n": h["n"].copy(),
-            "game": np.array([row_of[int(g)] for g in h["game"]], dtype=np.int32),
-            "own": h["own"].copy(), "hand": h["hand"].copy(), "root_values": h["root_values"].copy(),
-            "chosen": h["chosen"].copy(),
-            "chosen_index": pi.policy[h["seat"].astype(np.int64), h["chosen"].astype(np.int64)].astype(np.int32),
-            "iterations": h["iterations"].copy(),
-            "counts": counts, "pol_index": pol_index, "pol_visits": pol_visits,
-        })
-        print(f"{run}: {len(ids)} games, {len(h)} records, {len(pol_index)} policy entries", flush=True)
+        records = entries = 0
+        for shard in sorted(glob.glob(os.path.join(run, "v3-shard-*.bin"))):
+            d = read_shard(shard)
+            h = d["header"]
+            gid = h["game"].astype(np.int64)
+            keep = (gid < len(row_of)) & (row_of[np.minimum(gid, len(row_of) - 1)] >= 0)
+            n = np.diff(d["start"])
+            rec = np.repeat(np.arange(len(h)), n)
+            sel = (d["visits"] > 0) & (h["source"][rec] == want_source) & keep[rec]
+            remap = np.cumsum(keep) - 1
+            rec_new = remap[rec[sel]]
+            seat_e = h["seat"][rec[sel]].astype(np.int64)
+            hk = h[keep]
+            parts.append({
+                "seat": hk["seat"].copy(), "source": hk["source"].copy(), "teacher": hk["teacher"].copy(),
+                "own_moves": hk["own_moves"].copy(), "ply": hk["ply"].copy(), "n": hk["n"].copy(),
+                "game": row_of[hk["game"].astype(np.int64)].astype(np.int32),
+                "own": hk["own"].copy(), "hand": hk["hand"].copy(), "root_values": hk["root_values"].copy(),
+                "chosen": hk["chosen"].copy(),
+                "chosen_index": pi.policy[hk["seat"].astype(np.int64), hk["chosen"].astype(np.int64)].astype(np.int32),
+                "iterations": hk["iterations"].copy(),
+                "counts": np.bincount(rec_new, minlength=len(hk)),
+                "pol_index": pi.policy[seat_e, d["moves"][sel].astype(np.int64)].astype(np.uint16),
+                "pol_visits": d["visits"][sel].astype(np.uint32),
+            })
+            records += len(hk)
+            entries += int(sel.sum())
+            del d, rec, sel
+        print(f"{run}: {len(ids)} games, {records} records, {entries} policy entries", flush=True)
     out = {k: np.concatenate([p[k] for p in parts]) for k in parts[0] if k != "counts"}
     counts = np.concatenate([p["counts"] for p in parts])
     out["pol_start"] = np.concatenate([[0], np.cumsum(counts)]).astype(np.int64)
@@ -314,7 +337,7 @@ def main() -> None:
     c.add_argument("--cache", required=True)
     c.add_argument("--placements", default="ml/data/placements.json")
     c.add_argument("--limit", type=int, default=0, help="records to check (0 = all)")
-    r = sub.add_parser("check-raw", help="GPU legal mask against every listed move of raw v3 records, as sets")
+    r = sub.add_parser("check-raw", help="GPU legal mask against every listed move of a run's first shard, as sets")
     r.add_argument("--run", required=True)
     r.add_argument("--placements", default="ml/data/placements.json")
     r.add_argument("--limit", type=int, default=0)
@@ -330,7 +353,12 @@ def main() -> None:
     elif args.cmd == "check-raw":
         dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         t = Tables(pi, dev)
-        data, _ = load_run_v3(args.run)
+        import glob
+
+        from records_v3 import read_shard
+
+        # The first shard only (memory): its records in file order, up to --limit.
+        data = read_shard(sorted(glob.glob(os.path.join(args.run, "v3-shard-*.bin")))[0])
         h = data["header"]
         rows = np.arange(len(h)) if not args.limit else np.arange(min(args.limit, len(h)))
         mismatched = 0

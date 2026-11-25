@@ -346,10 +346,26 @@ hand). On the pilot records it equals the engine's legal sets exactly (every rec
   level-7 games are all distinct from ply 8 on.
 - `v5.3-pro` eager and lazy wrote byte-identical v3 shards on 2 games.
 
-### Corpus collection (in progress)
+### Corpus collection
 
-`engine-rs/scripts/h1-data.sh` started 15:20. **Paused at Paul's request at 20:08** (SIGSTOP by the
-coordinator) at 15,850–15,876 of 22,000 turbo games, about 3,000 games/h while running. Levels 7 and 8 and the pro self-play have not started.
+`engine-rs/scripts/h1-data.sh` started 2026-11-19 15:20 (binaries `8379697`; log `tmp/h1/data/log.txt`).
+
+- **Pause and restart.** At Paul's request the run was paused at 20:08 on 2026-11-19 (SIGSTOP), at
+  about 15,876 of 22,000 turbo games. The PC restarted while paused and the paused processes were lost.
+  On 2026-11-23 the coordinator resumed (`tmp/h1/resume-data.sh`): `turbo/` kept 15,876 games (game
+  indices 0–15,876 except 15,875, which was in flight; a partial last line of `games.jsonl` was removed,
+  the original kept as `games.jsonl.pre-resume`); the missing preregistered seeds were played as
+  `turbo-b/` (indices 15,877–21,999, 6,123 games, seed base 105,116,037) and `turbo-c/` (index 15,875,
+  seed 105,116,035). A game is determined by its seed: game 1 of `turbo-b` reproduced the lost game
+  exactly. Records of indices 15,877–15,880 also sit in `turbo/`'s shards without a `games.jsonl` line
+  and are skipped by the readers.
+- **Level 7** (6,000 games) finished 2026-11-23 18:42; **pro** (2,400 games) 2026-11-24 03:15 (513 min).
+- **Level 8.** Windows restarted at about 04:40 on 2026-11-24 with 327 of 1,500 games done; the run was
+  restarted at 10:15 and the bridge resumed by seed (old stderr `L8.stderr.pre-restart`). In this run the
+  bridge's running mean for a level-8 move was 7.5 s at 00:31 and 11.9 s at 00:37 on 2026-11-25, against
+  3.1 s in the pilot (in-match timing under the same 14-process load; not investigated).
+- Everything after the corpus runs by itself on the PC: `engine-rs/scripts/h1-after-data.sh`
+  (`docs/HYBRID_PC_RUNBOOK.md`); its read-out is generated below.
 
 ### Identity with the network off (H1-E2, measured 15:45–16:20 while the corpus ran)
 

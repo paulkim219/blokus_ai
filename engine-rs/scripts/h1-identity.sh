@@ -10,6 +10,9 @@ OUT=${1:-tmp/h1/identity}; mkdir -p $OUT
 BASE_TREE=${BASE_TREE:-$HOME/Blokee-h0-base}
 log() { echo "$(date '+%F %T') $*" | tee -a $OUT/log.txt; }
 
+E=engine-rs/configs
+# ONLY_NOOP=1 V3_MODEL=<onnx>: only the network-at-weight-0 check (H1-E3) below.
+if [ -z "${ONLY_NOOP:-}" ]; then
 # H0's whole identity suite (self-play shards, blokee-match games, s4_identity dumps, mirrors), unchanged.
 bash engine-rs/scripts/h0-identity.sh $OUT
 cat $OUT/log.txt | grep -c FAIL | xargs -I{} echo "h0 suite FAIL lines: {}" | tee -a $OUT/log.txt
@@ -56,6 +59,8 @@ for b in new ort; do
   else log "H1 blokee-pentobi one-blokee L1: base != $b  FAIL"; fi
 done
 
+fi  # ONLY_NOOP
+
 # Network on, weight 0: a v3 network at rootBlend 0 (interiorVisits 0) inside v5.3-turbo is called once per
 # searched move but changes no prior, so it must play exactly v5.3-turbo's games (ort build, CUDA).
 if [ -n "${V3_MODEL:-}" ]; then
@@ -80,6 +85,7 @@ for l in open(sys.argv[1]):
   else log "H1 v3 network at weight 0: games differ  FAIL"; fi
 fi
 
+[ -n "${ONLY_NOOP:-}" ] && { log "H1 NOOP DONE"; exit 0; }
 # Parity tests in both builds (G3a of H0, now with the record-v3 and net_v3 unit tests).
 [ -f $HOME/.cargo/env ] && source $HOME/.cargo/env
 for b in new ort; do

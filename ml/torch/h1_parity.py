@@ -82,48 +82,66 @@ def main() -> None:
     ref_planes, ref_hands = Encoder(Placements(args.placements), cpu).board(legacy)
     result["encoderEqual"] = bool(torch.equal(planes, ref_planes) and torch.equal(hands, ref_hands))
 
-    # PyTorch fp32 CPU reference.
+    # PyTorch fp32 CPU reference and ONNX Runtime from Python, batch by batch (full outputs are
+    # 2 × 36,400 floats per record, too many to hold for 20,000 records): the legal-move logits and the
+    # utilities are kept for every record; all-slot differences are exact maxima, with percentiles over
+    # the first 512 records' full rows.
+    import onnxruntime as ort
+
     ck = torch.load(args.checkpoint, map_location=cpu)
     model = ARMS[ck["arm"]]()
     model.load_state_dict(ck["state"])
     model.eval()
-    ref_policy, ref_util = [], []
-    with torch.no_grad():
-        for lo in range(0, n, 256):
-            out = model(planes[lo : lo + 256], hands[lo : lo + 256], seat[lo : lo + 256])
-            ref_policy.append(out["policy"].numpy())
-            ref_util.append(utility_probabilities(out["utility"]).reshape(-1, 12).numpy())
-    ref_policy = np.concatenate(ref_policy)  # (n, 2, 36400)
-    ref_util = np.concatenate(ref_util)
     legal_idx = [pi.policy[int(h["seat"][i]), data["moves"][i]] for i in range(n)]
-
-    def top1_agree(got_teacher_at_legal: list[np.ndarray]) -> float:
-        agree = [np.argmax(g) == np.argmax(ref_policy[i, 1, legal_idx[i]]) for i, g in enumerate(got_teacher_at_legal) if len(g) >= 2]
-        return float(np.mean(agree))
-
-    # ONNX Runtime from Python.
-    import onnxruntime as ort
-
-    feeds_all = {"planes": planes.numpy(), "hands": hands.numpy(), "seat": seat.numpy()}
     runs = [("fp32", "CPUExecutionProvider", {}), ("fp32", "CUDAExecutionProvider", {"use_tf32": 0}),
             ("fp32", "CUDAExecutionProvider", {"use_tf32": 1}), ("fp16", "CUDAExecutionProvider", {"use_tf32": 0}),
             ("fp16", "CPUExecutionProvider", {})]
-    result["onnx"] = {}
+    sessions = {}
     for precision, provider, opts in runs:
-        sess = ort.InferenceSession(f"{args.onnx}.{precision}.onnx", providers=[(provider, opts)] if opts else [provider])
-        pol, tea, util = [], [], []
-        for lo in range(0, n, 256):
-            o = sess.run(["policy", "teacher", "utilities"], {k: v[lo : lo + 256] for k, v in feeds_all.items()})
-            pol.append(o[0]), tea.append(o[1]), util.append(o[2])
-        pol, tea, util = np.concatenate(pol), np.concatenate(tea), np.concatenate(util)
         key = f"{precision} {provider.replace('ExecutionProvider', '')}" + (f" tf32={opts['use_tf32']}" if opts else "")
-        legal_diff = np.concatenate([np.stack([pol[i, legal_idx[i]] - ref_policy[i, 0, legal_idx[i]],
-                                               tea[i, legal_idx[i]] - ref_policy[i, 1, legal_idx[i]]]).reshape(-1) for i in range(n)])
+        sessions[key] = ort.InferenceSession(f"{args.onnx}.{precision}.onnx", providers=[(provider, opts)] if opts else [provider])
+    ref_legal, ref_util = [], []
+    got = {k: {"legal": [], "util": [], "maxAll": 0.0, "fullRows": []} for k in sessions}
+    ref_full_rows = []
+    batch = 256
+    with torch.no_grad():
+        for lo in range(0, n, batch):
+            sl = slice(lo, min(n, lo + batch))
+            out = model(planes[sl], hands[sl], seat[sl])
+            pol = out["policy"].numpy()  # (b, 2, 36400)
+            ref_util.append(utility_probabilities(out["utility"]).reshape(-1, 12).numpy())
+            ref_legal += [pol[i - lo][:, legal_idx[i]].T for i in range(sl.start, sl.stop)]
+            if lo < 512:
+                ref_full_rows.append(pol[: max(0, min(512 - lo, len(pol)))])
+            feeds = {"planes": planes[sl].numpy(), "hands": hands[sl].numpy(), "seat": seat[sl].numpy()}
+            for key, sess in sessions.items():
+                p0, p1, u = sess.run(["policy", "teacher", "utilities"], feeds)
+                both = np.stack([p0, p1], 1)
+                g = got[key]
+                g["maxAll"] = max(g["maxAll"], float(np.abs(both - pol).max()))
+                g["legal"] += [both[i - lo][:, legal_idx[i]].T for i in range(sl.start, sl.stop)]
+                g["util"].append(u)
+                if lo < 512:
+                    g["fullRows"].append(both[: max(0, min(512 - lo, len(both)))])
+    ref_util = np.concatenate(ref_util)
+    ref_full = np.concatenate(ref_full_rows)
+
+    def top1_agree(got_teacher_at_legal: list[np.ndarray]) -> float:
+        agree = [np.argmax(g) == np.argmax(ref_legal[i][:, 1]) for i, g in enumerate(got_teacher_at_legal) if len(g) >= 2]
+        return float(np.mean(agree))
+
+    ref_legal_flat = np.concatenate(ref_legal)
+    result["onnx"] = {}
+    for key, g in got.items():
+        full = np.concatenate(g["fullRows"]) - ref_full
         result["onnx"][key] = {
-            "logitsAll": stats(np.stack([pol, tea], 1) - ref_policy), "logitsLegal": stats(legal_diff),
-            "utilities": stats(util - ref_util), "top1Teacher": top1_agree([tea[i, legal_idx[i]] for i in range(n)]),
+            "logitsAll": {"maxAbs": g["maxAll"], "p999": float(np.percentile(np.abs(full), 99.9)), "p999Over": f"first {len(full)} records"},
+            "logitsLegal": stats(np.concatenate(g["legal"]) - ref_legal_flat),
+            "utilities": stats(np.concatenate(g["util"]) - ref_util),
+            "top1Teacher": top1_agree([x[:, 1] for x in g["legal"]]),
         }
         print(key, json.dumps(result["onnx"][key]), flush=True)
+    del got
 
     # The engine's path.
     result["rust"] = {}
@@ -136,10 +154,9 @@ def main() -> None:
         assert m <= n and [(r["game"], r["ply"]) for r in index] == [(int(g), int(p)) for g, p in zip(h["game"][:m], h["ply"][:m])], "record order"
         counts = np.array([r["n"] for r in index])
         starts = np.concatenate([[0], np.cumsum(counts)])
-        ref_legal = np.concatenate([ref_policy[i][:, legal_idx[i]].T for i in range(m)])  # (moves, 2)
         entry = {
             "records": m, "tableEqual": bool(np.array_equal(table, pi.policy.astype(np.uint16))),
-            "logitsLegal": stats(logits - ref_legal), "utilities": stats(util - ref_util[:m]),
+            "logitsLegal": stats(logits - np.concatenate(ref_legal[:m])), "utilities": stats(util - ref_util[:m]),
             "top1Teacher": top1_agree([logits[starts[i] : starts[i + 1], 1] for i in range(m)]),
         }
         result["rust"][os.path.basename(prefix)] = entry
