@@ -162,63 +162,84 @@ is new. `engine-rs/README.md`, "Network v3".
   and no gate is changed after it is read.
 - If the corpus has to be cut (time or a failure), training uses what was collected and the report says so.
 
-## H2: the network-v3 prior inside the v5 tree (DRAFT, written 2026-11-19 at the end of H1; not in force, nothing run)
+## H2: the network-v3 prior inside the v5 tree (in force; written 2026-11-25 before any H2 game)
 
-Plan section 6, stage H2. To be reviewed by Paul before it is committed as a preregistration and run.
+Approved by Paul on 2026-11-25 ("Yes, start H2 on the PC"). Drafted at the end of H1 (`63d27a0`) and finalised
+here with H1's results; changes from the draft: a third turbo arm (T-RI), the turbo interior-call budget, the
+development steps written out, and the run order. Branch `hybrid-h2` from `hybrid-h1` at `86062da`. Runs
+unattended on the PC: `engine-rs/scripts/h2-chain.sh`.
 
-**Question.** At equal wall time on the PC, does the H1 network's policy, used as a prior inside the v5
-tree, make `v5.3-turbo` and `v5.3-pro` stronger against their tier's Pentobi level?
+**Question.** At equal wall time on the PC, does the H1 network's policy as a prior inside the v5 tree make
+`v5.3-turbo` and `v5.3-pro` stronger against their tier's Pentobi level?
 
-**Network.** The network selected in H1 ((to be filled in from H1)), fp32 ONNX, `ort` CUDA provider, TF32 off,
-`head` "teacher" (the head the offline gates read). Synchronous calls, one search thread per game.
+**Network.** H1's selected network, arm A (`tmp/h1/train/h1-A.pt`, sha256 `5a05ca0b…`), exported fp32 ONNX
+`tmp/h1/onnx/h1-selected.fp32.onnx` (`409668db…`); `ort` CUDA provider, TF32 off; policy head "teacher"
+(the head H1-G1/G2 passed on: level-7 top-40 0.973 at own moves 3–8, +0.96 nats per decision over the fitted
+prior). Synchronous calls (batch 1, measured 1.27 ms median on CUDA in H1), one search thread per game.
 
-**Arms** (each = the tier's config plus a `native.net` block; written as unnamed configs under
-`tmp/h2/configs`, not in `engine-rs/configs`):
+**Arms** (the tier's config plus a `native.net` block, temperature 1; written by
+`engine-rs/scripts/h2_calibrate.py` to `tmp/h2/configs`, unnamed):
 
-| Tier (opponent) | Arm | Network use |
+| Tier, opponent | Arm | Network use |
 |---|---|---|
-| turbo (Pentobi level 6) | control | `v5.3-turbo` unchanged |
-| | T-R50 | root prior, `rootBlend` 0.5, temperature 1 |
+| turbo, Pentobi level 6 | control | `engine-rs/configs/v5.3-turbo.json` unchanged |
+| | T-R50 | root prior, `rootBlend` 0.5 |
 | | T-R100 | root prior, `rootBlend` 1.0 |
-| pro (Pentobi level 7) | control | `v5.3-pro` unchanged (eager layout) |
+| | T-RI | root prior 0.5 and the interior prior (`interiorVisits` T_turbo, `interiorBlend` 0.5) |
+| pro, Pentobi level 7 | control | `v5.3-pro.json` (`81b25794…`, eager layout) unchanged |
 | | P-R50 | root prior, `rootBlend` 0.5 |
-| | P-RI | root prior 0.5 plus the interior prior (`interiorVisits` T, `interiorBlend` 0.5), T fixed before any game as the smallest power of two whose mean interior calls per move on the calibration positions is at most 40 |
+| | P-RI | root prior 0.5 and the interior prior (`interiorVisits` T_pro, `interiorBlend` 0.5) |
 
-Interior calls are not used at turbo: one call costs about 1.2–1.5 ms (H0: 1.2 ms for the v2 network at batch 1; the v3 latency is still to be measured on a quiet PC), so a handful per
-move already takes several percent of a 72 ms move.
+**Development steps** (before any game; searches on recorded positions only, no game seeds: the 150
+positions `p4_cost` takes from `tmp/h0/x1-l6a.moves.jsonl`, the lone Blokee seat's decisions at own moves 3+,
+budget 300, the RNG seed fixed per position; tool `engine-rs/examples/h2_cost.rs`, which adds the network
+evaluations per searched move and one untimed warm-up search per config):
 
-**Equal wall time.** Before any game, on a quiet PC, one thread: each arm's ms/move on the 150 recorded
-positions of `tmp/h0/x1-l6a.moves.jsonl` (own moves 3+), against its control's. The arm's
-`iterationScale` is set to control's × (control time / arm time) and re-measured until the ratio is
-within 0.97–1.03. The network's time counts. In-match ms/move is reported for every arm.
+1. **T.** At the tier's own `iterationScale`, for T in 64, 128, …, 16,384: the mean network evaluations per
+   searched move (root call included) of the interior arm. **T is the smallest value with at most 1 + 8
+   (turbo) or 1 + 40 (pro) evaluations per searched move**; if none, 16,384. Rationale: about 10% (turbo) and
+   5% (pro) of the move's time at 1.27 ms per call.
+2. **Equal wall time.** On the otherwise idle PC, one thread, control and arm search the same positions in
+   turn (as `p4_cost`); the arm's `iterationScale` is multiplied by control ms / arm ms and re-measured until
+   the ratio of mean ms per position is within **0.97–1.03** (the band used since round 8), at most 6 rounds;
+   if it does not converge the chain stops and reports. The network's calls are inside the timed search. T is
+   fixed before calibration and not changed by it.
+3. **Smoke games** on development seeds, not results: each arm plays 1 seed × 4 rotations (turbo seed
+   105,490,000 vs level 6; pro seed 105,590,000 vs level 7) to check that it loads and plays.
 
-**Screen.** Lone seat against three Pentobi 31.0 seats of the tier's level, one process per Pentobi seat
-with seat-derived seeds, book on, budget 300, 4 rotations per seed, binary pinned. 300 seeds: turbo
-105,500,000–105,500,299; pro 105,600,000–105,600,299. Every arm and its control play the same seeds.
-An arm **clears** if its seed-paired advantage over the control has a 95% bootstrap lower bound above 0.
-At most one arm per tier (the cleared one with the larger point estimate) goes to confirmation; none
-cleared → null for that tier.
+**Screen.** Lone seat against three Pentobi 31.0 seats of the tier's level, one `pentobi-gtp` process per
+Pentobi seat with seat-derived seeds, book on, one thread each, budget 300, 4 rotations per seed (the
+benchmark's protocol), binaries pinned in `tmp/h2/bin`. **N = 300 seeds** per config: turbo **105,500,000–
+105,500,299**, pro **105,600,000–105,600,299**. The control plays the same seeds. 12 games at once at turbo,
+7 at pro (memory).
 
-**Confirmation.** The selected arm and its control on 800 fresh seeds: turbo 105,700,000–105,700,799;
-pro 105,800,000–105,800,799. **Pass** (a candidate for the tier's next version, Paul's call): paired
-advantage lower bound above 0 and the paired first-place difference's upper bound ≥ 0.
+- Advantage of a game: the lone seat's score minus the mean of the three Pentobi seats. First place: 1/k
+  when the lone seat is among the k top scorers, else 0.
+- Paired difference arm − control: per seed, the mean over its four rotations of the per-game difference on
+  the same seed and seat; 95% percentile bootstrap over seeds, 2,000 resamples, seed 0
+  (`engine-rs/scripts/h2_report.py`).
+- **An arm clears** if its paired difference has a lower bound above 0. At most one arm per tier, the cleared
+  one with the larger point estimate, goes to confirmation; none cleared → **null** for that tier, no
+  confirmation.
 
-**Reported, not gated:** advantage and first place of each arm against Pentobi; in-match ms/move;
-CPU core-seconds per move; network evaluations per move; GPU milliseconds per move (evaluations ×
-measured latency); GPU power from `nvidia-smi` sampled during the runs.
+**Confirmation** (runs automatically when a screen clears): the selected arm and the control on **800 fresh
+seeds**, turbo **105,700,000–105,700,799** (level 6), pro **105,800,000–105,800,799** (level 7), same protocol.
+**Pass** (the standard acceptance rule): paired difference lower bound above 0 **and** the paired first-place
+difference's upper bound ≥ 0. A passing arm is a candidate for its tier's next version: Paul decides and names
+it; nothing is named or added to `engine-rs/configs` here.
 
-**Seed blocks** (fresh; 105,000,000–105,499,999 are H1's data blocks, 110,000,000–110,299,999 reserved
-by the squeeze benchmark): 105,500,000–299, 105,600,000–299, 105,700,000–799, 105,800,000–799.
+**Order.** Development steps, smoke games, turbo screen, turbo confirmation if any, pro screen, pro
+confirmation if any, read-out. Projected PC time: development ≈ 1.5 h; turbo screen ≈ 0.7 h (4 configs);
+turbo confirmation ≈ 1 h; pro screen ≈ 11.5 h (3 configs × ≈ 3.8 h); pro confirmation ≈ 20 h. Screens only
+≈ 14 h; everything ≈ 35 h.
 
-**Projected PC time** (from H1's pilot rates; Pentobi level 7 ≈ 0.93 s/move and level 6 ≈ 0.07 s/move
-under load; pro eager ≈ 1.6 GB per game with its three Pentobi processes, so 7 games at once):
+**Reported, not gated:** each config's advantage against Pentobi; in-match ms/move (own moves 5+); network
+evaluations per searched move and the calibrated `iterationScale` (development steps); GPU power and
+utilisation sampled by `nvidia-smi` every 5 s during each run.
 
-| Step | Games | Hours |
-|---|---:|---:|
-| Calibration (5 arms, quiet) | — | ≈ 1 |
-| Turbo screen, 3 configs × 1,200 games, 12 at once (≈ 6 s each) | 3,600 | ≈ 0.5 |
-| Pro screen, 3 configs × 1,200 games, 7 at once (≈ 78 s each) | 3,600 | ≈ 11 |
-| Turbo confirmation, 2 × 3,200 games | 6,400 | ≈ 1 |
-| Pro confirmation, 2 × 3,200 games | 6,400 | ≈ 20 |
+**Rules.** No gate changes after a game is read. Interrupted runs resume seed by seed (Windows restarts);
+the report states any interruption. Anything beyond H2 (H3 onward, naming, a new tier config) waits for Paul.
 
-Screens ≈ 12.5 h; with both confirmations ≈ 33 h.
+**Seed blocks used by H2:** 105,490,000 (turbo smoke), 105,590,000 (pro smoke), 105,500,000–299,
+105,600,000–299, 105,700,000–799, 105,800,000–799. H1 used 105,100,000–105,401,513; 110,000,000–110,299,999
+stay reserved for the squeeze benchmark.

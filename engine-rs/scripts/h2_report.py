@@ -1,0 +1,196 @@
+"""Hybrid H2 read-outs (research_paper/v5_hybrid_preregistered.md, "H2"), applying the preregistered rules.
+
+    python3 engine-rs/scripts/h2_report.py screen <tier>    # tmp/h2/<tier>-screen.json (cleared arms, selected arm)
+    python3 engine-rs/scripts/h2_report.py confirm <tier>   # tmp/h2/<tier>-confirm.json (pass / fail)
+    python3 engine-rs/scripts/h2_report.py report           # tmp/h2/SUMMARY.txt and the results section
+
+Inputs are `blokee-pentobi --mode one-blokee` logs under tmp/h2/games/: <stage>-<tier>-<config>.jsonl (+ .timing.jsonl).
+- Advantage of a game: the lone Blokee seat's score minus the mean of the three Pentobi seats.
+- First place of a game: 1/k when the lone seat is among the k seats with the top score, else 0.
+- Paired difference arm − control: per seed, the mean over its four seat rotations of (arm − control) on the same
+  seed and seat; mean over seeds; 95% percentile bootstrap over seeds (2,000 resamples, seed 0).
+- ms/move: the lone seat's own moves from its fifth on (index ≥ 4), as docs/BENCHMARK.md.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+
+import numpy as np
+
+G = "tmp/h2/games"
+ARMS = {"turbo": ["T-R50", "T-R100", "T-RI"], "pro": ["P-R50", "P-RI"]}
+LEVEL = {"turbo": 6, "pro": 7}
+BEGIN, END = "<!-- H2:AUTO:BEGIN -->", "<!-- H2:AUTO:END -->"
+
+
+def games(path: str) -> dict:
+    out = {}
+    for line in open(path):
+        if not line.strip():
+            continue
+        d = json.loads(line)
+        s = d["scores"]
+        me = s[d["seat"]]
+        others = [v for k, v in s.items() if k != d["seat"]]
+        top = max(s.values())
+        k = sum(1 for v in s.values() if v == top)
+        out[(d["seed"], d["seat"])] = (me - sum(others) / 3.0, (1.0 / k) if me == top else 0.0)
+    return out
+
+
+def ms_per_move(path: str) -> float | None:
+    if not os.path.exists(path):
+        return None
+    ms = [m for line in open(path) if line.strip() for m in json.loads(line)["blokeeMs"][4:]]
+    return float(np.mean(ms)) if ms else None
+
+
+def per_seed(g: dict, keys: list) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    seeds = sorted({s for s, _ in keys})
+    idx = {s: i for i, s in enumerate(seeds)}
+    adv = np.zeros(len(seeds))
+    first = np.zeros(len(seeds))
+    n = np.zeros(len(seeds))
+    for k in keys:
+        i = idx[k[0]]
+        adv[i] += g[k][0]
+        first[i] += g[k][1]
+        n[i] += 1
+    return adv / n, first / n, np.array(seeds)
+
+
+def boot(x: np.ndarray, resamples: int = 2000) -> tuple[float, float]:
+    rng = np.random.default_rng(0)
+    m = [x[rng.integers(0, len(x), len(x))].mean() for _ in range(resamples)]
+    lo, hi = np.percentile(m, [2.5, 97.5])
+    return float(lo), float(hi)
+
+
+def compare(stage: str, tier: str, arm: str) -> dict:
+    c = games(f"{G}/{stage}-{tier}-control.jsonl")
+    a = games(f"{G}/{stage}-{tier}-{arm}.jsonl")
+    keys = sorted(set(c) & set(a))
+    ca, cf, _ = per_seed(c, keys)
+    aa, af, seeds = per_seed(a, keys)
+    d, df = aa - ca, af - cf
+    return {
+        "arm": arm, "games": len(keys), "seeds": len(seeds), "missingGames": len(set(c) ^ set(a)),
+        "control": {"advantage": float(ca.mean()), "advantageCI": boot(ca), "first": float(cf.mean()),
+                    "msPerMove": ms_per_move(f"{G}/{stage}-{tier}-control.timing.jsonl")},
+        "arm_": {"advantage": float(aa.mean()), "advantageCI": boot(aa), "first": float(af.mean()),
+                 "msPerMove": ms_per_move(f"{G}/{stage}-{tier}-{arm}.timing.jsonl")},
+        "diff": float(d.mean()), "diffCI": boot(d), "firstDiff": float(df.mean()), "firstDiffCI": boot(df),
+    }
+
+
+def screen(tier: str) -> None:
+    rows = [compare("screen", tier, arm) for arm in ARMS[tier]]
+    cleared = [r for r in rows if r["diffCI"][0] > 0]
+    selected = max(cleared, key=lambda r: r["diff"])["arm"] if cleared else None
+    out = {"tier": tier, "rows": rows, "cleared": [r["arm"] for r in cleared], "selected": selected}
+    json.dump(out, open(f"tmp/h2/{tier}-screen.json", "w"), indent=1)
+    print(json.dumps({"tier": tier, "cleared": out["cleared"], "selected": selected,
+                      "diffs": {r["arm"]: (round(r["diff"], 2), [round(x, 2) for x in r["diffCI"]]) for r in rows}}))
+
+
+def confirm(tier: str) -> None:
+    arm = json.load(open(f"tmp/h2/{tier}-screen.json"))["selected"]
+    r = compare("confirm", tier, arm)
+    r["pass"] = r["diffCI"][0] > 0 and r["firstDiffCI"][1] >= 0
+    json.dump(r, open(f"tmp/h2/{tier}-confirm.json", "w"), indent=1)
+    print(json.dumps({"tier": tier, "arm": arm, "pass": r["pass"], "diff": r["diff"], "diffCI": r["diffCI"], "firstDiffCI": r["firstDiffCI"]}))
+
+
+def load(path: str):
+    try:
+        return json.load(open(path))
+    except (OSError, ValueError):
+        return None
+
+
+def fmt_ci(ci) -> str:
+    return f"[{ci[0]:+.2f}, {ci[1]:+.2f}]"
+
+
+def report() -> None:
+    md: list[str] = []
+    say = lambda s="": md.append(s)  # noqa: E731
+    say("### H2 read-out (generated by `engine-rs/scripts/h2_report.py`)")
+    say()
+    say("**Development steps** (recorded positions only, no games):")
+    say()
+    for tier in ("turbo", "pro"):
+        p = load(f"tmp/h2/dev/probe-t-{tier}.json")
+        if p:
+            ev = ", ".join(f"T {c['T']}: {c['netEvalsPerSearched']:.1f}" for c in p["candidates"])
+            say(f"- `interiorVisits` for {tier}: **T = {p['T']}** (smallest T with at most 1 + {p['budget']} network evaluations "
+                f"per searched move). Evaluations per searched move by T: {ev}.")
+    say()
+    say("| Arm | T | iterationScale | Control ms | Arm ms | Ratio | Network evaluations / searched move | Rounds |")
+    say("|---|---:|---:|---:|---:|---:|---:|---:|")
+    for tier, arms in ARMS.items():
+        for arm in arms:
+            c = load(f"tmp/h2/dev/calibration-{arm}.json")
+            if c and c.get("rounds"):
+                r = c["rounds"][-1]
+                say(f"| {arm} | {c.get('T') or '–'} | {r['iterationScale']:.3f} | {r['controlMs']:.1f} | {r['armMs']:.1f} | {r['ratio']:.3f} | "
+                    f"{r['armNetEvalsPerSearched']:.1f} | {len(c['rounds'])}{'' if c.get('converged', True) else ' (not converged)'} |")
+    say()
+    for tier in ("turbo", "pro"):
+        s = load(f"tmp/h2/{tier}-screen.json")
+        if not s:
+            continue
+        say(f"**{tier} screen** (lone seat vs three Pentobi level {LEVEL[tier]} seats, paired with `v5.3-{tier}` on the same seeds and seats):")
+        say()
+        say("| Arm | Games | Control adv. | Arm adv. | Paired Δ [95% CI] | First place control / arm | First Δ [95% CI] | ms/move control / arm | Cleared |")
+        say("|---|---:|---|---|---|---|---|---|---|")
+        for r in s["rows"]:
+            c, a = r["control"], r["arm_"]
+            ms = f"{c['msPerMove']:.0f} / {a['msPerMove']:.0f}" if c["msPerMove"] and a["msPerMove"] else "–"
+            say(f"| {r['arm']} | {r['games']:,} | {c['advantage']:+.2f} {fmt_ci(c['advantageCI'])} | {a['advantage']:+.2f} {fmt_ci(a['advantageCI'])} | "
+                f"**{r['diff']:+.2f} {fmt_ci(r['diffCI'])}** | {c['first']:.3f} / {a['first']:.3f} | {r['firstDiff']:+.3f} "
+                f"[{r['firstDiffCI'][0]:+.3f}, {r['firstDiffCI'][1]:+.3f}] | {ms} | {'yes' if r['diffCI'][0] > 0 else 'no'} |")
+        say()
+        say(f"Selected for confirmation: {s['selected'] or 'none (null for this tier; no confirmation)'}.")
+        say()
+        cf = load(f"tmp/h2/{tier}-confirm.json")
+        if cf:
+            c, a = cf["control"], cf["arm_"]
+            say(f"**{tier} confirmation** ({cf['arm']}, {cf['games']:,} games on fresh seeds): paired Δ **{cf['diff']:+.2f} {fmt_ci(cf['diffCI'])}**, "
+                f"first place Δ {cf['firstDiff']:+.3f} [{cf['firstDiffCI'][0]:+.3f}, {cf['firstDiffCI'][1]:+.3f}]; control {c['advantage']:+.2f}, "
+                f"arm {a['advantage']:+.2f} against level {LEVEL[tier]}; ms/move {c['msPerMove'] or 0:.0f} / {a['msPerMove'] or 0:.0f}. "
+                f"**{'Pass' if cf['pass'] else 'Fail'}** (rule: Δ lower bound > 0 and first-place Δ upper bound ≥ 0)."
+                + (" A candidate for the tier's next version; Paul decides and names it." if cf["pass"] else ""))
+            say()
+    power = []
+    for path in sorted(os.listdir("tmp/h2/games")) if os.path.isdir("tmp/h2/games") else []:
+        if path.endswith(".gpu.csv"):
+            vals = []
+            for line in open(f"tmp/h2/games/{path}"):
+                m = re.match(r"\s*([\d.]+) W,\s*(\d+) %", line)
+                if m:
+                    vals.append((float(m.group(1)), float(m.group(2))))
+            if vals:
+                power.append(f"{path[:-8]}: {np.mean([v[0] for v in vals]):.0f} W, {np.mean([v[1] for v in vals]):.0f}% utilisation")
+    if power:
+        say("GPU power and utilisation during each run (`nvidia-smi`, every 5 s, whole GPU incl. the desktop): " + "; ".join(power) + ".")
+        say()
+    text = "\n".join(md)
+    open("tmp/h2/SUMMARY.txt", "w").write(re.sub(r"\*\*|`", "", text) + "\n")
+    results = "research_paper/v5_hybrid_results.md"
+    body = open(results).read()
+    block = BEGIN + "\n" + text + "\n" + END
+    if BEGIN in body and END in body:
+        body = body[: body.index(BEGIN)] + block + body[body.index(END) + len(END):]
+    else:
+        body = body.rstrip("\n") + "\n\n## H2: the network-v3 prior inside the v5 tree\n\n" + block + "\n"
+    open(results, "w").write(body)
+    print(re.sub(r"\*\*|`", "", text))
+
+
+if __name__ == "__main__":
+    {"screen": lambda: screen(sys.argv[2]), "confirm": lambda: confirm(sys.argv[2]), "report": report}[sys.argv[1]]()
