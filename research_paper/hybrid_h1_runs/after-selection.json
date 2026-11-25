@@ -1,0 +1,5 @@
+{
+ "selected": "A",
+ "checkpoint": "tmp/h1/train/h1-A.pt",
+ "reason": "Best validation loss A 6.0342 (step 17000), B 6.0404 (step 20000); B is selected only if lower than A's by at least 0.5% (threshold 6.0041)."
+}

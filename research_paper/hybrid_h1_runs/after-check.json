@@ -1,0 +1,129 @@
+[
+ {
+  "run": "tmp/h1/pilot/turbo",
+  "games": 160,
+  "records": 11526,
+  "droppedRecords": 0,
+  "sources": {
+   "0": 9528,
+   "1": 1920,
+   "2": 78
+  },
+  "maxLegal": 838,
+  "problems": [],
+  "searchRecords": 9528,
+  "searchMeanLegal": 228.54701931150294,
+  "searchMeanVisited": 83.43713266162888,
+  "searchMeanIterations": 5798.328610411419
+ },
+ {
+  "run": "tmp/h1/data/turbo",
+  "games": 15876,
+  "records": 1145680,
+  "droppedRecords": 283,
+  "sources": {
+   "0": 945441,
+   "1": 190512,
+   "2": 9727
+  },
+  "maxLegal": 909,
+  "problems": [],
+  "searchRecords": 945441,
+  "searchMeanLegal": 227.80856446885633,
+  "searchMeanVisited": 82.8564405393885,
+  "searchMeanIterations": 5801.331675905742
+ },
+ {
+  "run": "tmp/h1/data/turbo-b",
+  "games": 6123,
+  "records": 441714,
+  "droppedRecords": 0,
+  "sources": {
+   "0": 364467,
+   "1": 73476,
+   "2": 3771
+  },
+  "maxLegal": 875,
+  "problems": [],
+  "searchRecords": 364467,
+  "searchMeanLegal": 227.87862001223704,
+  "searchMeanVisited": 82.97016739512767,
+  "searchMeanIterations": 5799.569269645812
+ },
+ {
+  "run": "tmp/h1/data/turbo-c",
+  "games": 1,
+  "records": 75,
+  "droppedRecords": 0,
+  "sources": {
+   "0": 63,
+   "1": 12
+  },
+  "maxLegal": 790,
+  "problems": [],
+  "searchRecords": 63,
+  "searchMeanLegal": 228.85714285714286,
+  "searchMeanVisited": 82.6984126984127,
+  "searchMeanIterations": 5720.603174603175
+ },
+ {
+  "run": "tmp/h1/pilot/pro",
+  "games": 32,
+  "records": 2308,
+  "droppedRecords": 0,
+  "sources": {
+   "0": 1911,
+   "1": 384,
+   "2": 13
+  },
+  "maxLegal": 824,
+  "problems": [],
+  "searchRecords": 1911,
+  "searchMeanLegal": 224.79330193615908,
+  "searchMeanVisited": 153.07849293563578,
+  "searchMeanIterations": 51725.333333333336
+ },
+ {
+  "run": "tmp/h1/data/pro",
+  "games": 2400,
+  "records": 173474,
+  "droppedRecords": 0,
+  "sources": {
+   "0": 143458,
+   "1": 28800,
+   "2": 1216
+  },
+  "maxLegal": 871,
+  "problems": [],
+  "searchRecords": 143458,
+  "searchMeanLegal": 224.81291388420306,
+  "searchMeanVisited": 153.13399043622525,
+  "searchMeanIterations": 52034.818218572684
+ },
+ {
+  "run": "tmp/h1/L7-v3",
+  "games": 6032,
+  "records": 438482,
+  "droppedRecords": 0,
+  "sources": {
+   "4": 438482
+  },
+  "maxLegal": 930,
+  "problems": [],
+  "teacherRecords": 438482,
+  "teacherMeanLegal": 210.83609361387695
+ },
+ {
+  "run": "tmp/h1/L8-v3",
+  "games": 1514,
+  "records": 109937,
+  "droppedRecords": 0,
+  "sources": {
+   "4": 109937
+  },
+  "maxLegal": 898,
+  "problems": [],
+  "teacherRecords": 109937,
+  "teacherMeanLegal": 211.0677478919745
+ }
+]

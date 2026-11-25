@@ -1,0 +1,115 @@
+{
+ "records": 20000,
+ "run": "tmp/h1/data/turbo",
+ "encoderEqual": true,
+ "onnx": {
+  "fp32 CPU": {
+   "logitsAll": {
+    "maxAbs": 1.0013580322265625e-05,
+    "p999": 3.337860107421875e-06,
+    "p999Over": "first 512 records"
+   },
+   "logitsLegal": {
+    "maxAbs": 8.58306884765625e-06,
+    "p999": 4.291534423828125e-06
+   },
+   "utilities": {
+    "maxAbs": 1.2814998626708984e-06,
+    "p999": 6.854534149169922e-07
+   },
+   "top1Teacher": 1.0
+  },
+  "fp32 CUDA tf32=0": {
+   "logitsAll": {
+    "maxAbs": 2.288818359375e-05,
+    "p999": 3.814697265625e-06,
+    "p999Over": "first 512 records"
+   },
+   "logitsLegal": {
+    "maxAbs": 1.52587890625e-05,
+    "p999": 4.76837158203125e-06
+   },
+   "utilities": {
+    "maxAbs": 1.3709068298339844e-06,
+    "p999": 7.152557373046875e-07
+   },
+   "top1Teacher": 1.0
+  },
+  "fp32 CUDA tf32=1": {
+   "logitsAll": {
+    "maxAbs": 0.012676239013671875,
+    "p999": 0.004553556442260742,
+    "p999Over": "first 512 records"
+   },
+   "logitsLegal": {
+    "maxAbs": 0.011931419372558594,
+    "p999": 0.0049877166748046875
+   },
+   "utilities": {
+    "maxAbs": 0.0016150474548339844,
+    "p999": 0.0008107424946501851
+   },
+   "top1Teacher": 0.9994396046665648
+  },
+  "fp16 CUDA tf32=0": {
+   "logitsAll": {
+    "maxAbs": 0.040224313735961914,
+    "p999": 0.010419226251542568,
+    "p999Over": "first 512 records"
+   },
+   "logitsLegal": {
+    "maxAbs": 0.02166461944580078,
+    "p999": 0.012097359634935856
+   },
+   "utilities": {
+    "maxAbs": 0.004346072673797607,
+    "p999": 0.002421856625005603
+   },
+   "top1Teacher": 0.9991848795150033
+  },
+  "fp16 CPU": {
+   "logitsAll": {
+    "maxAbs": 0.0208587646484375,
+    "p999": 0.006960391998291016,
+    "p999Over": "first 512 records"
+   },
+   "logitsLegal": {
+    "maxAbs": 0.01476287841796875,
+    "p999": 0.007180213928222656
+   },
+   "utilities": {
+    "maxAbs": 0.003135114908218384,
+    "p999": 0.0019622475374490023
+   },
+   "top1Teacher": 0.9992867695756279
+  }
+ },
+ "rust": {
+  "rust-cpu": {
+   "records": 20000,
+   "tableEqual": true,
+   "logitsLegal": {
+    "maxAbs": 8.58306884765625e-06,
+    "p999": 4.291534423828125e-06
+   },
+   "utilities": {
+    "maxAbs": 1.2814998626708984e-06,
+    "p999": 6.854534149169922e-07
+   },
+   "top1Teacher": 1.0
+  },
+  "rust-cuda": {
+   "records": 20000,
+   "tableEqual": true,
+   "logitsLegal": {
+    "maxAbs": 2.5272369384765625e-05,
+    "p999": 1.1444091796875e-05
+   },
+   "utilities": {
+    "maxAbs": 3.3974647521972656e-06,
+    "p999": 1.6987323760986328e-06
+   },
+   "top1Teacher": 1.0
+  }
+ }
+}
