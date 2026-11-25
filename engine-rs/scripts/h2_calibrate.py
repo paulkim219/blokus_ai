@@ -72,15 +72,17 @@ def run_cost(configs: list[str], threads: int, out: str) -> list[dict]:
 
 def probe_t(tier: str) -> None:
     """Smallest T whose mean network evaluations per searched move is at most 1 + the tier's budget,
-    at the tier's own iterationScale (8 threads: counts do not depend on timing)."""
+    at the tier's own iterationScale (several threads: counts do not depend on timing). Each candidate runs
+    in its own process: every thread keeps one engine per config, and a pro tree is about 0.9 GB, so nine pro
+    configs on 8 threads ran out of memory (2026-11-25, first attempt)."""
     os.makedirs("tmp/h2/dev", exist_ok=True)
     arm = "T-RI" if tier == "turbo" else "P-RI"
-    paths = []
+    threads = 8 if tier == "turbo" else 4
+    per = []
     for T in T_CANDIDATES:
         p = f"tmp/h2/dev/probe-{tier}-T{T}.json"
         json.dump(arm_config(tier, ARMS[arm][1], T, None), open(p, "w"), indent=1)
-        paths.append(p)
-    per = run_cost(paths, 8, f"tmp/h2/dev/probe-t-{tier}.csv")
+        per += run_cost([p], threads, f"tmp/h2/dev/probe-t-{tier}-T{T}.csv")
     chosen = next((T for T, r in zip(T_CANDIDATES, per) if r["netEvalsPerSearched"] <= 1 + BUDGET[tier]), T_CANDIDATES[-1])
     result = {"tier": tier, "budget": BUDGET[tier], "candidates": [{"T": T} | r for T, r in zip(T_CANDIDATES, per)], "T": chosen}
     json.dump(result, open(f"tmp/h2/dev/probe-t-{tier}.json", "w"), indent=1)
