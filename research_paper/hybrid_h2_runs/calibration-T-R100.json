@@ -1,0 +1,28 @@
+{
+ "tier": "turbo",
+ "arm": "T-R100",
+ "T": null,
+ "iterationScale": 24.31636306792701,
+ "rounds": [
+  {
+   "round": 0,
+   "iterationScale": 25.091,
+   "controlMs": 122.58428666666667,
+   "armMs": 126.48940666666667,
+   "ratio": 1.0318566115298191,
+   "armNetEvalsPerSearched": 0.9865771812080537,
+   "controlIterations": 5669.724832214765,
+   "armIterations": 5671.275167785235
+  },
+  {
+   "round": 1,
+   "iterationScale": 24.31636306792701,
+   "controlMs": 122.63312,
+   "armMs": 123.55521999999999,
+   "ratio": 1.0075191758963646,
+   "armNetEvalsPerSearched": 0.9865771812080537,
+   "controlIterations": 5669.724832214765,
+   "armIterations": 5501.832214765101
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+{
+ "tier": "pro",
+ "arm": "P-R50",
+ "T": null,
+ "iterationScale": 239.172,
+ "rounds": [
+  {
+   "round": 0,
+   "iterationScale": 239.172,
+   "controlMs": 1180.4498066666665,
+   "armMs": 1204.1524200000001,
+   "ratio": 1.0200793063792053,
+   "armNetEvalsPerSearched": 0.9865771812080537,
+   "controlIterations": 50845.74496644295,
+   "armIterations": 51478.87248322148
+  }
+ ]
+}

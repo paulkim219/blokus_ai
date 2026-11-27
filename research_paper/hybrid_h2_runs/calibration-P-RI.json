@@ -1,0 +1,28 @@
+{
+ "tier": "pro",
+ "arm": "P-RI",
+ "T": 1024,
+ "iterationScale": 208.80240440096225,
+ "rounds": [
+  {
+   "round": 0,
+   "iterationScale": 239.172,
+   "controlMs": 1172.3232,
+   "armMs": 1342.8336000000002,
+   "ratio": 1.145446579919258,
+   "armNetEvalsPerSearched": 24.174496644295303,
+   "controlIterations": 50845.74496644295,
+   "armIterations": 50884.8322147651
+  },
+  {
+   "round": 1,
+   "iterationScale": 208.80240440096225,
+   "controlMs": 1180.0326933333333,
+   "armMs": 1186.3382866666666,
+   "ratio": 1.0053435751136024,
+   "armNetEvalsPerSearched": 21.476510067114095,
+   "controlIterations": 50845.74496644295,
+   "armIterations": 44767.58389261745
+  }
+ ]
+}

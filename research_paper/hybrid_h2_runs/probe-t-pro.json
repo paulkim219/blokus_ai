@@ -1,0 +1,88 @@
+{
+ "tier": "pro",
+ "budget": 40,
+ "candidates": [
+  {
+   "T": 64,
+   "config": "tmp/h2/dev/probe-pro-T64.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 2960.3091466666665,
+   "iterationsMean": 50433.395973154365,
+   "netEvalsPerSearched": 303.9530201342282
+  },
+  {
+   "T": 128,
+   "config": "tmp/h2/dev/probe-pro-T128.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 2183.9890466666666,
+   "iterationsMean": 51096.644295302016,
+   "netEvalsPerSearched": 154.8523489932886
+  },
+  {
+   "T": 256,
+   "config": "tmp/h2/dev/probe-pro-T256.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1776.22434,
+   "iterationsMean": 50716.88590604027,
+   "netEvalsPerSearched": 80.41610738255034
+  },
+  {
+   "T": 512,
+   "config": "tmp/h2/dev/probe-pro-T512.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1624.1367333333335,
+   "iterationsMean": 51135.24832214765,
+   "netEvalsPerSearched": 43.56375838926174
+  },
+  {
+   "T": 1024,
+   "config": "tmp/h2/dev/probe-pro-T1024.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1536.7023066666666,
+   "iterationsMean": 50884.8322147651,
+   "netEvalsPerSearched": 24.174496644295303
+  },
+  {
+   "T": 2048,
+   "config": "tmp/h2/dev/probe-pro-T2048.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1504.9801200000002,
+   "iterationsMean": 51356.026845637585,
+   "netEvalsPerSearched": 14.12751677852349
+  },
+  {
+   "T": 4096,
+   "config": "tmp/h2/dev/probe-pro-T4096.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1487.1070866666666,
+   "iterationsMean": 51621.476510067114,
+   "netEvalsPerSearched": 8.120805369127517
+  },
+  {
+   "T": 8192,
+   "config": "tmp/h2/dev/probe-pro-T8192.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1463.6539533333332,
+   "iterationsMean": 52231.838926174496,
+   "netEvalsPerSearched": 4.651006711409396
+  },
+  {
+   "T": 16384,
+   "config": "tmp/h2/dev/probe-pro-T16384.json",
+   "positions": 150,
+   "searched": 149,
+   "msMean": 1463.167,
+   "iterationsMean": 52161.395973154365,
+   "netEvalsPerSearched": 2.791946308724832
+  }
+ ],
+ "T": 1024
+}
